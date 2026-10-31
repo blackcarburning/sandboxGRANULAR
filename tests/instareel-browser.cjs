@@ -5,7 +5,7 @@ const base=process.env.MYGRAIN_TEST_URL||'http://127.0.0.1:18936/mygrain/';asser
  const browser=await type.launch(engine==='chromium'?{executablePath:'/snap/bin/chromium',args:['--no-sandbox','--disable-dev-shm-usage','--autoplay-policy=no-user-gesture-required']}:{});
  try{
   const context=await browser.newContext({viewport:{width:390,height:844},hasTouch:true,isMobile:true,userAgent:'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1'});
-  assert.equal((await context.request.post(base+'api/auth/login',{data:{username:'admin',password:'instareel-fixture'}})).status(),200);
+  assert.equal((await context.request.post(base+'api/auth/login',{data:{username:'admin',password:process.env.MYGRAIN_TEST_PASSWORD||'instareel-fixture'}})).status(),200);
   const page=await context.newPage(),errors=[];page.setDefaultTimeout(20000);page.on('pageerror',e=>errors.push(e.message));
   await page.goto(base);await page.waitForFunction(()=>document.documentElement.dataset.mygrainStartup==='ready'&&window.mygrainInstareel);
   await page.evaluate(()=>mygrainCardHistory.ready);await page.locator('#start-btn').tap();await page.waitForFunction(()=>isAudioGraphReady()&&!engineStarting&&!stateSaveSuspended&&!mygrainCardHistory.busy);
@@ -94,6 +94,21 @@ const base=process.env.MYGRAIN_TEST_URL||'http://127.0.0.1:18936/mygrain/';asser
   assert.equal(await page.evaluate(()=>instareelOriginal.snapshot===JSON.stringify(saveState({force:true,snapshotOnly:true}),(key,value)=>key==='timestamp'?undefined:value)),true,'Live patch settings must not change');
   if(process.env.INSTAREEL_MUSICAL_TEST){const first=await page.evaluate(()=>mygrainInstareel.job.id),response=await context.request.get(base+`api/instareel/${first}`,{headers:{'X-Mygrain-User':'admin'}}),data=(await response.json()).job;assert.deepEqual(data.plan.options,{notes:true,drums:true,recutV:!!process.env.INSTAREEL_RECUT_TEST});assert(data.plan.fills.length>0);assert.equal(data.plan.version,8);assert(data.plan.rollIterations.length>=data.plan.fills.length);if(process.env.MYGRAIN_INSTAREEL_EVIDENCE)fs.writeFileSync(process.env.MYGRAIN_INSTAREEL_EVIDENCE+'/'+engine+'-plan.json',JSON.stringify(data.plan,null,2));}
   if(process.env.INSTAREEL_RECUT_TEST){const id=await page.evaluate(()=>mygrainInstareel.job.id);const data=await (await context.request.get(base+`api/instareel/${id}`,{headers:{'X-Mygrain-User':'admin'}})).json();assert.equal(data.job.plan.options.recutV,true)}
+  if(process.env.INSTAREEL_MASTER_TEST){
+   const jobId=await page.evaluate(()=>mygrainInstareel.job.id);const originalResponse=await context.request.get(base+`api/instareel/${jobId}/wav`,{headers:{'X-Mygrain-User':'admin'}});assert.equal(originalResponse.status(),200);const before=await originalResponse.body();
+   await page.locator('#instareelMaster').tap();const dialog=page.locator('.mastering-dialog');await dialog.waitFor();
+   assert.equal(await dialog.locator('.mastering-match').isChecked(),false);await dialog.locator('.mastering-start').tap();
+   await page.waitForFunction(()=>!document.querySelector('.mastering-comparison')?.hidden||!document.querySelector('.mastering-start')?.disabled,null,{timeout:120000});
+   assert.match(await dialog.locator('.mastering-status').textContent(),/Saved master-clean-minus16LUFS(?:-[0-9]+)?\.wav/);
+   const saved=decodeURIComponent(new URL(await dialog.locator('.mastering-result').getAttribute('src')).pathname.split('/').pop());
+   await page.evaluate(value=>window.__reelMaster=value,saved);await dialog.getByRole('button',{name:'Open Masters',exact:true}).click();
+   await page.waitForFunction(()=>document.querySelector('#wavRepositoryBrowserList')?.dataset.masterKind==='reels'&&document.querySelector('#wavRepositoryBrowserList article[data-master-kind="reels"]'));
+   const masterCard=page.locator('#wavRepositoryBrowserList article').filter({has:page.getByText(saved,{exact:true})});assert.equal(await masterCard.locator('textarea').count(),1);
+   assert.equal(await page.locator('#wavRepositoryBrowserList article[data-master-kind="waves"]').count(),0);
+   await page.locator('.wav-library-sections').getByRole('button',{name:'WAVs',exact:true}).click();assert.equal(await page.locator('#wavRepositoryBrowserList article[data-master-kind]').count(),0);
+   await page.evaluate(()=>closeWavRepositoryBrowser());assert.deepEqual(await (await context.request.get(base+`api/instareel/${jobId}/wav`,{headers:{'X-Mygrain-User':'admin'}})).body(),before);
+   console.log('PASS',engine,'current reel mastering, Reels section, private notes controls, exact original bytes');
+  }
   assert.equal(await page.locator('#instareelLoop').isChecked(),true);
   await page.locator('#instareelPlay').tap();await page.waitForFunction(()=>mygrainInstareel.player.playing);
   const preview=await page.evaluate(()=>{const api=mygrainInstareel.player;window.reelAnalyser=audioContext.createAnalyser();api.source.connect(reelAnalyser);return {duration:api.buffer.duration,loop:api.source.loop,end:api.source.loopEnd}});
@@ -112,6 +127,16 @@ const base=process.env.MYGRAIN_TEST_URL||'http://127.0.0.1:18936/mygrain/';asser
   await page.waitForFunction(()=>{const pcm=new Float32Array(savedReelAnalyser.fftSize);savedReelAnalyser.getFloatTimeDomainData(pcm);return pcm.some(x=>Math.abs(x)>.001)});
   await page.locator('#instareelPlay').tap();assert.equal(await page.evaluate(()=>mygrainInstareel.player.playing),false);
   console.log('PASS',engine,'saved-browser Preview starts audible playback with one tap');
+  if(process.env.INSTAREEL_MASTER_TEST){
+   const row=page.locator('.instareel-library-row').filter({hasText:'Test Reel '+engine}).first();await row.getByRole('button',{name:'Master Reel',exact:true}).click();
+   const dialog=page.locator('.mastering-dialog');await dialog.waitFor();await dialog.locator('.mastering-start').tap();
+   await page.waitForFunction(()=>!document.querySelector('.mastering-comparison')?.hidden||!document.querySelector('.mastering-start')?.disabled,null,{timeout:120000});
+   assert.match(await dialog.locator('.mastering-status').textContent(),/Saved /);
+   const saved=decodeURIComponent(new URL(await dialog.locator('.mastering-result').getAttribute('src')).pathname.split('/').pop());assert.equal(saved,await page.evaluate(()=>window.__reelMaster));
+   await dialog.locator('.mastering-close').click();
+   console.log('PASS',engine,'saved-reel Master Reel uses the same content/settings cache');
+  }
+
   for(const viewport of [{width:390,height:844},{width:844,height:390}]){await page.setViewportSize(viewport);await page.locator('#instareelControls').scrollIntoViewIfNeeded();assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));}
   if(process.env.MYGRAIN_INSTAREEL_EVIDENCE)await page.screenshot({path:process.env.MYGRAIN_INSTAREEL_EVIDENCE+'/'+engine+'-g.png'});
   const id=await page.evaluate(()=>mygrainInstareel.job.id);

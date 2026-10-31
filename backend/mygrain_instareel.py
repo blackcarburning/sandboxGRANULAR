@@ -267,6 +267,29 @@ def media(handler, path, content_type, download=None):
             handler.close_connection = True
 
 
+def mastering_source(accounts, user, library_id=None, job_id=None):
+    """Resolve only this authenticated user's immutable, completed reel audio."""
+    ident = library_id if library_id is not None else job_id
+    if not isinstance(ident, str) or not re.fullmatch(r'[a-f0-9]{32}', ident):
+        raise ValueError('Choose a valid reel.')
+    root = reel_root(accounts, user)
+    if library_id is not None:
+        with accounts.user_lock(user):
+            wavs = accounts.path_for('wavs', user=user)
+            row = next((r for r in read_library(root, wavs) if r['id'] == ident), None)
+            if not row:
+                raise ValueError('Saved reel not found.')
+            path = checked(saved_wavs(root) / row['filename'], root)
+            if hashlib.sha256(path.read_bytes()).hexdigest() != row['sha256']:
+                raise ValueError('Saved reel changed. Refresh the reel browser.')
+            return path, row['filename']
+    with LOCK:
+        job = JOBS.get((user['id'], ident))
+        if not job or job['state'] != 'done':
+            raise ValueError('Reel is not ready or has expired.')
+        return checked(job['folder'] / 'reel.wav', root), 'reel.wav'
+
+
 def handle(handler, accounts, songs):
     """Caller has authenticated, pinned identity and checked same-origin writes.
 

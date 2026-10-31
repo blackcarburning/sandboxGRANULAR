@@ -73,6 +73,40 @@ class Mastering(unittest.TestCase):
         self.assertEqual(m.target_lufs('dense', -6), -6)
         self.assertEqual(m.target_lufs('clean'), -16)
 
+    def test_master_library_identity_privacy_and_legacy_adoption(self):
+        import hashlib, json
+        with tempfile.TemporaryDirectory() as folder:
+            root = pathlib.Path(folder)
+            original = root/'old-20261031.master-dense-abcdef.wav'
+            original.write_bytes(b'original master audio')
+            cache = root/'.mastering-cache'; cache.mkdir()
+            entry = {'savedName': original.name, 'sha256': hashlib.sha256(original.read_bytes()).hexdigest(),
+                     'report': {'preset': 'dense', 'targetLufs': -6}}
+            (cache/'old.json').write_text(json.dumps(entry))
+            canonical = root/'master-dense-minus6LUFS.wav'; canonical.write_bytes(b'another master')
+            m.save_info(root, canonical.name, {'kind':'reels', 'preset':'dense', 'targetLufs':-6, 'sourceName':'private source', 'comment':'SECRET'})
+            rows = [{'name':original.name}, {'name':canonical.name}]
+            m.decorate(root, rows)
+            self.assertEqual(rows[0]['mastering']['kind'], 'waves')
+            self.assertEqual(rows[1]['mastering']['kind'], 'reels')
+            self.assertNotEqual(rows[0]['displayName'], rows[1]['displayName'])
+            recipient = root/'recipient'; recipient.mkdir()
+            copied = recipient/canonical.name; copied.write_bytes(canonical.read_bytes())
+            m.copy_info(root, canonical.name, recipient, copied.name)
+            self.assertEqual(m.info(recipient, copied.name)['kind'], 'reels')
+            self.assertNotIn('sourceName', m.info(recipient, copied.name))
+            self.assertNotIn('SECRET', m.metadata_path(root, canonical.name).read_text())
+            renamed = root/'renamed.wav'; canonical.rename(renamed)
+            m.rename_info(root, canonical.name, renamed.name)
+            self.assertEqual(m.info(root, renamed.name)['kind'], 'reels')
+            self.assertIsNone(m.info(root, canonical.name))
+            renamed.write_bytes(b'external replacement')
+            self.assertIsNone(m.info(root, renamed.name))
+            m.delete_info(root, renamed.name)
+            self.assertFalse(m.metadata_path(root, renamed.name).exists())
+            (root/'link.wav').symlink_to(original)
+            with self.assertRaises(ValueError): m.save_info(root, 'link.wav', {})
+
     def test_silent_rejected(self):
         with tempfile.TemporaryDirectory() as folder:
             source = pathlib.Path(folder)/'silent.wav'

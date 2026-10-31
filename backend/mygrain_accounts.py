@@ -175,7 +175,7 @@ def verify_password(password, encoded):
 
 
 class Accounts:
-    def __init__(self, database, users_root, legacy_paths, wav_feedback_invalidated=None, wav_art_copy=None):
+    def __init__(self, database, users_root, legacy_paths, wav_feedback_invalidated=None, wav_art_copy=None, wav_master_copy=None, wav_master_info=None):
         self.database = pathlib.Path(database)
         self.users_root = pathlib.Path(users_root)
         self.legacy_paths = {key: pathlib.Path(path) for key, path in legacy_paths.items()}
@@ -183,6 +183,8 @@ class Accounts:
         self.user_locks = {}
         self.wav_feedback_invalidated = wav_feedback_invalidated
         self.wav_art_copy = wav_art_copy
+        self.wav_master_copy = wav_master_copy
+        self.wav_master_info = wav_master_info
 
     def user_lock(self, user):
         with self.storage_lock:
@@ -558,10 +560,12 @@ class Accounts:
             self.invalidate_changed_wav(filename)
             root = checked_path(self.path_for('wavs', recipient))
             root.mkdir(parents=True, exist_ok=True, mode=0o700)
+            master = self.wav_master_info(source.parent, source.name) if self.wav_master_info else None
+            copy_name = master['label'] if master else filename
             destination = None
             try:
                 for index in range(10000):
-                    candidate = filename if index == 0 else f'{source.stem}-{index}.wav'
+                    candidate = copy_name if index == 0 else f'{pathlib.Path(copy_name).stem}-{index}.wav'
                     destination = checked_path(root / candidate, root)
                     try:
                         output = destination.open('xb')
@@ -580,6 +584,8 @@ class Accounts:
                         digest.update(chunk)
                 if self.wav_art_copy:
                     self.wav_art_copy(source.parent, source.name, root, destination.name)
+                if self.wav_master_copy:
+                    self.wav_master_copy(source.parent, source.name, root, destination.name)
                 self.clear_wav_comments(recipient, destination.name)
                 # Sender notes are private source metadata, not part of the copy.
                 now = time.time()
@@ -613,9 +619,10 @@ class Accounts:
                 WHERE owner_id=? ORDER BY shares.created_at DESC''',
                                       (current_user()['id'],)).fetchall()
         return [{'id': row['id'], 'filename': row['filename'], 'recipient': row['recipient'],
-                 'recipientFilename': row['recipient_filename'], 'comments': row['comments'],
+                 'privateComments': bool(self.wav_master_info and self.wav_master_info(self.path_for('wavs'), row['filename'])),
+                 'recipientFilename': row['recipient_filename'], 'comments': '' if self.wav_master_info and self.wav_master_info(self.path_for('wavs'), row['filename']) else row['comments'],
                  'createdBy': row['creator'], 'sharedBy': row['sharer'],
-                 'commentsBy': row['commenter'] if row['comments'] else None,
+                 'commentsBy': row['commenter'] if row['comments'] and not (self.wav_master_info and self.wav_master_info(self.path_for('wavs'), row['filename'])) else None,
                  'createdAt': row['created_at'], 'updatedAt': row['updated_at'],
                  'recipientDeleted': bool(row['recipient_deleted']), 'sourceDeleted': bool(row['source_deleted']),
                  'sha256': row['sha256'], 'size': row['size']} for row in rows]
@@ -629,6 +636,9 @@ class Accounts:
 
     def feedback_changed(self, filename, comment):
         self.invalidate_changed_wav(filename)
+        if self.wav_master_info and self.wav_master_info(self.path_for('wavs'), filename):
+            # Master comments remain private on both sides of a share.
+            return
         with self.connection() as connection:
             user_id = current_user()['id']
             connection.execute('UPDATE shares SET comments=?, comments_by_id=?, updated_at=? WHERE recipient_id=? AND recipient_filename=? AND recipient_deleted=0',

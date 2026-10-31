@@ -117,12 +117,12 @@
     }
 
     function wavNotesLabel(file = {}) {
-        const parts = ['Repo Notes'];
+        const parts = [file.mastering ? 'Private master notes' : 'Repo Notes'];
         if (file.feedback?.comment) {
             parts.push(`Comment by ${creditName(file.feedback.commentBy ?? file.commentBy) || 'unknown'}`);
         }
         const sharer = creditName(file.sharedBy);
-        if (sharer) parts.push(`Your Repo Notes on this copy are visible to ${sharer}.`);
+        if (sharer && !file.mastering) parts.push(`Your Repo Notes on this copy are visible to ${sharer}.`);
         return parts.join(' · ');
     }
 
@@ -455,6 +455,7 @@
     let shareGeneration = 0;
     let shareController;
     let shareFilename = null;
+    let shareIsMaster = false;
     function renderComments(shares, filename) {
         const thread = byId('mygrainShareThread');
         thread.replaceChildren();
@@ -472,7 +473,7 @@
             const comments = document.createElement('p');
             comments.className = 'mygrain-share-comment';
             comments.dataset.shareId = String(share.id || '');
-            comments.textContent = commentText(share.comments, creditName(share.commentsBy) || 'unknown', 'Comment by ') || 'No recipient comments yet.';
+            comments.textContent = share.privateComments ? 'Comments stay private on each master copy.' : commentText(share.comments, creditName(share.commentsBy) || 'unknown', 'Comment by ') || 'No recipient comments yet.';
             item.append(heading, copy, credits, comments);
             thread.append(item);
         });
@@ -506,7 +507,7 @@
                     body: JSON.stringify({ filename: shareFilename, username: recipient })
                 });
                 if (generation !== shareGeneration) return;
-                byId('mygrainShareStatus').textContent = `Shared a copy with ${result.share?.recipient || recipient}. They can add feedback in their WAV Repo Notes.`;
+                byId('mygrainShareStatus').textContent = `Shared a copy with ${result.share?.recipient || recipient}. ${shareIsMaster?'Comments remain private on both copies.':'They can add feedback in their WAV Repo Notes.'}`;
                 await loadShares(false);
             } catch (error) {
                 if (generation === shareGeneration) byId('mygrainShareStatus').textContent = `Share failed: ${error.message}. Refresh comments before retrying if the connection was interrupted.`;
@@ -537,8 +538,9 @@
         shareController = new AbortController();
         const generation = ++shareGeneration;
         shareFilename = file?.name || null;
+        shareIsMaster = !!file?.mastering;
         byId('mygrainShareTitle').textContent = shareFilename ? 'Share WAV' : 'Shared WAVs';
-        byId('mygrainShareFilename').textContent = shareFilename || 'Your outbound WAV copies and recipient feedback.';
+        byId('mygrainShareFilename').textContent = file?.displayName || shareFilename || 'Your outbound WAV copies and recipient feedback.';
         byId('mygrainShareCredits').textContent = shareFilename ? wavCredits(file) : '';
         byId('mygrainShareCredits').hidden = !shareFilename;
         byId('mygrainShareForm').hidden = !shareFilename;

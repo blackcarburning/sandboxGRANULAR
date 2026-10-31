@@ -76,7 +76,7 @@ box.innerHTML=`<legend>INSTAREEL <small>· 10</small></legend>
  <p id="instareelStatus" role="status" aria-live="polite">Find a patch you like, then make a reel. No extra AI calls.</p>
  <div id="instareelPreview" hidden><strong id="instareelPreviewTitle">Rendered reel</strong>
  <div class="instareel-player"><button id="instareelPlay" type="button">Load & Play</button><label class="instareel-loop"><input id="instareelLoop" type="checkbox" checked> Loop</label><input id="instareelSeek" data-mirror-control="instareel-playback" type="range" min="0" max="1" value="0" step=".01" aria-label="Reel playback position" disabled><span id="instareelTime">0.0s</span></div>
- <div id="instareelSaveControls"><label>Reel name <input id="instareelName" type="text" maxlength="64" value="My Reel"></label><div class="instareel-actions"><button id="instareelSave" type="button">Save to INSTAREEL</button><button id="instareelDiscard" type="button">Discard preview</button></div></div></div>
+ <div class="instareel-actions"><button id="instareelMaster" type="button">Master Reel</button><button id="instareelMasters" type="button">Browse Reel Masters</button></div><div id="instareelSaveControls"><label>Reel name <input id="instareelName" type="text" maxlength="64" value="My Reel"></label><div class="instareel-actions"><button id="instareelSave" type="button">Save to INSTAREEL</button><button id="instareelDiscard" type="button">Discard preview</button></div></div></div>
  <details id="instareelLibrary"><summary>INSTAREEL WAV Browser</summary><button id="instareelRefresh" type="button">Refresh reels</button><div id="instareelLibraryList">Open to load your saved reels.</div></details>`;
 card.append(box);
 const el=id=>document.getElementById('instareel'+id),base='/mygrain/api/instareel';
@@ -87,6 +87,7 @@ function sync(){
  const blocked=busy||root.mygrainAiPatch?.busy||root.mygrainCardHistory?.busy;
  el('NewCurrent').disabled=!!blocked;el('Make').disabled=!!blocked;el('Seconds').disabled=busy;el('Variation').disabled=busy;el('Notes').disabled=busy;el('Drums').disabled=busy;el('RecutV').disabled=busy;el('Cancel').hidden=!busy;el('Cancel').disabled=busy&&!job;
  el('Make').textContent=current?.jobId?'Try Another':'Make Reel';
+ el('Master').disabled=busy||!current;
  el('Save').disabled=busy||!current?.jobId||!!current?.saved;
 }
 function abortTask(){generation++;clearTimeout(timer);timer=null;controller?.abort();controller=null;busy=false;capturing=false;sync();root.dispatchEvent(new Event('mygrain-ai-update'))}
@@ -179,6 +180,8 @@ el('Save').addEventListener('click',async()=>{
  try{const data=await json(`${base}/${item.jobId}/save`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:el('Name').value})});if(identity!==user()||item!==current)return;item.saved=true;message(`Saved ${data.reel.filename} to INSTAREEL.`);await library()}
  catch(error){message(`Save failed: ${error.message}. Your preview is still available.`)}finally{sync()}
 });
+el('Master').addEventListener('click',()=>{if(!current||busy)return;stopSource();root.mygrainMastering?.openReel(current);});
+el('Masters').addEventListener('click',()=>root.openWavMastersBrowser?.('reels'));
 el('Discard').addEventListener('click',()=>{cancelPlayer();current=null;el('Preview').hidden=true;message('Preview discarded. Saved reels and current patch unchanged.');sync()});
 async function library(){
  const identity=user(),list=el('LibraryList');list.textContent='Loading reels…';
@@ -210,7 +213,8 @@ async function library(){
     const path=[folder,reel.filename].filter(Boolean).join('/');await json(`/mygrain/api/ftp/upload?${new URLSearchParams({path})}`,{method:'POST',body:blob,headers:{'Content-Type':'application/octet-stream'},signal:libraryRequest.signal});
     if(!disposed&&identity===user())message(`Uploaded ${reel.filename} to private FTP /${identity}/${folder}.`);
    });
-   row.append(title,play,download,rename,remove,upload,form);list.append(row);
+   const master=document.createElement('button');master.type='button';master.textContent='Master Reel';master.onclick=()=>{stopSource();root.mygrainMastering?.openReel({libraryId:reel.id,name:reel.name});};
+   row.append(title,play,download,master,rename,remove,upload,form);list.append(row);
   }
  }catch(error){if(identity===user())list.textContent=`Could not load reels: ${error.message}`}
 }

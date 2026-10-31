@@ -1,10 +1,20 @@
 --- a/fs7300-documenter/server.py
 +++ b/fs7300-documenter/server.py
-@@ -2562,0 +2563,4 @@
+@@ -537,0 +538 @@
++    _mastering_module.decorate(mygrain_repository_root(MYGRAIN_WAVS_ROUTE), files)
+@@ -2562,0 +2564,4 @@
 +_mastering_spec = importlib.util.spec_from_file_location('mygrain_mastering', pathlib.Path(__file__).resolve().parent.parent / 'sandboxGRANULAR' / 'backend' / 'mygrain_mastering.py')
 +_mastering_module = importlib.util.module_from_spec(_mastering_spec)
 +_mastering_spec.loader.exec_module(_mastering_module)
 +
-@@ -2809,0 +2814,2 @@
+@@ -2672 +2677,2 @@
+-        wav_feedback_invalidated=lambda filename: delete_mygrain_repository_feedback(MYGRAIN_WAVS_ROUTE, filename), wav_art_copy=_wav_art_module.copy_art)
++        wav_feedback_invalidated=lambda filename: delete_mygrain_repository_feedback(MYGRAIN_WAVS_ROUTE, filename), wav_art_copy=_wav_art_module.copy_art,
++        wav_master_copy=_mastering_module.copy_info, wav_master_info=_mastering_module.info)
+@@ -2809,0 +2816,2 @@
 +            if route['base'] == MYGRAIN_WAVS_ROUTE and (inner == '/api/mastering' or inner.startswith('/api/mastering/')):
-+                return _mastering_module.handle(self, self.command, inner, MYGRAIN_ACCOUNTS, user, ensure_mygrain_repository_root(MYGRAIN_WAVS_ROUTE), _accounts_module.checked_path)
++                return _mastering_module.handle(self, self.command, inner, MYGRAIN_ACCOUNTS, user, ensure_mygrain_repository_root(MYGRAIN_WAVS_ROUTE), _accounts_module.checked_path, _instareel_module)
+@@ -3508,0 +3517 @@
++                _mastering_module.delete_info(root, target_name)
+@@ -3560,0 +3570 @@
++                        _mastering_module.rename_info(root, source_name, target_name)

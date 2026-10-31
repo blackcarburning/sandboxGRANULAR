@@ -39,6 +39,26 @@ class ReelTests(unittest.TestCase):
    try:
     REELS.handle(handler,accounts,Mock());self.assertEqual(handler.send_json.call_args.kwargs['status'],404)
    finally:REELS.JOBS.clear()
+ def test_mastering_sources_are_completed_owner_only_and_hash_verified(self):
+  import contextlib, hashlib
+  with tempfile.TemporaryDirectory() as directory:
+   root=pathlib.Path(directory);(root/'alice').mkdir();(root/'bob').mkdir()
+   accounts=Mock();accounts.path_for.side_effect=lambda key,user:root/user['id'];accounts.user_lock.side_effect=lambda user:contextlib.nullcontext()
+   alice={'id':'alice'};bob={'id':'bob'};folder=REELS.reel_root(accounts,alice);ident='e'*32
+   job_folder=folder/('job-'+ident);job_folder.mkdir();audio=job_folder/'reel.wav';audio.write_bytes(b'EXACT-REEL')
+   job={'id':ident,'owner':'alice','state':'running','folder':job_folder};REELS.JOBS[('alice',ident)]=job
+   try:
+    with self.assertRaises(ValueError):REELS.mastering_source(accounts,alice,job_id=ident)
+    job['state']='done';path,name=REELS.mastering_source(accounts,alice,job_id=ident);self.assertEqual(path.read_bytes(),b'EXACT-REEL')
+    with self.assertRaises(ValueError):REELS.mastering_source(accounts,bob,job_id=ident)
+    saved=REELS.saved_wavs(folder)/'Saved.wav';saved.write_bytes(audio.read_bytes())
+    REELS.write_library(folder,[{'id':ident,'filename':saved.name,'sha256':hashlib.sha256(saved.read_bytes()).hexdigest()}])
+    self.assertEqual(REELS.mastering_source(accounts,alice,library_id=ident)[0],saved)
+    with self.assertRaises(ValueError):REELS.mastering_source(accounts,bob,library_id=ident)
+    saved.write_bytes(b'CHANGED')
+    with self.assertRaises(ValueError):REELS.mastering_source(accounts,alice,library_id=ident)
+    with self.assertRaises(ValueError):REELS.mastering_source(accounts,alice,job_id='../escape')
+   finally:REELS.JOBS.clear()
  def test_save_is_idempotent_and_retains_exact_wav_bytes(self):
   import contextlib,json
   from types import SimpleNamespace

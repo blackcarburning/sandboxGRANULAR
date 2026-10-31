@@ -1,4 +1,4 @@
-# Server mastering (v3, 2026-10-31)
+# Server mastering (v4, 2026-10-31)
 
 Open WAV Folder and choose **Master** beside any clip or exported Song. Presets:
 Clean (aim −16 LUFS), Punch (−14), Dense (−11), Level only (−16 with no dynamics).
@@ -50,7 +50,7 @@ service is needed. `backend/mygrain_mastering.py` is loaded by the documenter
 server; deployment hook is recorded in `deploy/mastering-host-integration.patch`.
 Apply this zero-context hook with `git apply --unidiff-zero` at the workspace
 root if deploying to another copy. The public static allowlist includes `mastering.js`. UI build marker is
-`Mastering · LSP + FFmpeg · v3`.
+`Mastering · LSP + FFmpeg · v4`.
 
 Checks: `python3 tests/test_mastering.py` (requires NumPy for fixtures),
 `node tests/mastering-browser.cjs` against the isolated Song test server on
@@ -61,3 +61,41 @@ jobs, warm reuse and phone playback. Browser checks emulate phones; physical
 hardware listening remains a user audition.
 
 Targets are selectable from −24 to −6 LUFS (`targetLufs` in the API), independent of preset style. Omitted targets retain legacy preset defaults. Cache identity includes target. Level only remains peak-limited without compression and may not reach high targets. Preview volume compensation is off by default; a dialog-owned Web Audio gain stage updates immediately during playback, including platforms without writable media volume. Preview gain is never written into saved WAVs.
+
+
+## G Reels and master library (MASTER.4)
+
+G's completed preview and each saved INSTAREEL row expose **Master Reel**.
+The same server worker snapshots the completed job or hash-verified saved reel
+using `reelJobId` or `reelId` (mutually exclusive with `filename`). Source
+resolution checks owner and readiness; there are no client-supplied filesystem
+paths. Reels remain server-offloaded and their original audio and editable
+source archives are never changed. This is post-render mastering, not a Song
+renderer compatibility change: existing/current Song and reel DSP is unchanged.
+
+The WAV browser has **WAVs** (original/main list) and **Masters**, with **Reels**
+and **Waves** subsections. Every master keeps normal preview/download, artwork,
+rename/delete, private notes and sharing controls. Master notes are never copied
+with audio and recipient master notes are not published to the sender. Shared
+master copies preserve category/settings only, not source notes or source names.
+Normal WAV recipient-feedback behavior remains unchanged.
+
+New master filenames contain only `master`, processing preset and target,
+for example `master-dense-minus6LUFS.wav`. A numeric suffix avoids overwriting
+another source with the same settings. Repeated identical content/settings reuse
+the saved result. Category is part of the cache identity, so identical source
+PCM mastered as a reel and a WAV cannot be misfiled by cache reuse.
+Account-local `.mastering-library/` records bind metadata to the saved file
+signature. Rename/share/delete and external-replacement checks retain or discard
+metadata appropriately. Verified historical cache outputs are adopted as Waves;
+their audio/notes/stable storage names stay unchanged, but browser titles and
+downloads use short, timestamp-free master labels. Counterfeit/changed files
+are not adopted. Hidden library/cache metadata is not publicly served.
+
+Checks: `tests/mastering-browser.cjs` covers main-list exclusion, Waves/Reels
+navigation, private comment save/reload, shared copies and two-way master-note
+privacy. `INSTAREEL_MASTER_TEST=1` adds completed-job and saved-reel mastering
+through real server audio to `tests/instareel-browser.cjs` (use its isolated
+server URL/password environment options). The host hooks in
+`deploy/mastering-host-integration.patch` include library decoration and metadata
+lifecycle in addition to worker dispatch; apply only to the documented baseline.

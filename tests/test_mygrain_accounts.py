@@ -486,6 +486,28 @@ class AccountHTTPTests(unittest.TestCase):
         self.success(self.admin, 'POST', '/mygrain-wavs/api/file-feedback', data={'filename': filename, 'comment': '   ', 'commentBy': 'dan'})
         self.assertIsNone(self.wav_entry(self.admin, filename)['commentBy'])
 
+    def test_master_share_uses_short_names_categories_and_private_comments(self):
+        source = self.upload(self.admin, 'old-20261031.master-dense-abcdef.wav')
+        root = self.accounts.path_for('wavs', self.accounts.lookup_user('admin'))
+        SERVER._mastering_module.save_info(root, source, {'kind':'reels', 'preset':'dense', 'targetLufs':-6, 'sourceName':'private source'})
+        self.success(self.admin, 'POST', '/mygrain-wavs/api/file-feedback', data={'filename':source, 'comment':'OWNER SECRET'})
+        shared = self.success(self.admin, 'POST', '/mygrain-wavs/api/share', data={'filename':source,'username':'dan'})['share']
+        self.assertEqual(shared['recipientFilename'], 'master-dense-minus6LUFS.wav')
+        copied = self.wav_entry(self.dan, shared['recipientFilename'])
+        self.assertEqual(copied['mastering']['kind'], 'reels')
+        self.assertNotIn('sourceName', copied['mastering'])
+        self.assertEqual(copied['feedback']['comment'], '')
+        self.success(self.dan, 'POST', '/mygrain-wavs/api/file-feedback', data={'filename':copied['name'], 'comment':'RECIPIENT SECRET'})
+        outgoing = self.success(self.admin, 'GET', '/mygrain-wavs/api/shares')['shares'][0]
+        self.assertEqual(outgoing['comments'], '')
+        self.assertTrue(outgoing['privateComments'])
+        renamed = self.success(self.dan, 'POST', '/mygrain-wavs/api/rename', data={'from':copied['name'],'to':'renamed-master.wav'})['savedName']
+        self.assertEqual(self.wav_entry(self.dan, renamed)['mastering']['kind'], 'reels')
+        self.assertEqual(self.wav_entry(self.dan, renamed)['feedback']['comment'], 'RECIPIENT SECRET')
+        self.assertEqual(self.wav_entry(self.admin, source)['feedback']['comment'], 'OWNER SECRET')
+        self.success(self.dan, 'DELETE', '/mygrain-wavs/api/delete?filename='+renamed)
+        self.assertFalse(SERVER._mastering_module.metadata_path(self.accounts.path_for('wavs',self.accounts.lookup_user('dan')),renamed).exists())
+
     def test_three_user_reshare_preserves_creator_sharer_and_real_note_authors(self):
         third = self.third_user()
         filename = self.upload(self.admin, 'three-users.wav')

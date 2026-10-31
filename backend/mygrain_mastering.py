@@ -5,6 +5,7 @@ import hashlib
 import json
 import math
 import os
+import re
 from pathlib import Path
 import secrets
 import shutil
@@ -161,7 +162,111 @@ def process(source, output, preset='clean', loop=True, target=None):
         return {'engine': VERSION, 'preset': preset, 'loop': loop, 'frames': frames, 'sampleRate': rate, 'latencySamples': delay, 'seamStep': seam, 'before': before, 'after': after, 'comparisonGain': min(1, 10 ** ((before['lufs'] - after['lufs']) / 20)), 'originalGain': min(1, 10 ** ((after['lufs'] - before['lufs']) / 20)), 'gainDb': gain, 'makeupDb': makeup, 'targetLufs': target}
 
 
-def handle(handler, method, inner, accounts, user, root, checked):
+def master_label(preset, target):
+    return f'master-{preset}-minus{abs(float(target)):g}LUFS'
+
+
+def metadata_path(root, name):
+    root = Path(root)
+    if not isinstance(name, str) or Path(name).name != name or name.startswith('.') or '\\' in name:
+        raise ValueError('Invalid master filename.')
+    folder = root / '.mastering-library'
+    path = folder / (hashlib.sha256(name.encode()).hexdigest() + '.json')
+    if root.is_symlink() or folder.is_symlink() or path.is_symlink() or (root / name).is_symlink():
+        raise ValueError('Invalid master storage.')
+    return path
+
+
+def signature(path):
+    stat = path.stat()
+    return [stat.st_size, stat.st_mtime_ns, stat.st_ino]
+
+
+def save_info(root, name, data):
+    path = metadata_path(root, name)
+    path.parent.mkdir(mode=0o700, exist_ok=True)
+    safe = {key: data[key] for key in ('kind', 'preset', 'targetLufs', 'sourceName') if key in data}
+    safe['signature'] = signature(Path(root) / name)
+    temp = path.with_suffix('.' + secrets.token_hex(8) + '.tmp')
+    try:
+        temp.write_text(json.dumps(safe)); temp.chmod(0o600)
+        os.replace(temp, path)
+    finally:
+        temp.unlink(missing_ok=True)
+
+
+def info(root, name):
+    try:
+        path = metadata_path(root, name)
+        data = json.loads(path.read_text())
+        if data['signature'] != signature(Path(root) / name) or data.get('kind') not in ('waves', 'reels'):
+            return None
+        target = target_lufs(data['preset'], data['targetLufs'])
+        return {**{k: data[k] for k in ('kind', 'preset', 'sourceName') if k in data},
+                'targetLufs': target, 'label': master_label(data['preset'], target) + '.wav'}
+    except (OSError, KeyError, ValueError, TypeError):
+        return None
+
+
+def decorate(root, files):
+    # Adopt hash-verified historical outputs without renaming originals or notes.
+    root = Path(root)
+    by_name = {f['name']: f for f in files}
+    cache = root / '.mastering-cache'
+    if cache.is_dir() and not cache.is_symlink():
+        for path in cache.glob('*.json'):
+            if path.is_symlink():
+                continue
+            try:
+                entry = json.loads(path.read_text())
+                name, report = entry['savedName'], entry['report']
+                if name not in by_name or info(root, name):
+                    continue
+                metadata_path(root, name)
+                if hashlib.sha256((root / name).read_bytes()).hexdigest() != entry['sha256']:
+                    continue
+                save_info(root, name, {'kind': entry.get('kind', 'waves'), 'preset': report['preset'],
+                          'targetLufs': report.get('targetLufs', PRESETS[report['preset']][0])})
+            except (OSError, ValueError, KeyError, TypeError):
+                continue
+    canonical = lambda name: re.fullmatch(r'master-[a-z]+-minus[0-9.]+LUFS(?:-[0-9]+)?\.wav', name)
+    used = {f['name'] for f in files if canonical(f['name'])}
+    for file in files:
+        data = info(root, file['name'])
+        if data:
+            label = file['name'] if canonical(file['name']) else data['label']
+            if not canonical(file['name']):
+                counter = 2
+                while label in used:
+                    label = data['label'][:-4] + f'-{counter}.wav'
+                    counter += 1
+            used.add(label)
+            file['displayName'] = label
+            file['mastering'] = data
+    return files
+
+
+def copy_info(source_root, source_name, target_root, target_name):
+    data = info(source_root, source_name)
+    if data:
+        # Copy only mastering settings/category, never source notes or comments.
+        save_info(target_root, target_name, {k: data[k] for k in ('kind', 'preset', 'targetLufs')})
+
+
+def rename_info(root, old, new):
+    path = metadata_path(root, old)
+    if path.is_file():
+        data = json.loads(path.read_text())
+        if data.get('signature') == signature(Path(root) / new):
+            save_info(root, new, data)
+        path.unlink(missing_ok=True)
+
+
+def delete_info(root, name):
+    metadata_path(root, name).unlink(missing_ok=True)
+
+
+def handle(handler, method, inner, accounts, user, root, checked, reels=None):
     """Called after the normal authenticated/identity-pinned API gate."""
     owner = user['id']
     root = Path(root)
@@ -170,6 +275,13 @@ def handle(handler, method, inner, accounts, user, root, checked):
         if not isinstance(payload, dict):
             raise ValueError('Expected mastering settings.')
         name, preset, loop = payload.get('filename'), payload.get('preset', 'clean'), payload.get('loop', True)
+        reel_id, reel_job = payload.get('reelId'), payload.get('reelJobId')
+        is_reel = reel_id is not None or reel_job is not None
+        if is_reel:
+            if reels is None or name is not None or (reel_id is not None and reel_job is not None):
+                raise ValueError('Choose one reel source.')
+            source_path, name = reels.mastering_source(accounts, user, reel_id, reel_job)
+        kind = 'reels' if is_reel else 'waves'
         if not isinstance(name, str) or not name or name.startswith('.') or '/' in name or '\\' in name or Path(name).suffix.lower() != '.wav' or preset not in PRESETS or type(loop) is not bool:
             raise ValueError('Invalid mastering request.')
         loudness_target = target_lufs(preset, payload.get('targetLufs'))
@@ -187,13 +299,13 @@ def handle(handler, method, inner, accounts, user, root, checked):
             JOBS[job_id] = job
         try:
             with accounts.user_lock(user):
-                source = checked(Path(root) / name, root)
+                source = checked(source_path if is_reel else Path(root) / name, root)
                 if not source.is_file() or source.stat().st_size > MAX_BYTES:
                     raise ValueError('WAV missing or over 64 MB.')
                 temp = tempfile.TemporaryDirectory(prefix='mygrain-master-job-')
                 snapshot = Path(temp.name) / 'source.wav'
                 shutil.copyfile(source, snapshot)
-            digest = hashlib.sha256(snapshot.read_bytes() + json.dumps([VERSION, preset, loop, loudness_target]).encode()).hexdigest()
+            digest = hashlib.sha256(snapshot.read_bytes() + json.dumps(['library-v1', VERSION, kind, preset, loop, loudness_target]).encode()).hexdigest()
         except Exception:
             with LOCK:
                 JOBS.pop(job_id, None)
@@ -211,6 +323,7 @@ def handle(handler, method, inner, accounts, user, root, checked):
                             if '/' not in saved and '\\' not in saved and not saved.startswith('.'):
                                 target = checked(Path(root) / saved, root)
                                 if target.is_file() and hashlib.sha256(target.read_bytes()).hexdigest() == entry['sha256']:
+                                    save_info(root, saved, {'kind': kind, 'preset': preset, 'targetLufs': loudness_target, 'sourceName': name})
                                     with LOCK:
                                         job.update(status='done', savedName=saved, report=entry['report'], cacheHit=True)
                                     return
@@ -220,12 +333,14 @@ def handle(handler, method, inner, accounts, user, root, checked):
                 report = process(snapshot, output, preset, loop, loudness_target)
                 # Content-addressed, private result. Never replace an original or
                 # attach an editable patch that misrepresents the mastered DSP.
-                saved = f'{Path(name).stem[:100]}.master-{preset}-{digest[:16]}.wav'
+                stem = master_label(preset, loudness_target)
                 with accounts.user_lock(user):
+                    saved = stem + '.wav'
+                    counter = 2
+                    while (Path(root) / saved).exists():
+                        saved = f'{stem}-{counter}.wav'
+                        counter += 1
                     target = checked(Path(root) / saved, root)
-                    if target.exists() and target.read_bytes() != output.read_bytes():
-                        saved = f'{Path(name).stem[:90]}.master-{preset}-{secrets.token_hex(8)}.wav'
-                        target = checked(Path(root) / saved, root)
                     staging = checked(Path(root) / ('.master-' + job_id), root)
                     try:
                         shutil.copyfile(output, staging)
@@ -233,8 +348,9 @@ def handle(handler, method, inner, accounts, user, root, checked):
                     finally:
                         staging.unlink(missing_ok=True)
                     accounts.wav_created(saved)
+                    save_info(root, saved, {'kind': kind, 'preset': preset, 'targetLufs': loudness_target, 'sourceName': name})
                     cache.mkdir(mode=0o700, exist_ok=True)
-                    cache_file.write_text(json.dumps({'savedName': saved, 'report': report, 'sha256': hashlib.sha256(output.read_bytes()).hexdigest()}))
+                    cache_file.write_text(json.dumps({'savedName': saved, 'kind': kind, 'report': report, 'sha256': hashlib.sha256(output.read_bytes()).hexdigest()}))
                 with LOCK:
                     job.update(status='done', savedName=saved, report=report)
             except Exception as error:
