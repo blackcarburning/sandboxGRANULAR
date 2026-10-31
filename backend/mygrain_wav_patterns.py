@@ -5,6 +5,8 @@ Legacy WAVs have no sidecars and gain no new browser controls.
 """
 import hashlib
 import json
+import os
+import secrets
 import pathlib
 import wave
 import zipfile
@@ -50,6 +52,31 @@ def info(root, filename):
                 'size': archive.stat().st_size, 'sha256': saved['sha256']}
     except (ValueError, OSError, TypeError, AttributeError):
         return None
+
+
+def rebind_after_replace(root, filename, previous_signature):
+    """Retain the editable SOURCE patch when its logical WAV is mastered in place."""
+    wav, archive, metadata = paths(root, filename)
+    if metadata.is_symlink() or not metadata.is_file() or metadata.stat().st_size > 4096:
+        return
+    try:
+        saved = json.loads(metadata.read_text())
+        if not isinstance(saved, dict) or saved.get('wavSignature') != previous_signature:
+            return
+        if saved.get('patternSignature') != signature(archive):
+            return
+        with archive.open('rb') as source:
+            if hashlib.file_digest(source, 'sha256').hexdigest() != saved.get('sha256'):
+                return
+    except (OSError, ValueError, TypeError):
+        return
+    saved['wavSignature'] = signature(wav)
+    temp = metadata.with_name(metadata.name + '.' + secrets.token_hex(8) + '.tmp')
+    try:
+        temp.write_text(json.dumps(saved))
+        os.replace(temp, metadata)
+    finally:
+        temp.unlink(missing_ok=True)
 
 
 def decorate(root, files):

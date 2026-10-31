@@ -175,13 +175,14 @@ def verify_password(password, encoded):
 
 
 class Accounts:
-    def __init__(self, database, users_root, legacy_paths, wav_feedback_invalidated=None, wav_art_copy=None, wav_master_copy=None, wav_master_info=None, wav_art_replaced=None):
+    def __init__(self, database, users_root, legacy_paths, wav_feedback_invalidated=None, wav_art_copy=None, wav_master_copy=None, wav_master_info=None, wav_art_replaced=None, wav_pattern_replaced=None):
         self.database = pathlib.Path(database)
         self.users_root = pathlib.Path(users_root)
         self.legacy_paths = {key: pathlib.Path(path) for key, path in legacy_paths.items()}
         self.storage_lock = threading.RLock()
         self.user_locks = {}
         self.wav_feedback_invalidated = wav_feedback_invalidated
+        self.wav_pattern_replaced = wav_pattern_replaced
         self.wav_art_replaced = wav_art_replaced
         self.wav_art_copy = wav_art_copy
         self.wav_master_copy = wav_master_copy
@@ -469,6 +470,12 @@ class Accounts:
                                (user_id, filename, signature))
         if self.wav_art_replaced:
             self.wav_art_replaced(root, filename, previous_signature)
+        if self.wav_pattern_replaced:
+            # Same-filesystem atomic replacement: device is unchanged. The
+            # artwork signature uses [size, mtime_ns, inode]; patches use dev first.
+            old_pattern_signature = [(root / filename).stat().st_dev, previous_signature[2],
+                                     previous_signature[0], previous_signature[1]]
+            self.wav_pattern_replaced(root, filename, old_pattern_signature)
 
     def invalidate_changed_wav(self, filename):
         user_id = current_user()['id']

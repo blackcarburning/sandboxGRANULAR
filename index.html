@@ -60391,7 +60391,7 @@ case 'bastardW':
                     importButton.type = 'button';
                     importButton.className = 'performance-btn wav-pattern-import';
                     importButton.textContent = 'Restore Patch';
-                    importButton.title = 'Restore this render’s complete editable pattern, notes, settings and original sounds. Undo restores the current pattern.';
+                    importButton.title = 'Restore this render’s original editable source patch, notes, settings and sounds (before any mastering). Undo restores the current pattern.';
                     importButton.addEventListener('click', async () => {
                         const controller = new AbortController();
                         wavRepositoryBrowserDownloadControllers.add(controller);

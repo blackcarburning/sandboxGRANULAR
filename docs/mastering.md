@@ -357,9 +357,10 @@ are atomically swapped, with the private recovery original still retained.
 signature. It does not delete/recreate the track, invalidate notes or alter share
 records. Artwork image/thumbnail bytes and version URLs remain identical. Stale
 artwork belonging to an unrelated file is not adopted. Comments, timestamped
-notes and filename-keyed favourite hearts are untouched. Editable pattern ZIPs
-remain untouched, but their audio-integrity checks are not bypassed: mastered
-PCM is not misrepresented as an unprocessed editable patch.
+notes and filename-keyed favourite hearts are untouched. Editable pattern ZIP bytes remain untouched. A validated same-track replacement
+refreshes their WAV binding, retaining Restore Patch for the original source
+settings/sounds before mastering; it does not claim those settings reproduce
+the mastered DSP. Pattern signature and SHA-256 checks still apply.
 
 A signature-bound `kind: replacement` record supplies a small `(mastered)` badge.
 It is deliberately not returned by the Masters classification helper, does not
@@ -369,7 +370,7 @@ refresh their row. Preview worklet/source invalidation and source-hash checks
 remain unchanged. WAV delivery is `no-store`; phone preview caches already use
 inode/ctime as well as mtime, so preserving list order does not reuse old PCM.
 
-Deployment requires the `wav_art_replaced` callback in the documenter account
+Deployment requires the `wav_art_replaced` and `wav_pattern_replaced` callbacks in the documenter account
 configuration; see `deploy/mastering-host-integration.patch`, then restart
 `fs7300-documenter.service` to reload Python modules.
 
@@ -387,3 +388,29 @@ lifecycle/limits tests (2), inline script parse, and
 suite hit an intermittent BrokenPipe while sending an oversized rejected art
 upload; the pre-change handler and focused current lifecycle/limit checks passed.
 Physical iPhone verification is still separate from browser emulation.
+
+
+### Preserve Restore Patch (2026-10-31 follow-up)
+
+`mygrain_wav_patterns.rebind_after_replace` checks the old WAV signature, the
+unchanged patch-file signature and the archive SHA-256 before updating only the
+WAV association. Unknown/unrelated uploads and corrupt archives remain rejected.
+The source patch remains byte-identical, and the Restore Patch tooltip explicitly
+identifies it as the source before mastering. The account replacement callback
+preserves artwork and patch links under the same account lock.
+
+Verification adds repeated replacements and corrupt/unrelated patch rejection to
+`tests/test_mastering_replacement.py`, plus an actual paired WAV upload, mastering
+replacement, byte-identical ZIP download and visible Restore Patch import in the
+phone Chromium/WebKit live-mastering browser suite. The import restores the
+original tempo after a deliberate tempo change; preview can reopen afterwards.
+
+Owner-requested repair: `Laying-in-the-grass-under-the-stars.84.wav` had intact
+artwork and patch ZIP sidecars but their WAV signatures still referenced the
+pre-master original. Its private mastering recovery original matched both stale
+bindings by original size/mtime, filename and verified recovery SHA-256. The
+repair validates the saved patch and hashes, backs up current mastered WAV and
+metadata, then rebinds only those attachments, restores the original list mtime
+and refreshes provenance/the mastered badge. No audio, image, thumbnail, ZIP,
+notes, hearts or share records are rewritten. Repair receipt remains private in
+that account's `.mastering-recovery/repair-patch-art-*` directory.
