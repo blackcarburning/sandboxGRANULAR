@@ -124,3 +124,72 @@ cleanup, stale list and inherited-filter regressions in Chromium and WebKit at
 390x844 and 844x390. `MYGRAIN_IPHONE_TEST_WAV` optionally uses a local failing
 source WAV in the disposable account. These are automated browser checks, not
 physical iPhone verification.
+
+## LIVE.1 — adjustable preview and shared-engine render
+
+**Master** and **Master Reel** now open Live mastering. **Previous mastering**
+retains the existing LSP/FFmpeg target-LUFS workflow without modifying old audio.
+This is still a post-export operation: Song/reel source snapshots, per-part DSP,
+server Song preparation/render compatibility and arrangement revisions are not
+changed. Whole exported Songs are processed as one WAV, never part-normalized.
+
+`mastering-dsp.js` is the authoritative deterministic stereo engine. It runs in
+`mastering-worklet.js` on the audition device and in Node via
+`backend/mastering-render.cjs` on the server. Both run at 48 kHz. Browser decode
+and FFmpeg may use different source-rate conversion; bit identity is established
+for **identical input PCM**, not claimed for their different resamplers. Export
+is stereo PCM24/48 kHz. Five milliseconds of lookahead is compensated on export;
+bypass uses the same delay as wet playback. Loop export warms whole cycles for
+at least two seconds; live loops settle as they play. Finite WAVs flush the tail.
+
+Controls: drive −24…+24 dB, adjustable two-stage sub/DC cut 0…60 Hz
+(0 bypasses; Clean defaults 20 Hz, Punch/Dense 25 Hz), low-band compression amount (120 Hz split), broadband
+compression amount (high-pass detector), sample ceiling −6…−1 dBFS. Stereo-linked
+limiting has a 5 ms delay and 100 ms release. Clean/Punch/Dense/Level presets
+initialize these same five controls; they do **not** run reference matching or
+iterate towards a LUFS goal. Level only skips the two compressors but retains
+the safety limiter. The sample ceiling is **not** an oversampled true-peak limit.
+The worker measures achieved LUFS and true peak and reports both without hidden
+post-render attenuation (which would make the rendered sound unlike preview).
+
+Phone preview fetches one authenticated WAV with a streamed 64 MB encoded cap,
+validates WAV metadata before decoding, rejects over 180 seconds, and requires
+`48k stereo-float bytes + 2 * encoded bytes <= 96 MiB`. There is no second decoded
+master buffer and no whole-file DSP render on the phone. The independent preview
+stops page performance transport, owns its context/source/worklet and releases
+all of them on close/account switch/lock. Load failure is retryable. Same-position
+bypass crossfades quickly. Approximate RMS matching attenuates processed audition
+only, settles while playing, and is off by default. It is not LUFS matching and
+neither it nor bypass changes export. Long WAVs can use Previous mastering.
+
+The existing authenticated mastering job API additionally accepts
+`engine: "live-master-1"`, all five `liveSettings`, and `sourceSha256` computed
+from the preview WAV. Server re-resolves the owned WAV/reel, snapshots and hashes
+it under the account lock, and rejects a changed source before queuing DSP.
+Existing queue/concurrency/ownership rules still apply. Cache identity includes
+source bytes, engine, kind, preset, loop and the exact settings; legacy engine
+cache identities remain unchanged. Saved names are `master-live-{preset}.wav`
+with collision-safe numeric suffixes. Private master metadata retains the
+engine/settings; sharing copies settings/category but never private source names
+or notes. Render settings are snapshotted at click; later edits visibly require
+a new render. A worker continues if its dialog closes.
+
+Verification:
+- `node tests/mastering-live-dsp.cjs`: actual worklet process vs Node renderer,
+  identical PCM, all four presets bit-identical, finite/nonzero output, ceiling,
+  impulse delay, silence and live reconfiguration.
+- `python3 tests/test_mastering.py`: legacy regressions plus live settings
+  validation, 44.1→48k mono/stereo conversion, exact frames, loop/finite paths,
+  original preservation and metadata/share privacy.
+- `node tests/mastering-live-browser.cjs`: isolated server, Chromium/WebKit with
+  iPhone UA, trusted taps and real AudioWorklet/nonzero native analyser output,
+  controls, seek/bypass/matching, retry, real server save, source/hash/settings
+  guards, portrait/landscape containment and account cleanup. Optional
+  `MYGRAIN_LIVE_TEST_WAV` selects a local diagnostic source in disposable storage.
+- Existing mastering browser tests explicitly select Previous mastering.
+
+Static entrypoint marker: `v2026.10.31.LIVE.1`; live dialog: `Live mastering · LIVE.1`.
+The public asset allowlist includes the three live JS assets. Node is required
+on the server; there are no additional plugin licences or external audio uploads.
+Physical iPhone performance/listening remains a device audition, not an emulation
+claim.

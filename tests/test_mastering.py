@@ -107,6 +107,37 @@ class Mastering(unittest.TestCase):
             (root/'link.wav').symlink_to(original)
             with self.assertRaises(ValueError): m.save_info(root, 'link.wav', {})
 
+    def test_live_render_and_metadata(self):
+        values = {'subcut': 25, 'drive': 6, 'bass': 35, 'compression': 30, 'ceiling': -1.5}
+        for bad in ({}, {**values, 'drive': True}, {**values, 'ceiling': float('nan')}, {**values, 'bass': 101}):
+            with self.assertRaises(ValueError):
+                m.live_settings(bad)
+        with tempfile.TemporaryDirectory() as folder:
+            root = pathlib.Path(folder)
+            source = root/'source.wav'
+            rate = 44100
+            t = np.arange(rate) / rate
+            x = .15*np.sin(2*np.pi*60*t)+.05*np.sin(2*np.pi*800*t)
+            with wave.open(str(source), 'wb') as w:
+                w.setparams((1, 2, rate, 0, 'NONE', 'not compressed'))
+                w.writeframes((x*32767).astype('<i2').tobytes())
+            original = source.read_bytes()
+            for loop in (True, False):
+                output = root/('master-live-punch' + ('-2' if loop else '') + '.wav')
+                report = m.process_live(source, output, 'punch', loop, values)
+                self.assertEqual(report['sampleRate'], 48000)
+                self.assertEqual(report['frames'], 48000)
+                self.assertTrue(np.isfinite(report['after']['lufs']))
+                self.assertEqual(report['settings'], values)
+                m.save_info(root, output.name, {'kind':'waves', 'preset':'punch', 'engine':m.LIVE_VERSION, 'liveSettings':values, 'sourceName':'PRIVATE'})
+                self.assertEqual(m.info(root, output.name)['liveSettings'], values)
+                other=root/'recipient'; other.mkdir(exist_ok=True)
+                (other/output.name).write_bytes(output.read_bytes())
+                m.copy_info(root, output.name, other, output.name)
+                self.assertNotIn('sourceName', m.info(other, output.name))
+                self.assertEqual(m.info(other, output.name)['engine'], m.LIVE_VERSION)
+            self.assertEqual(source.read_bytes(), original)
+
     def test_silent_rejected(self):
         with tempfile.TemporaryDirectory() as folder:
             source = pathlib.Path(folder)/'silent.wav'

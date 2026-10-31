@@ -96,7 +96,7 @@ const base=process.env.MYGRAIN_TEST_URL||'http://127.0.0.1:18936/mygrain/';asser
   if(process.env.INSTAREEL_RECUT_TEST){const id=await page.evaluate(()=>mygrainInstareel.job.id);const data=await (await context.request.get(base+`api/instareel/${id}`,{headers:{'X-Mygrain-User':'admin'}})).json();assert.equal(data.job.plan.options.recutV,true)}
   if(process.env.INSTAREEL_MASTER_TEST){
    const jobId=await page.evaluate(()=>mygrainInstareel.job.id);const originalResponse=await context.request.get(base+`api/instareel/${jobId}/wav`,{headers:{'X-Mygrain-User':'admin'}});assert.equal(originalResponse.status(),200);const before=await originalResponse.body();
-   await page.locator('#instareelMaster').tap();const dialog=page.locator('.mastering-dialog');await dialog.waitFor();
+   await page.locator('#instareelMaster').tap();await page.locator('.live-legacy').tap();await page.locator('.mastering-live').waitFor({state:'detached'});const dialog=page.locator('.mastering-dialog');await dialog.waitFor();
    assert.equal(await dialog.locator('.mastering-match').isChecked(),false);await dialog.locator('.mastering-start').tap();
    await page.waitForFunction(()=>!document.querySelector('.mastering-comparison')?.hidden||!document.querySelector('.mastering-start')?.disabled,null,{timeout:120000});
    assert.match(await dialog.locator('.mastering-status').textContent(),/Saved master-clean-minus16LUFS(?:-[0-9]+)?\.wav/);
@@ -129,7 +129,7 @@ const base=process.env.MYGRAIN_TEST_URL||'http://127.0.0.1:18936/mygrain/';asser
   console.log('PASS',engine,'saved-browser Preview starts audible playback with one tap');
   if(process.env.INSTAREEL_MASTER_TEST){
    const row=page.locator('.instareel-library-row').filter({hasText:'Test Reel '+engine}).first();await row.getByRole('button',{name:'Master Reel',exact:true}).click();
-   const dialog=page.locator('.mastering-dialog');await dialog.waitFor();await dialog.locator('.mastering-start').tap();
+   await page.locator('.live-legacy').tap();await page.locator('.mastering-live').waitFor({state:'detached'});const dialog=page.locator('.mastering-dialog');await dialog.waitFor();await dialog.locator('.mastering-start').tap();
    await page.waitForFunction(()=>!document.querySelector('.mastering-comparison')?.hidden||!document.querySelector('.mastering-start')?.disabled,null,{timeout:120000});
    assert.match(await dialog.locator('.mastering-status').textContent(),/Saved /);
    const saved=decodeURIComponent(new URL(await dialog.locator('.mastering-result').getAttribute('src')).pathname.split('/').pop());assert.equal(saved,await page.evaluate(()=>window.__reelMaster));

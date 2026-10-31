@@ -24,7 +24,7 @@ function wav() {
   await card.locator('.wav-iphone-preview button').tap();
   await p.waitForFunction(n=>[...document.querySelectorAll('#wavRepositoryBrowserList .sample-browser-card')].find(c=>c.querySelector('.sample-browser-name').textContent===n)?.querySelector('audio').__mygrainIphonePreview.playing,name);
   await card.locator('.wav-iphone-preview button').tap();
-  await card.getByRole('button',{name:'Master',exact:true}).tap();const d=p.locator('.mastering-dialog');await d.locator('.mastering-preset').selectOption('dense');await d.locator('.mastering-target').selectOption('-6');await d.locator('.mastering-start').tap();
+  await card.getByRole('button',{name:'Master',exact:true}).tap();await p.locator('.live-legacy').tap();await p.locator('.mastering-live').waitFor({state:'detached'});const d=p.locator('.mastering-dialog');await d.locator('.mastering-preset').selectOption('dense');await d.locator('.mastering-target').selectOption('-6');await d.locator('.mastering-start').tap();
   await p.waitForFunction(()=>document.querySelector('.mastering-comparison')?.hidden===false||!document.querySelector('.mastering-start')?.disabled,null,{timeout:90000});assert.match(await d.locator('.mastering-status').textContent(),/^Saved /);
   assert.equal(await d.locator('.wav-iphone-preview').count(),2);assert.equal(await d.locator('audio:visible').count(),0);
   const player=d.locator('.wav-iphone-preview');

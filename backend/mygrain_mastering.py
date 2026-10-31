@@ -162,6 +162,55 @@ def process(source, output, preset='clean', loop=True, target=None):
         return {'engine': VERSION, 'preset': preset, 'loop': loop, 'frames': frames, 'sampleRate': rate, 'latencySamples': delay, 'seamStep': seam, 'before': before, 'after': after, 'comparisonGain': min(1, 10 ** ((before['lufs'] - after['lufs']) / 20)), 'originalGain': min(1, 10 ** ((after['lufs'] - before['lufs']) / 20)), 'gainDb': gain, 'makeupDb': makeup, 'targetLufs': target}
 
 
+LIVE_VERSION = 'live-master-1'
+LIVE_LIMITS = {'subcut': (0, 60), 'drive': (-24, 24), 'bass': (0, 100), 'compression': (0, 100), 'ceiling': (-6, -1)}
+
+
+def live_settings(value):
+    if not isinstance(value, dict) or set(value) != set(LIVE_LIMITS):
+        raise ValueError('Provide all five live mastering controls.')
+    for key, (low, high) in LIVE_LIMITS.items():
+        if type(value[key]) not in (int, float) or not math.isfinite(value[key]) or not low <= value[key] <= high:
+            raise ValueError('Invalid live mastering ' + key)
+    return {key: float(value[key]) for key in LIVE_LIMITS}
+
+
+def process_live(source, output, preset, loop, settings):
+    settings = live_settings(settings)
+    with tempfile.TemporaryDirectory(prefix='mygrain-live-audio-') as temporary:
+        folder = Path(temporary)
+        decoded, raw, rendered, config = [folder / name for name in ('decoded.wav', 'source.f32', 'result.f32', 'settings.json')]
+        # One fixed audition/render rate. Browser decode and FFmpeg resampling
+        # can differ slightly; both execute the identical DSP at 48 kHz.
+        probe = subprocess.run(['ffprobe', '-v', 'error', '-show_streams', '-show_format', '-of', 'json', str(source)], capture_output=True, timeout=15)
+        if probe.returncode:
+            raise ValueError('Invalid WAV audio.')
+        info = json.loads(probe.stdout)
+        streams = [x for x in info.get('streams', []) if x.get('codec_type') == 'audio']
+        duration = float(info.get('format', {}).get('duration', 0))
+        if len(streams) != 1 or int(streams[0].get('channels', 0)) not in (1, 2) or not .05 <= duration <= 600 or duration * 48000 * 6 > MAX_BYTES - 1024:
+            raise ValueError('Use a mono/stereo WAV up to 10 minutes and 64 MB of output.')
+        run(['-i', str(source), '-ac', '2', '-ar', '48000', '-c:a', 'pcm_s24le', str(decoded)])
+        before = measure(decoded)
+        if not all(math.isfinite(x) for x in before.values()):
+            raise ValueError('No measurable audio. The original is unchanged.')
+        run(['-i', str(source), '-ac', '2', '-ar', '48000', '-f', 'f32le', str(raw)])
+        config.write_text(json.dumps({'settings': settings, 'loop': loop}))
+        worker = subprocess.run(['node', str(Path(__file__).with_name('mastering-render.cjs')), str(raw), str(rendered), str(config)], capture_output=True, timeout=180)
+        if worker.returncode:
+            raise ValueError('Live mastering render failed. The original is unchanged.')
+        report = json.loads(worker.stdout)
+        run(['-f', 'f32le', '-ar', '48000', '-ac', '2', '-i', str(rendered), '-c:a', 'pcm_s24le', str(output)])
+        after = measure(output)
+        if not all(math.isfinite(x) for x in after.values()):
+            raise ValueError('These settings produced no measurable output. Reduce Sub cut or processing.')
+        return {**report, 'preset': preset, 'loop': loop, 'before': before, 'after': after,
+                'comparisonGain': min(1, 10 ** ((before['lufs'] - after['lufs']) / 20)),
+                'originalGain': min(1, 10 ** ((after['lufs'] - before['lufs']) / 20)),
+                'gainDb': settings['drive'], 'makeupDb': 0, 'targetLufs': None,
+                'peakMode': 'sample', 'notice': 'Sample-peak ceiling; true peak is measured, not limited. No automatic loudness chasing.'}
+
+
 def master_label(preset, target):
     return f'master-{preset}-minus{abs(float(target)):g}LUFS'
 
@@ -185,7 +234,7 @@ def signature(path):
 def save_info(root, name, data):
     path = metadata_path(root, name)
     path.parent.mkdir(mode=0o700, exist_ok=True)
-    safe = {key: data[key] for key in ('kind', 'preset', 'targetLufs', 'sourceName') if key in data}
+    safe = {key: data[key] for key in ('kind', 'preset', 'targetLufs', 'sourceName', 'engine', 'liveSettings') if key in data}
     safe['signature'] = signature(Path(root) / name)
     temp = path.with_suffix('.' + secrets.token_hex(8) + '.tmp')
     try:
@@ -201,6 +250,11 @@ def info(root, name):
         data = json.loads(path.read_text())
         if data['signature'] != signature(Path(root) / name) or data.get('kind') not in ('waves', 'reels'):
             return None
+        if data.get('engine') == LIVE_VERSION:
+            values = live_settings(data['liveSettings'])
+            if data['preset'] not in PRESETS:
+                return None
+            return {**{k: data[k] for k in ('kind', 'preset', 'sourceName') if k in data}, 'engine': LIVE_VERSION, 'liveSettings': values, 'label': 'master-live-' + data['preset'] + '.wav'}
         target = target_lufs(data['preset'], data['targetLufs'])
         return {**{k: data[k] for k in ('kind', 'preset', 'sourceName') if k in data},
                 'targetLufs': target, 'label': master_label(data['preset'], target) + '.wav'}
@@ -225,11 +279,14 @@ def decorate(root, files):
                 metadata_path(root, name)
                 if hashlib.sha256((root / name).read_bytes()).hexdigest() != entry['sha256']:
                     continue
-                save_info(root, name, {'kind': entry.get('kind', 'waves'), 'preset': report['preset'],
-                          'targetLufs': report.get('targetLufs', PRESETS[report['preset']][0])})
+                adopted = {'kind': entry.get('kind', 'waves'), 'preset': report['preset'],
+                           'targetLufs': report.get('targetLufs', PRESETS[report['preset']][0])}
+                if report.get('engine') == LIVE_VERSION:
+                    adopted.update(engine=LIVE_VERSION, liveSettings=live_settings(report['settings']))
+                save_info(root, name, adopted)
             except (OSError, ValueError, KeyError, TypeError):
                 continue
-    canonical = lambda name: re.fullmatch(r'master-[a-z]+-minus[0-9.]+LUFS(?:-[0-9]+)?\.wav', name)
+    canonical = lambda name: re.fullmatch(r'master-(?:[a-z]+-minus[0-9.]+LUFS|live-[a-z]+)(?:-[0-9]+)?\.wav', name)
     used = {f['name'] for f in files if canonical(f['name'])}
     for file in files:
         data = info(root, file['name'])
@@ -250,7 +307,7 @@ def copy_info(source_root, source_name, target_root, target_name):
     data = info(source_root, source_name)
     if data:
         # Copy only mastering settings/category, never source notes or comments.
-        save_info(target_root, target_name, {k: data[k] for k in ('kind', 'preset', 'targetLufs')})
+        save_info(target_root, target_name, {k: data[k] for k in ('kind', 'preset', 'targetLufs', 'engine', 'liveSettings') if k in data})
 
 
 def rename_info(root, old, new):
@@ -284,7 +341,14 @@ def handle(handler, method, inner, accounts, user, root, checked, reels=None):
         kind = 'reels' if is_reel else 'waves'
         if not isinstance(name, str) or not name or name.startswith('.') or '/' in name or '\\' in name or Path(name).suffix.lower() != '.wav' or preset not in PRESETS or type(loop) is not bool:
             raise ValueError('Invalid mastering request.')
-        loudness_target = target_lufs(preset, payload.get('targetLufs'))
+        engine = payload.get('engine')
+        if engine not in (None, LIVE_VERSION):
+            raise ValueError('Invalid mastering engine.')
+        live = live_settings(payload.get('liveSettings')) if engine == LIVE_VERSION else None
+        loudness_target = None if live is not None else target_lufs(preset, payload.get('targetLufs'))
+        metadata = {'kind': kind, 'preset': preset, 'targetLufs': loudness_target, 'sourceName': name}
+        if live is not None:
+            metadata.update(engine=LIVE_VERSION, liveSettings=live)
         with LOCK:
             now = time.time()
             for key in list(JOBS):
@@ -305,7 +369,10 @@ def handle(handler, method, inner, accounts, user, root, checked, reels=None):
                 temp = tempfile.TemporaryDirectory(prefix='mygrain-master-job-')
                 snapshot = Path(temp.name) / 'source.wav'
                 shutil.copyfile(source, snapshot)
-            digest = hashlib.sha256(snapshot.read_bytes() + json.dumps(['library-v1', VERSION, kind, preset, loop, loudness_target]).encode()).hexdigest()
+                if live is not None and (not isinstance(payload.get('sourceSha256'), str) or hashlib.sha256(snapshot.read_bytes()).hexdigest() != payload['sourceSha256']):
+                    raise ValueError('The source WAV changed since preview. Reopen mastering and load again.')
+            cache_settings = ['live-library-v1', LIVE_VERSION, kind, preset, loop, live] if live is not None else ['library-v1', VERSION, kind, preset, loop, loudness_target]
+            digest = hashlib.sha256(snapshot.read_bytes() + json.dumps(cache_settings).encode()).hexdigest()
         except Exception:
             with LOCK:
                 JOBS.pop(job_id, None)
@@ -323,17 +390,17 @@ def handle(handler, method, inner, accounts, user, root, checked, reels=None):
                             if '/' not in saved and '\\' not in saved and not saved.startswith('.'):
                                 target = checked(Path(root) / saved, root)
                                 if target.is_file() and hashlib.sha256(target.read_bytes()).hexdigest() == entry['sha256']:
-                                    save_info(root, saved, {'kind': kind, 'preset': preset, 'targetLufs': loudness_target, 'sourceName': name})
+                                    save_info(root, saved, metadata)
                                     with LOCK:
                                         job.update(status='done', savedName=saved, report=entry['report'], cacheHit=True)
                                     return
                         except (ValueError, KeyError, OSError):
                             pass
                 output = Path(temp.name) / 'master.wav'
-                report = process(snapshot, output, preset, loop, loudness_target)
+                report = process_live(snapshot, output, preset, loop, live) if live is not None else process(snapshot, output, preset, loop, loudness_target)
                 # Content-addressed, private result. Never replace an original or
                 # attach an editable patch that misrepresents the mastered DSP.
-                stem = master_label(preset, loudness_target)
+                stem = ('master-live-' + preset) if live is not None else master_label(preset, loudness_target)
                 with accounts.user_lock(user):
                     saved = stem + '.wav'
                     counter = 2
@@ -348,7 +415,7 @@ def handle(handler, method, inner, accounts, user, root, checked, reels=None):
                     finally:
                         staging.unlink(missing_ok=True)
                     accounts.wav_created(saved)
-                    save_info(root, saved, {'kind': kind, 'preset': preset, 'targetLufs': loudness_target, 'sourceName': name})
+                    save_info(root, saved, metadata)
                     cache.mkdir(mode=0o700, exist_ok=True)
                     cache_file.write_text(json.dumps({'savedName': saved, 'kind': kind, 'report': report, 'sha256': hashlib.sha256(output.read_bytes()).hexdigest()}))
                 with LOCK:
