@@ -43,7 +43,7 @@ PUBLIC_FILES = {
     'genreator.js', 'genreator.css', 'genre-presets.json', 'ai-patch-direction.js', 'ai-song-parts.js', 'ai-patch-direction.css', 'ai-patch-controls.json',
     'k-multitrack.js', 'k-multitrack-host.js', 'k-multitrack.css', 'k-track-meters.js', 'k-track-dsp.js',
     'loop-card-fx.js', 'loop-card-fx-host.js', 'loop-card-fx.css', 'pan-centre-gesture.js', 'eq-automation.js', 'eq-automation-worklet.js',
-    'wav-art.js', 'noise-card-dsp.js', 'noise-card.js', 'noise-card.css', 'noise-envelope-worklet.js',
+    'wav-art.js', 'mastering.js', 'noise-card-dsp.js', 'noise-card.js', 'noise-card.css', 'noise-envelope-worklet.js',
     'l-reverb.js', 'q-arp-builder.js', 'q-card.css', 'q-card.js', 'q-theory.js',
     'q-custom-chords.js', 'q-custom-chords.css', 'q-sound-sources.js', 'weird-loop-fx.js', 'bastardloop-browser.html',
     'radiolab.js', 'radiolab.css', 'radiolab-worklet.js',

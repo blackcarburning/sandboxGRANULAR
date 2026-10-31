@@ -44,6 +44,8 @@ with storage as folder:
     # Test-only seed override; the store above is always beneath tempfile.
     if os.environ.get('MYGRAIN_TEST_ADMIN_PASSWORD'):
         server_module._accounts_module.SEED_HASHES['admin'] = server_module._accounts_module.hash_password(os.environ['MYGRAIN_TEST_ADMIN_PASSWORD'])
+    if os.environ.get('MYGRAIN_TEST_DAN_PASSWORD'):
+        server_module._accounts_module.SEED_HASHES['dan'] = server_module._accounts_module.hash_password(os.environ['MYGRAIN_TEST_DAN_PASSWORD'])
     accounts = server_module.init_account_store(root)
     preview_store = preview_module.PreviewStore(accounts, root / 'preview-cache')
     server_module._song_module.EDIT_LEASE_SECONDS = int(os.environ.get('SONG_LOCK_TEST_LEASE_SECONDS', '600'))
