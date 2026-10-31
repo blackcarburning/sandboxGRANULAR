@@ -293,3 +293,38 @@ target convergence at −14/−10/−6 within 0.15 LU after 12 seconds, silence/
 validation, peak safety at maximum controls, preserved v1/v2 metadata, enabled
 Hot preset server save and original replacement in Chromium/WebKit phone contexts.
 Device listening remains unverified.
+
+## LIVE.7 — mastering console UI
+
+The lazy-mounted dialog is a two-frame console: a pinned monitor/transport header
+and an independently scrolling adjustment body. Title, preset, play/pause/stop,
+seek, bypass, RMS audition matching and loop remain accessible while scrolling.
+Boxed Input, EQ, Dynamics, Harmonics, Loudness/output, destination, status and help
+sections retain all settings and the named-copy/confirmed-replace operations.
+The maximiser is a labelled checkbox switch, still serialized as numeric 0/1.
+
+Six output meter bars display LUFS M/S, unweighted RMS, sample peak, combined gain
+reduction and signed maximiser gain. Stereo VU uses 300 ms RMS ballistics with
+0 VU = −18 dBFS calibration; needles are DOM/SVG, not an analyser/canvas loop.
+Peak hold can be reset. Bass and each band's reduction remain visible. All
+measured levels describe the processed signal before audition bypass/matching;
+peak is now consistent with RMS/LUFS rather than following the dry audition.
+Export DSP, server/cache version, settings and audio are unchanged.
+
+One display-only 125 ms timer exists only during visible playback; numeric labels
+refresh at most twice per second. Intersection/viewport checks, document visibility
+and scrolling gate optional worklet telemetry/VU sampling and DOM painting. The
+audio-essential LUFS measurement used by the maximiser continues independently;
+resuming meters does not reset it. Close/account changes disconnect observers,
+remove listeners, cancel timers and release the owned context. No perpetual RAF
+loop, hidden polling or CSS meter animations remain.
+
+`tests/mastering-console-browser.cjs` verifies 320/390/844/1024 layouts, pinned
+transport, switch and needle/bar presence, real native audio, zero paints/messages/
+display clock while scrolling/offscreen/synthetically hidden, continued audio time,
+resumption, stop, close and reopen in Chromium/WebKit iPhone contexts. Set
+`MYGRAIN_CONSOLE_ASSET_URL` for the same fixture against deployed HTTPS assets;
+it is not an authenticated production transaction or a physical phone test.
+The authenticated mastering browser suite still covers real saves, cache/privacy
+and replacement. Meter tests cover stereo VU calibration and bit-identical audio
+with telemetry disabled; worklet/server parity and FFmpeg LUFS checks still pass.
