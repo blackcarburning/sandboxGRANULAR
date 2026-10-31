@@ -332,8 +332,8 @@ test('keyboard touch guards preserve rapid Record K and other control clicks aft
     context.DOUBLE_TAP_TIMEOUT = 300;
     context.Date = { now: () => 200 };
     const handlers = {};
-    context.document.addEventListener = (name, handler) => { handlers[name] = handler; };
-    const start = html.indexOf("document.addEventListener('touchmove',");
+    context.listenKeyboardTouch = (name, handler) => { handlers[name] = handler; };
+    const start = html.indexOf("listenKeyboardTouch('touchmove',");
     const end = html.indexOf('// --- Debug Functions ---', start);
     vm.runInContext(html.slice(start, end), context);
     const target = control => ({ closest(selector) {

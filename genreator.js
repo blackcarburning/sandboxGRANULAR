@@ -104,7 +104,7 @@ function cancelPlayer(){playerGeneration++;playerRequest?.abort();playerRequest=
 let playerRequest=null;
 const libraryRequest=new AbortController();
 let libraryGeneration=0;
-const player={cancel:cancelPlayer,get playing(){return !!source},get buffer(){return buffer},get source(){return source}};
+const player={cancel:cancelPlayer,displayState:()=>progressClock.snapshot(),get playing(){return !!source},get buffer(){return buffer},get source(){return source}};
 function playBuffer(){
  const length=Math.min(buffer.duration,current.duration);if(position>=length)position=0;
  source=context.createBufferSource();source.buffer=buffer;source.loop=el('Loop').checked;source.loopEnd=length;source.connect(context.destination);

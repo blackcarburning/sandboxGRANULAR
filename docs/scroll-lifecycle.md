@@ -73,3 +73,47 @@ progress resumes afterward. Hidden preview display writes stop. Drum tests retai
 nonzero mixed PCM, zero skipped steps, zero late hits and stop/close cleanup.
 Public HTML contains the new badge and all five changed external assets return
 HTTP 200 with bytes exactly matching the checkout.
+
+## Remaining native touch/compositing work — SCROLL.3 (2026-10-31)
+
+Mark still reports progressive scrolling slowdown with partial recovery at rest.
+Submitted audio-20261031T155823Z confirms SCROLL.2, 1,277 scroll/height events in
+seven bursts, zero canvas backing bytes, inactive meters and stable known PCM.
+The captured live engine is stopped; preview audio was not represented separately.
+Its running audio clock and zero skipped live steps cannot disprove preview/output
+glitches. iPhone Safari supplies no native heap or hardware-underrun counter.
+
+Further concrete paths removed:
+- All three non-passive keyboard touch handlers were on document, making even
+  unrelated popup gestures participate in main-thread touch dispatch. They now
+  bind only the actual .keyboard-section surface; key/range double-tap and press
+  semantics are unchanged. Passive global cancellation bookkeeping remains.
+- All modern popups now use CSS overscroll containment, not the per-touchmove
+  ancestor style/geometry boundary walk. Older browsers retain the fallback.
+  Modern touchstart also no longer rescans every dialog on each gesture.
+- Touch devices permanently disable remaining backdrop blur (including WAV,
+  sample browsers and popup descendants), use opaque browser overlays and omit
+  large card/shell shadows. This avoids toggling compositing layers per burst.
+- Diagnostics now explicitly include direct WAV/reel preview source/buffer/display
+  state and native-popup containment, separate from the live sequencer engine.
+
+The native-popup unit regression fails against the exact SCROLL.2 HTML because
+blocking popup handlers are attached. Chromium/WebKit baseline browser checks
+also confirm blur(10px) on the actual WAV overlay. Synthetic touch events do not
+reproduce its per-move style walk (zero reads in both builds), so they are not
+claimed as a measured physical-device performance comparison.
+
+No DSP, source audio or render compatibility changes. Existing server display
+exclusions remain valid. Physical iPhone improvement remains unconfirmed.
+Evidence: output/mygrain-native-popup-20261031/ (outside public app root).
+
+Verification completed: 24 focused scroll/lifecycle/tap unit checks plus the
+keyboard touch-control regression pass; all 77 inline scripts parse. The broad
+keyboard fixture retains the same 10 pre-existing failures against before-task
+HTML, with unchanged failing test names. Four final browser cases pass in
+Chromium/WebKit at 390×844 and 844×390: native Chromium WAV swipes move the dialog,
+WAV/reel progress writes remain zero during bursts, real PCM remains nonzero,
+same-source audio continues, displays resume and drum popup cancellation works.
+Four baseline cases retain WAV blur; final cases show none. These are regression
+and removed-cost checks, not a physical-iPhone underrun reproduction.
+Visible badge and URL marker: v2026.10.31.SCROLL.3 / 20261031-native-popup-3.
