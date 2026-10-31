@@ -394,8 +394,108 @@ def delete_info(root, name):
     metadata_path(root, name).unlink(missing_ok=True)
 
 
+
+def patch_name(value):
+    if not isinstance(value, str) or not value.strip() or len(value.strip()) > 80 or any(ord(c) < 32 for c in value):
+        raise ValueError('Use a patch name of 1–80 characters.')
+    return value.strip()
+
+
+def read_patches(root, checked):
+    path = checked(Path(root) / '.mastering-presets.json', root)
+    if not path.exists():
+        return {'version': 1, 'revision': 0, 'patches': []}
+    if path.stat().st_size > 1024 * 1024:
+        raise ValueError('Private mastering patch library needs repair; nothing was changed.')
+    data = json.loads(path.read_text())
+    if (not isinstance(data, dict) or data.get('version') != 1 or type(data.get('revision')) is not int
+            or not isinstance(data.get('patches'), list) or len(data['patches']) > 100):
+        raise ValueError('Private mastering patch library needs repair; nothing was changed.')
+    ids = set()
+    for item in data['patches']:
+        if (not isinstance(item, dict) or not re.fullmatch(r'[a-f0-9]{32}', str(item.get('id', '')))
+                or item['id'] in ids or item.get('engine') != LIVE_VERSION or item.get('preset') not in LIVE_PRESETS
+                or type(item.get('loop')) is not bool):
+            raise ValueError('Private mastering patch library needs repair; nothing was changed.')
+        patch_name(item.get('name'))
+        live_settings(item.get('settings'))
+        ids.add(item['id'])
+    return data
+
+
+def handle_patches(handler, method, inner, accounts, user, root, checked):
+    # The host authenticates and pins identity before this entry point. Root is
+    # always the authenticated account's WAV root, never a client-provided path.
+    base = '/api/mastering/presets'
+    identifier = inner[len(base):].lstrip('/')
+    headers = {'Cache-Control': 'no-store'}
+    with accounts.user_lock(user):
+        library = read_patches(root, checked)
+        if method == 'GET':
+            if identifier:
+                item = next((p for p in library['patches'] if p['id'] == identifier), None)
+                if item is None:
+                    handler.send_json({'ok': False, 'error': 'Private mastering patch not found.'}, status=404, extra_headers=headers)
+                else:
+                    handler.send_json({'ok': True, 'patch': item}, extra_headers=headers)
+            else:
+                handler.send_json({'ok': True, 'revision': library['revision'], 'patches': library['patches']}, extra_headers=headers)
+            return True
+        if method != 'POST' or identifier:
+            handler.send_json({'ok': False, 'error': 'Method not allowed.'}, status=405, extra_headers=headers)
+            return True
+        payload = handler.read_json()
+        allowed = {'action', 'id', 'name', 'engine', 'preset', 'loop', 'settings', 'revision'}
+        if not isinstance(payload, dict) or set(payload) - allowed:
+            raise ValueError('Invalid private mastering patch request.')
+        if type(payload.get('revision')) is not int or payload['revision'] != library['revision']:
+            handler.send_json({'ok': False, 'error': 'Patch library changed. Refresh patches before saving.'}, status=409, extra_headers=headers)
+            return True
+        action = payload.get('action', 'save')
+        identifier = payload.get('id')
+        selected = next((p for p in library['patches'] if p['id'] == identifier), None)
+        if identifier is not None and selected is None:
+            handler.send_json({'ok': False, 'error': 'Private mastering patch not found.'}, status=404, extra_headers=headers)
+            return True
+        if action == 'delete':
+            if selected is None:
+                raise ValueError('Select one of your mastering patches first.')
+            library['patches'].remove(selected)
+        elif action == 'save':
+            name = patch_name(payload.get('name'))
+            if payload.get('engine') != LIVE_VERSION or payload.get('preset') not in LIVE_PRESETS or type(payload.get('loop')) is not bool:
+                raise ValueError('Invalid mastering patch settings.')
+            settings = live_settings(payload.get('settings'))
+            if any(p['name'].casefold() == name.casefold() and p is not selected for p in library['patches']):
+                raise ValueError('That patch name already exists. Select it and use Update selected, or choose a different name.')
+            if selected is None:
+                if len(library['patches']) >= 100:
+                    raise ValueError('You can save up to 100 private mastering patches.')
+                selected = {'id': secrets.token_hex(16)}
+                library['patches'].append(selected)
+            selected.update(name=name, engine=LIVE_VERSION, preset=payload['preset'], loop=payload['loop'], settings=settings)
+            identifier = selected['id']
+        else:
+            raise ValueError('Unknown mastering patch action.')
+        library['revision'] += 1
+        path = checked(Path(root) / '.mastering-presets.json', root)
+        temp = checked(Path(root) / ('.mastering-presets-' + secrets.token_hex(12) + '.tmp'), root)
+        try:
+            with temp.open('x', encoding='utf-8') as stream:
+                temp.chmod(0o600)
+                json.dump(library, stream)
+            os.replace(temp, path)
+        finally:
+            temp.unlink(missing_ok=True)
+        handler.send_json({'ok': True, 'revision': library['revision'], 'patches': library['patches'],
+                           'savedId': identifier if action == 'save' else None}, extra_headers=headers)
+    return True
+
+
 def handle(handler, method, inner, accounts, user, root, checked, reels=None):
     """Called after the normal authenticated/identity-pinned API gate."""
+    if inner == '/api/mastering/presets' or inner.startswith('/api/mastering/presets/'):
+        return handle_patches(handler, method, inner, accounts, user, Path(root), checked)
     owner = user['id']
     root = Path(root)
     if inner == '/api/mastering' and method == 'POST':

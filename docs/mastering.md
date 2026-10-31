@@ -414,3 +414,43 @@ metadata, then rebinds only those attachments, restores the original list mtime
 and refreshes provenance/the mastered badge. No audio, image, thumbnail, ZIP,
 notes, hearts or share records are rewritten. Repair receipt remains private in
 that account's `.mastering-recovery/repair-patch-art-*` directory.
+
+### Private mastering patch memory (2026-10-31)
+
+The mastering console's **My mastering patches · private** section saves named
+processing settings (all 15 controls, factory base preset and loop mode). Save
+new, update selected, recall, refresh and delete are account-scoped. Audition-only
+Bypass/Level match flags, source WAV identity, comments and artwork are not saved.
+Recall applies through the existing live parameter/revision path, so final render
+and replacement continue to use the same DSP settings. Up to 100 patches per user;
+80-character names; duplicate names are rejected case-insensitively.
+
+Authenticated, identity-pinned `/mygrain-wavs/api/mastering/presets` GET/POST
+stores an atomic, permission-0600 `.mastering-presets.json` in the server-selected
+account WAV root. Clients cannot choose an account/root. Item IDs are resolved
+only inside that account's library, including update/delete. Revision checks stop
+stale tabs overwriting changes. Responses are no-store, the file is not exposed
+by the static allowlist, and closing/locking/changing account aborts pending UI
+requests. The panel keeps no shared localStorage cache. WAV sharing copies only
+the explicitly shared artifact/associated metadata, not this private library.
+
+Verification uses disposable accounts, never production-user fixtures:
+
+- `python3 -m unittest discover -s tests -p test_mastering_patches.py -v`:
+  private CRUD, persisted fresh-session reads, both-direction foreign IDs,
+  identity spoofing, invalid/extra settings, stale revisions, hidden-file denial,
+  no-store/0600, and explicit WAV sharing without private patch-library transfer.
+- `python3 -m unittest discover -s tests -p test_mygrain_accounts.py -v`:
+  broader existing isolation coverage for WAV/MIDI/other repositories, feedback,
+  favourites, arps, vocal takes, logs, Songs/parts/renders/leases, source mirrors,
+  traversal/symlinks/static aliases, concurrent contexts, attribution and explicit
+  share snapshots/private recipient comments. Bundled public app assets and
+  intentionally public sample catalogs are not account-private content.
+- `node tests/mastering-live-browser.cjs`: real authenticated phone Chromium and
+  WebKit save/update/refresh/recall, every control restored after modal reopen,
+  foreign-account denial, live audio and existing render/replacement/source patch,
+  artwork, comments, ordering and account-cleanup regressions. Portrait 390×844,
+  landscape 844×390. Physical iPhone verification remains separate.
+
+These are regression checks for the covered boundaries, not a claim that testing
+can prove the absence of every possible security defect.
