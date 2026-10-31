@@ -43,6 +43,34 @@
 })(typeof window==='undefined'?globalThis:window);
 
 
+/* Bounded progress displays: no frame loop, sampling or writes while scrolling,
+   hidden or offscreen. Ownership of audio remains with the caller. */
+(function(root){
+'use strict';
+function createProgressClock(host,el,paint){
+ let running=false,visible=false,pageHidden=false,timer=null,observer=null;
+ const events=['mygrain-ui-busy','mygrain-ui-settled','mygrain-jump-change'];
+ const blocked=()=>pageHidden||host.document.hidden||host.mygrainUiActivity?.busy||host.document.documentElement.dataset.mygrainJumping==='true';
+ function clear(){if(timer!==null)host.clearTimeout(timer);timer=null}
+ function sync(){clear();if(!running)return;if(!el.isConnected){stop();return}if(visible&&!blocked())timer=host.setTimeout(tick,100)}
+ function tick(){timer=null;if(!running||!visible||blocked())return;if(!el.isConnected){stop();return}paint();sync()}
+ function hide(){pageHidden=true;sync()}
+ function show(){pageHidden=false;sync()}
+ function start(){if(running){sync();return}running=true;
+  observer=new host.IntersectionObserver(entries=>{visible=entries.some(e=>e.isIntersecting&&e.intersectionRatio>0);sync()},{threshold:[0,0.001]});observer.observe(el);
+  for(const event of events)host.addEventListener(event,sync);
+  host.addEventListener('pagehide',hide);host.addEventListener('pageshow',show);host.document.addEventListener('visibilitychange',sync);
+ }
+ function stop(){running=false;clear();observer?.disconnect();observer=null;visible=false;
+  for(const event of events)host.removeEventListener(event,sync);
+  host.removeEventListener('pagehide',hide);host.removeEventListener('pageshow',show);host.document.removeEventListener('visibilitychange',sync);
+ }
+ return {start,stop,dispose:stop,snapshot:()=>({running,visible,pending:timer!==null})};
+}
+if(typeof module==='object'&&module.exports)module.exports.createProgressClock=createProgressClock;
+else root.mygrainProgressClock=(el,paint)=>createProgressClock(root,el,paint);
+})(typeof window==='undefined'?globalThis:window);
+
 /* One visibility-driven clock for legacy VUs. No polling when no meter is viewed. */
 (function(root){
 'use strict';
@@ -80,7 +108,7 @@ if(!root.document)return;
  const doc=root.document, states=new Map(), visible=new Set(), pending=new Set();
  const cards=new Map(), pendingCards=new Map();let released=0,redraws=0,parked=0;
  const deferLifecycle=()=>root.mygrainUiActivity?.busy||doc.documentElement.dataset.mygrainJumping==='true';
- const style=doc.createElement('style');style.textContent='[data-mygrain-visual-parked], [data-mygrain-visual-parked] * { animation-play-state:paused!important; transition:none!important; will-change:auto!important; backdrop-filter:none!important; -webkit-backdrop-filter:none!important; }';doc.head.append(style);
+ const style=doc.createElement('style');style.textContent='html[data-mygrain-scrolling] *, html[data-mygrain-scrolling] *::before, html[data-mygrain-scrolling] *::after { animation-play-state:paused!important; transition:none!important; } [data-mygrain-visual-parked], [data-mygrain-visual-parked] * { animation-play-state:paused!important; transition:none!important; will-change:auto!important; backdrop-filter:none!important; -webkit-backdrop-filter:none!important; }';doc.head.append(style);
  const blocked=()=>doc.hidden||root.mygrainUiActivity?.busy||doc.documentElement.dataset.mygrainJumping==='true';
  const inViewport=el=>{if(!el.isConnected||el.closest('[data-mygrain-visual-parked]'))return false;const r=el.getBoundingClientRect();return r.width>0&&r.height>0&&r.bottom>0&&r.right>0&&r.top<root.innerHeight&&r.left<root.innerWidth};
  function release(s){

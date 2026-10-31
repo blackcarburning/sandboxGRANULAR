@@ -64,3 +64,20 @@ test('display work coalesces per slot, remains deferred while scrolling, and pai
  observers[0].fn([{target:element,isIntersecting:false,intersectionRatio:0}]);assert.equal(element.width,0);assert.equal(element.height,0);assert.equal(root.mygrainDisplay.snapshot().backingBytes,0);
  observers[0].fn([{target:element,isIntersecting:true,intersectionRatio:1}]);assert.equal(element.width,12);assert.equal(element.height,8);assert.equal(paints,104);assert.equal(root.mygrainDisplay.snapshot().releases,1);
 });
+
+test('preview clock stops during nested scroll/hidden views, resumes latest state and releases observers/listeners',()=>{
+ const {createProgressClock}=require('../demand-ui.js'),f=fixture(),el={isConnected:true};let paints=0,disconnected=0,io;
+ f.host.mygrainUiActivity=f.ui;
+ f.host.IntersectionObserver=class{constructor(fn){io=fn}observe(){}disconnect(){disconnected++}};
+ const clock=createProgressClock(f.host,el,()=>paints++);
+ clock.start();io([{isIntersecting:true,intersectionRatio:1}]);f.advance(100);assert.equal(paints,1);
+ f.doc.dispatchEvent(new Event('scroll'));assert.equal(clock.snapshot().pending,false);for(let n=0;n<20;n++){f.doc.dispatchEvent(new Event('scroll'));f.advance(50)}assert.equal(paints,1);
+ f.advance(200);f.advance(100);assert.equal(paints,2);
+ io([{isIntersecting:false,intersectionRatio:0}]);f.advance(300);assert.equal(paints,2);assert.equal(clock.snapshot().pending,false);
+ io([{isIntersecting:true,intersectionRatio:1}]);f.doc.hidden=true;f.doc.dispatchEvent(new Event('visibilitychange'));f.advance(300);assert.equal(paints,2);
+ f.doc.hidden=false;f.doc.dispatchEvent(new Event('visibilitychange'));f.advance(100);assert.equal(paints,3);
+ f.win.dispatchEvent(new Event('pagehide'));f.advance(100);assert.equal(paints,3);assert.equal(clock.snapshot().pending,false);
+ f.win.dispatchEvent(new Event('pageshow'));f.advance(100);assert.equal(paints,4);
+ clock.stop();assert.equal(disconnected,1);assert.equal(f.timers.size,0);f.win.dispatchEvent(new Event('mygrain-ui-settled'));assert.equal(f.timers.size,0);
+ clock.start();io([{isIntersecting:true,intersectionRatio:1}]);el.isConnected=false;f.advance(100);assert.equal(disconnected,2);assert.equal(clock.snapshot().running,false);assert.equal(f.timers.size,0);
+});

@@ -81,7 +81,7 @@ box.innerHTML=`<legend>INSTAREEL <small>· 10</small></legend>
  <details id="instareelLibrary"><summary>INSTAREEL WAV Browser</summary><button id="instareelRefresh" type="button">Refresh reels</button><div id="instareelLibraryList">Open to load your saved reels.</div></details>`;
 card.append(box);
 const el=id=>document.getElementById('instareel'+id),base='/mygrain/api/instareel';
-let busy=false,capturing=false,job=null,generation=0,controller=null,timer=null,current=null,buffer=null,source=null,context=null,position=0,started=0,frame=0,loading=false,playerGeneration=0,disposed=false;
+let busy=false,capturing=false,job=null,generation=0,controller=null,timer=null,current=null,buffer=null,source=null,context=null,position=0,started=0,loading=false,playerGeneration=0,disposed=false;
 const user=()=>root.mygrainAccounts?.user?.username;
 const message=text=>{el('Status').textContent=text};
 function sync(){
@@ -97,11 +97,13 @@ async function json(url,options={}){
  if(!response.ok||!payload.ok){const error=Error(payload.error||`Request failed (${response.status})`);error.status=response.status;throw error}return payload;
 }
 function currentPosition(){if(!source||!buffer)return position;const t=position+context.currentTime-started;return source.loop?t%(current.duration||buffer.duration):Math.min(current.duration||buffer.duration,t)}
-function update(){const time=currentPosition();el('Seek').value=String(time);el('Time').textContent=`${time.toFixed(1)} / ${(current?.duration||0).toFixed(1)}s`;if(source)frame=requestAnimationFrame(update)}
-function stopSource(){if(source){position=currentPosition();const old=source;source=null;old.onended=null;try{old.stop()}catch{}old.disconnect();old.buffer=null}cancelAnimationFrame(frame);frame=0;el('Play').textContent=buffer?'Play':'Load & Play'}
+const progressClock=root.mygrainProgressClock(el('Preview'),()=>{if(source)update()});
+function update(){const time=currentPosition();el('Seek').value=String(time);el('Time').textContent=`${time.toFixed(1)} / ${(current?.duration||0).toFixed(1)}s`;if(source)progressClock.start()}
+function stopSource(){if(source){position=currentPosition();const old=source;source=null;old.onended=null;try{old.stop()}catch{}old.disconnect();old.buffer=null}progressClock.stop();el('Play').textContent=buffer?'Play':'Load & Play'}
 function cancelPlayer(){playerGeneration++;playerRequest?.abort();playerRequest=null;stopSource();buffer=null;context=null;position=0;loading=false;el('Play').disabled=false;el('Seek').disabled=true;el('Play').textContent='Load & Play';if(typeof wavIphonePreviewActive!=='undefined'&&wavIphonePreviewActive===player)wavIphonePreviewActive=null;update()}
 let playerRequest=null;
 const libraryRequest=new AbortController();
+let libraryGeneration=0;
 const player={cancel:cancelPlayer,get playing(){return !!source},get buffer(){return buffer},get source(){return source}};
 function playBuffer(){
  const length=Math.min(buffer.duration,current.duration);if(position>=length)position=0;
@@ -186,8 +188,10 @@ el('Master').addEventListener('click',()=>{if(!current||busy)return;stopSource()
 el('Masters').addEventListener('click',()=>root.openWavMastersBrowser?.('reels'));
 el('Discard').addEventListener('click',()=>{cancelPlayer();current=null;el('Preview').hidden=true;message('Preview discarded. Saved reels and current patch unchanged.');sync()});
 async function library(){
- const identity=user(),list=el('LibraryList');list.textContent='Loading reels…';
- try{const data=await json(base+'/library');if(identity!==user()||disposed)return;list.replaceChildren();
+ const token=++libraryGeneration,identity=user(),list=el('LibraryList');list.textContent='Loading reels…';
+ try{const data=await json(base+'/library');
+  if(root.mygrainUiActivity?.busy&&!disposed)await new Promise(resolve=>{const ready=()=>{root.removeEventListener('mygrain-ui-settled',ready);libraryRequest.signal.removeEventListener('abort',ready);resolve()};root.addEventListener('mygrain-ui-settled',ready,{once:true});libraryRequest.signal.addEventListener('abort',ready,{once:true})});
+  if(token!==libraryGeneration||identity!==user()||disposed)return;list.replaceChildren();
   if(!data.reels.length){list.textContent='No saved reels yet.';return}
   for(const reel of data.reels){const row=document.createElement('div');row.className='instareel-library-row';const title=document.createElement('span');title.textContent=`${reel.name} · ${reel.duration.toFixed(1)}s · ${reel.bpm} BPM`;
    const play=document.createElement('button');play.type='button';play.textContent='Preview';play.addEventListener('click',()=>{select({libraryId:reel.id,name:title.textContent,duration:reel.duration,preview:`${base}/library/${reel.id}/preview`});togglePreview();el('Preview').scrollIntoView({block:'nearest'});el('Play').focus({preventScroll:true})});
@@ -221,7 +225,7 @@ async function library(){
  }catch(error){if(identity===user())list.textContent=`Could not load reels: ${error.message}`}
 }
 el('Library').addEventListener('toggle',()=>{if(el('Library').open)library()});el('Refresh').addEventListener('click',library);
-function dispose(){disposed=true;libraryRequest.abort();const pending=job;abortTask();cancelPlayer();current=null;job=null;el('Preview').hidden=true;el('LibraryList').replaceChildren();message('Sign in again to use INSTAREEL.');if(pending&&['queued','running'].includes(pending.state))json(`${base}/${pending.id}/cancel`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'}).catch(()=>{})}
+function dispose(){progressClock.dispose();disposed=true;libraryRequest.abort();const pending=job;abortTask();cancelPlayer();current=null;job=null;el('Preview').hidden=true;el('LibraryList').replaceChildren();message('Sign in again to use INSTAREEL.');if(pending&&['queued','running'].includes(pending.state))json(`${base}/${pending.id}/cancel`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'}).catch(()=>{})}
 root.addEventListener('mygrain-account-lock',dispose);root.addEventListener('mygrain-account-changed',dispose);
 root.addEventListener('mygrain-ai-update',sync);root.addEventListener('mygrain-history-update',sync);
 root.mygrainInstareel=Object.freeze({get busy(){return busy},get capturing(){return capturing},get player(){return player},get job(){return job?{id:job.id,state:job.state}:null}});

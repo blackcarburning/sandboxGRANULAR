@@ -113,8 +113,9 @@
         }
         renderCurve(); monitor();
     }
-    function stopMonitor() { if (frame !== null) cancelAnimationFrame(frame); frame = null; runtime.watch(null); dialog.querySelector('.ceq-spectrum').setAttribute('d', ''); }
+    function stopMonitor(keepImage = false) { if (frame !== null) cancelAnimationFrame(frame); frame = null; runtime.watch(null); if (!keepImage) dialog.querySelector('.ceq-spectrum').setAttribute('d', ''); }
     function monitor() {
+        if (window.mygrainUiActivity?.busy) { stopMonitor(true); return; }
         const active = dialog.open && key && (runtime.get(key).enabled || automation.info(key).read) && !document.hidden && typeof audioContext !== 'undefined' && audioContext?.state === 'running';
         if (!active) { stopMonitor(); if (dialog.open && !drag) status(runtime.get(key).enabled ? 'EQ enabled · output spectrum waits for audio playback.' : 'EQ bypassed · no filters or analyser running. Dashed line previews your settings.'); return; }
         runtime.watch(key);
@@ -122,6 +123,7 @@
     }
     function tick(time) {
         frame = null;
+        if (window.mygrainUiActivity?.busy) { stopMonitor(true); return; }
         if (!dialog.open || !key || (!runtime.get(key).enabled && !automation.info(key).read) || document.hidden || audioContext?.state !== 'running') { stopMonitor(); return; }
         if (!drag && automation.info(key).read) renderCurve();
         if (time - lastDraw > 66) {
@@ -266,9 +268,11 @@
     }
     runtime.subscribe(sync);
     document.addEventListener('visibilitychange', () => { if (document.hidden) cancelDrag(); monitor(); });
+    window.addEventListener('mygrain-ui-busy', monitor);
+    window.addEventListener('mygrain-ui-settled', monitor);
     window.addEventListener('blur', cancelDrag);
     window.addEventListener('mygrain-eq-context', monitor);
-    window.addEventListener('mygrain-account-lock', () => { disposed = true; close(); runtime.releaseContext(); runtime.restore(); });
+    window.addEventListener('mygrain-account-lock', () => { disposed = true; window.removeEventListener('mygrain-ui-busy', monitor); window.removeEventListener('mygrain-ui-settled', monitor); close(); runtime.releaseContext(); runtime.restore(); });
     window.mygrainChannelEqUi = Object.freeze({ open, close, sync, names });
     syncAutomation();
     sync();
