@@ -134,7 +134,7 @@ el('Seek').addEventListener('input',()=>{if(!buffer)return;const playing=!!sourc
 function select(item){cancelPlayer();current=item;el('Preview').hidden=false;el('PreviewTitle').textContent=item.name;el('SaveControls').hidden=!item.jobId;el('Seek').max=String(item.duration);update();sync()}
 function length(){
  const seconds=Number(el('Seconds').value),bpm=Number(document.getElementById('globalBpmSlider')?.value)||120;
- el('Length').textContent=`Target ${Number.isFinite(seconds)?seconds:45}s · ${bpm} BPM. ${el('Variation').value==='none'?'No variation: repeats unchanged for the exact target duration.':'Actual duration rounds to complete source cycles (30–60s).'}`;
+ el('Length').textContent=`Target ${Number.isFinite(seconds)?seconds:45}s · ${bpm} BPM. ${el('Variation').value==='none'?'No variation: repeats unchanged, rounded to complete source cycles (30–60s).':'Actual duration rounds to complete source cycles (30–60s).'}`;
 }
 el('Seconds').addEventListener('input',length);
 el('Variation').addEventListener('change',()=>{length();sync()});

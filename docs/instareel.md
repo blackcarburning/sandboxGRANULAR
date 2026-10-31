@@ -334,16 +334,16 @@ changes. Existing user effects and manual patterns still run normally; the
 Snare-solo-implies-Roll reel rule remains. Development checkboxes are disabled in
 this mode and the canonical server plan overrides their values to false.
 
-Unlike evolving modes, repeat-only output uses the exact selected seconds
-(30–60), even if this ends partway through a source cycle. The existing short
-join smoothing remains. Whole-cycle rounding is unchanged for evolving modes.
+Repeat-only output uses the same complete-source-cycle rounding as evolving
+modes: for example, a 45-second target with a two-second source cycle produces
+46 seconds. It never truncates the final cycle. Existing join smoothing remains.
 The renderer skips variation timers completely; source capture, warm-up, bounded
 buffers, private account storage, preview and saving reuse the existing path.
 No core Song renderer or saved-patch compatibility change is involved.
 
-Tests: 41 planner/arrangement checks, 12 backend checks; Chromium/WebKit current
+Tests: 42 planner/arrangement checks, 12 backend checks; Chromium/WebKit current
 capture tests verify No variation submission, disabled development toggles and
 unchanged editor state. Real server PCM uses `INSTAREEL_REPEAT_TEST=1
 INSTAREEL_VARIATION=none INSTAREEL_SECONDS=31` with the existing browser renderer,
-then `tests/instareel-repeat-evidence.py` checks exact frames and unchanged phrase/
+then `tests/instareel-repeat-evidence.py` checks whole-cycle frames, a smooth wrap and unchanged phrase/
 level profiles for all five distinctive source lanes over every full repeat.

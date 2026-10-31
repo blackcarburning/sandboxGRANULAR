@@ -49,7 +49,7 @@ def plan(meta, seconds, variation, seed, options=None):
         raise ValueError('Choose 30–60 seconds and a valid variation mode.')
     cycle = meta['patternSteps'] * meta.get('patternCycleMultiplier', 1) * 60 / meta['bpm'] / 4
     low, high = math.ceil((30 - 1e-8) / cycle), math.floor((60 + 1e-8) / cycle)
-    if cycle > 60 or (variation != 'none' and low > high):
+    if cycle > 60 or low > high:
         raise ValueError('This source cycle cannot fit a complete 30–60 second reel. Shorten its pattern.')
     repeats = max(low, min(high, math.floor(seconds / cycle + .5)))
     # Canonical musical plan is shared with Node unit tests and the worker.
@@ -57,7 +57,7 @@ def plan(meta, seconds, variation, seed, options=None):
                              str(ROOT / 'scripts/instareel-plan.cjs'), json.dumps([meta, seconds, variation, seed, options or {}])],
                             capture_output=True, timeout=5, check=True)
     value = json.loads(result.stdout)
-    if abs(value['duration'] - (seconds if variation == 'none' else cycle * repeats)) > .00001:
+    if abs(value['duration'] - cycle * repeats) > .00001:
         raise ValueError('Reel duration mismatch.')
     return value
 

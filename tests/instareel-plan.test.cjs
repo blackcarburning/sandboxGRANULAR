@@ -68,8 +68,15 @@ test('protected layer list is canonical, validated and recorded in the render pl
  assert.deepEqual(plan(meta,30,'subtle',1,{protectedLayers:['V','L','V']}).options.protectedLayers,['V','L']);
  for(const protectedLayers of ['V',['foreign'],[{}]])assert.throws(()=>plan(meta,30,'subtle',1,{protectedLayers}));
 });
-test('No variation repeats for the exact target duration, overriding all development options',()=>{
+test('No variation repeats complete source cycles near the target duration, overriding all development options',()=>{
  const p=plan({bpm:120,patternSteps:16},45,'none',123,{notes:true,drums:true,recutV:true});
- assert.equal(p.duration,45);assert.equal(p.cycle,2);assert.deepEqual(p.events,[]);assert.deepEqual(p.fills,[]);
+ assert.equal(p.duration,46);assert.equal(p.repeats,23);assert.equal(p.cycle,2);assert.deepEqual(p.events,[]);assert.deepEqual(p.fills,[]);
  assert.deepEqual(p.options,{notes:false,drums:false,recutV:false});
+});
+
+test('No variation uses exactly the same duration alignment as evolving modes',()=>{
+ for(const bpm of [80,120,137])for(const patternSteps of [16,32,64])for(const seconds of [30,31,45,59,60]){
+  const meta={bpm,patternSteps};const repeat=plan(meta,seconds,'none',1),evolve=plan(meta,seconds,'subtle',1);
+  assert.equal(repeat.duration,evolve.duration);assert.equal(repeat.repeats,Math.round(repeat.repeats));assert.deepEqual(repeat.events,[]);
+ }
 });

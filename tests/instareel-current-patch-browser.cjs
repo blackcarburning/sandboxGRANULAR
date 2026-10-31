@@ -17,6 +17,7 @@ const base=process.env.MYGRAIN_TEST_URL||'http://127.0.0.1:18936/mygrain/';
   for(const [index,bpm,action] of [[0,120,'#instareelMake'],[1,132,'#instareelNewCurrent']]){
    await page.evaluate(value=>applyGlobalBpm(value),bpm);await page.waitForFunction(()=>!mygrainCardHistory.busy);
    await page.locator('#instareelVariation').selectOption(index===0?'none':'subtle');assert.equal(await page.locator('#instareelNotes').isDisabled(),index===0);assert.equal(await page.locator('#instareelDrums').isDisabled(),index===0);assert.equal(await page.locator('#instareelRecutV').isDisabled(),index===0);
+   if(index===0){assert.match(await page.locator('#instareelLength').textContent(),/complete source cycles/);assert(!(await page.locator('#instareelLength').textContent()).includes('exact target'));}
    const before=await page.evaluate(()=>JSON.stringify(saveState({force:true,snapshotOnly:true}),(k,v)=>k==='timestamp'?undefined:v));
    await page.locator(action).tap();await page.waitForFunction(()=>!mygrainInstareel.busy&&document.getElementById('instareelStatus').textContent.includes('Snapshot test completed'));
    const captures=await page.evaluate(()=>reelSubmissions);assert.equal(captures.length,index+1);
