@@ -84,6 +84,7 @@ const base=process.env.MYGRAIN_TEST_URL||'http://127.0.0.1:18936/mygrain/';asser
   });
   await page.locator('#sectionJumpHandle').tap();await page.locator('.section-jump-option[data-jump-target="#genreatorCard"]').tap();
   if(process.env.INSTAREEL_RECUT_TEST)await page.locator('#instareelRecutV').check();
+  if(process.env.INSTAREEL_PROTECTED){await page.locator('.instareel-protection summary').tap();for(const key of process.env.INSTAREEL_PROTECTED.split(','))await page.locator('[data-reel-protected="'+key+'"]').check();}
   if(process.env.INSTAREEL_MUSICAL_TEST){await page.locator('#instareelNotes').check();await page.locator('#instareelDrums').check()}
   await page.locator('#instareelSeconds').fill(process.env.INSTAREEL_SECONDS||'30');await page.locator('#instareelVariation').selectOption(process.env.INSTAREEL_VARIATION||'subtle');await page.locator('#instareelMake').scrollIntoViewIfNeeded();await page.locator('#instareelMake').tap();
   await page.waitForFunction(()=>mygrainInstareel.job||document.getElementById('instareelStatus').textContent.includes('Could not'),null,{timeout:30000});

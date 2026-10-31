@@ -39,7 +39,12 @@ def reel_root(accounts, user):
     return folder
 
 
+PROTECTED_LAYERS = ('A','B','C','V','W','P','O','L','X','M','M+','K','Q','N','DRUMS','GLOBAL')
+
 def plan(meta, seconds, variation, seed, options=None):
+    protected = (options or {}).get('protectedLayers', [])
+    if not isinstance(protected, list) or len(protected)>16 or any(key not in PROTECTED_LAYERS for key in protected):
+        raise ValueError('Invalid protected layers.')
     if not math.isfinite(seconds) or not 30 <= seconds <= 60 or variation not in ('subtle', 'moderate', 'extreme'):
         raise ValueError('Choose 30–60 seconds and Subtle, Moderate or Extreme variation.')
     cycle = meta['patternSteps'] * meta.get('patternCycleMultiplier', 1) * 60 / meta['bpm'] / 4
@@ -326,7 +331,11 @@ def handle(handler, accounts, songs):
             flags = {key:(query.get(key) or ['0'])[0] for key in ('notes','drums','recutV')}
             if any(value not in ('0','1') for value in flags.values()):
                 raise ValueError('Choose valid reel variation options.')
-            layout = plan(meta, seconds, variation, secrets.randbits(32), {key:value=='1' for key,value in flags.items()})
+            protected = (query.get('protectedLayers') or [''])[0]
+            protected = protected.split(',') if protected else []
+            if len(protected)>16 or any(key not in PROTECTED_LAYERS for key in protected):
+                raise ValueError('Invalid protected layers.')
+            layout = plan(meta, seconds, variation, secrets.randbits(32), {**{key:value=='1' for key,value in flags.items()}, 'protectedLayers':protected})
             ident = secrets.token_hex(16)
             folder = checked(root / ('job-'+ident), root)
             folder.mkdir(mode=0o700)

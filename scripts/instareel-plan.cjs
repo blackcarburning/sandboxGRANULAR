@@ -1,6 +1,9 @@
 'use strict';
 function plan(meta, seconds, variation, seed, options = {}) {
- options={notes:options.notes===true,drums:options.drums===true,recutV:options.recutV===true};
+ const allowed=['A','B','C','V','W','P','O','L','X','M','M+','K','Q','N','DRUMS','GLOBAL'];
+ if(options.protectedLayers!==undefined&&(!Array.isArray(options.protectedLayers)||options.protectedLayers.some(k=>!allowed.includes(k))))throw Error('Invalid protected layers.');
+ const protectedLayers=[...new Set(options.protectedLayers||[])];
+ options={...(protectedLayers.length?{protectedLayers}:{}),notes:options.notes===true,drums:options.drums===true,recutV:options.recutV===true};
  const cycle=meta.patternSteps*(meta.patternCycleMultiplier||1)*60/meta.bpm/4;
  if(!Number.isFinite(seconds)||seconds<30||seconds>60||!['subtle','moderate','extreme'].includes(variation)||!Number.isFinite(cycle)||cycle<=0||cycle>60)throw Error('Choose 30–60 seconds and a source pattern no longer than 60 seconds.');
  const low=Math.ceil((30-1e-8)/cycle),high=Math.floor((60+1e-8)/cycle);

@@ -20,6 +20,10 @@ class ReelTests(unittest.TestCase):
   public=REELS.public({'id':'a'*32,'state':'queued','message':'Ready','plan':{},'createdAt':1,'folder':'/private','owner':'someone','cookie':'SECRET','process':object()})
   self.assertEqual(set(public),{'id','state','message','plan','createdAt'})
   self.assertNotIn('SECRET',str(public))
+ def test_protected_layers_survive_python_node_planning(self):
+  meta={'bpm':120,'patternSteps':16,'patternCycleMultiplier':1}
+  self.assertEqual(REELS.plan(meta,30,'subtle',123,{'protectedLayers':['V','L']})['options']['protectedLayers'],['V','L'])
+  with self.assertRaises(ValueError):REELS.plan(meta,30,'subtle',123,{'protectedLayers':['foreign']})
  def test_plan_rounds_cycles_and_bounds_the_target(self):
   meta={'bpm':120,'patternSteps':16,'patternCycleMultiplier':1}
   self.assertEqual(REELS.plan(meta,45,'subtle',123)['duration'],46)

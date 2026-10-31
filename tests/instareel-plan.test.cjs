@@ -62,3 +62,9 @@ test('strength increases average density and Roll rhythms vary in length, positi
  }
  assert(totals[0]<totals[1]&&totals[1]<totals[2]);
 });
+
+test('protected layer list is canonical, validated and recorded in the render plan',()=>{
+ const meta={bpm:120,patternSteps:16};
+ assert.deepEqual(plan(meta,30,'subtle',1,{protectedLayers:['V','L','V']}).options.protectedLayers,['V','L']);
+ for(const protectedLayers of ['V',['foreign'],[{}]])assert.throws(()=>plan(meta,30,'subtle',1,{protectedLayers}));
+});

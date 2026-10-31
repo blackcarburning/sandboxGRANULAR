@@ -5,10 +5,11 @@ module.exports=String.raw`(function(){
  // Synth-mode lead lanes are playable without an audio sample. Empty sequences are not layers.
  for(const lane of lanes){if(lane[0]==='L')lane[3]=hasPlayableBastardLoopLTransportSource();if(lane[0]==='X')lane[3]=hasPlayableBastardLoopXTransportSource();if(lane[0]==='K'&&window.mygrainKMultitrack)lane[3]=window.mygrainKMultitrack.hasAudio()}
  const controls=lanes.map(([key,id,on,loaded,enable])=>({key,el:document.getElementById(id),on,loaded,enable})).filter(x=>x.el).map(x=>({...x,value:Number(x.el.value)}));
+ const protectedLayer=key=>(plan.options.protectedLayers||[]).includes(key);
  const active=controls.filter(x=>x.on&&x.value>0),available=controls.filter(x=>(!x.on||x.value<=0)&&x.loaded);
- const q=document.getElementById('performanceBastardLoopQLevelMixer');if(window.mygrainQ?.state.enabled&&q&&Number(q.value)>0)active.push({el:q,value:Number(q.value)});
+ const q=document.getElementById('performanceBastardLoopQLevelMixer');if(window.mygrainQ?.state.enabled&&q&&Number(q.value)>0)active.push({key:'Q',el:q,value:Number(q.value)});
  const drum=document.getElementById('performanceDrumMachineLevel');
- if(drumMachineEnabled&&drum&&Number(drum.value)>0)active.push({el:drum,value:Number(drum.value)});
+ if(drumMachineEnabled&&drum&&Number(drum.value)>0)active.push({key:'DRUMS',el:drum,value:Number(drum.value)});
  const filter=document.getElementById('lpfCutoff'),cutoff=Number(filter?.value);
  const noise=window.mygrainNoise,originalNoise=noise?{...noise.settings()}:null;
  const leadFilters=['L','X'].map(key=>({key,el:document.getElementById('performanceBastardLoop'+key+'FilterEnvelope')})).filter(x=>x.el).map(x=>({...x,value:Number(x.el.value)}));
@@ -49,10 +50,10 @@ module.exports=String.raw`(function(){
   lane.current=cloneSequence(sequence);lane.set(sequence);
  }
  const apply=event=>{
-  active.forEach((x,i)=>level(x,x.value*(1-event.amount*(i===event.pick%Math.max(1,active.length)?1:.15))));
+  active.forEach((x,i)=>{if(!protectedLayer(x.key))level(x,x.value*(1-event.amount*(i===event.pick%Math.max(1,active.length)?1:.15)));});
   const selected=event.amount>0?Math.min(available.length,plan.variation==='extreme'?3:event.amount>.3?2:1):0;
   const added=[];
-  available.forEach((x,i)=>{const offset=(i-event.pick%Math.max(1,available.length)+available.length)%available.length,on=offset<selected;
+  available.forEach((x,i)=>{if(protectedLayer(x.key))return;const offset=(i-event.pick%Math.max(1,available.length)+available.length)%available.length,on=offset<selected;
    // Set the level before waking a parked lane; never add unloaded sources.
    level(x,on?Math.min(x.value||35,plan.variation==='extreme'?42:event.amount>.3?30:16):x.value);x.enable(on||x.on);if(on)added.push(x.key);
   });
@@ -60,7 +61,7 @@ module.exports=String.raw`(function(){
   const random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296};
   const nAllowed=typeof hasAnyPerformanceLayerSoloSelection!=='function'||!hasAnyPerformanceLayerSoloSelection()||loopLayerSolo.includes('noise');
   mixDriver=false;refreshMix();
-  if(noise&&originalNoise){
+  if(noise&&originalNoise&&!protectedLayer('N')){
    // N is an ordinary occasional layer, not a fixed every-third-section gesture.
    const on=event.amount>0&&nAllowed&&random()<.55;
    if(on){
@@ -70,15 +71,15 @@ module.exports=String.raw`(function(){
    }else noise.restore(event.amount===0?originalNoise:{...originalNoise,enabled:false});
   }
   refreshMix();
-  for(const x of leadFilters){const used=x.key==='L'?bastardLoopLEnabled:bastardLoopXEnabled;level(x,event.amount>0&&used?Math.max(5,Math.min(90,x.value+(random()-.35)*event.amount*90)):x.value)}
+  for(const x of leadFilters){if(protectedLayer(x.key))continue;const used=x.key==='L'?bastardLoopLEnabled:bastardLoopXEnabled;level(x,event.amount>0&&used?Math.max(5,Math.min(90,x.value+(random()-.35)*event.amount*90)):x.value)}
   motion=null;
-  if(originalGlobal){
+  if(originalGlobal&&!(plan.options.protectedLayers||[]).length){
    const on=event.amount>0&&random()<.35;
    setFilterPoles('lpf',on?4:originalGlobal.slope/6);setFilterEnabled('lpf',on||originalGlobal.enabled);
    if(on)motion={at:event.at,base:Math.min(cutoff,(plan.variation==='subtle'?6000:plan.variation==='moderate'?3500:1800)+random()*2400),depth:.15+random()*.25,hz:(plan.bpm||120)/60/[4,8,16][Math.floor(random()*3)]};
   }
-  if(filter&&Number.isFinite(cutoff)){filter.value=String(cutoff);filter.dispatchEvent(new Event('input',{bubbles:true}))}
-  if(plan.options.drums&&drumMachineEnabled){
+  if(filter&&Number.isFinite(cutoff)&&!(plan.options.protectedLayers||[]).length){filter.value=String(cutoff);filter.dispatchEvent(new Event('input',{bubbles:true}))}
+  if(plan.options.drums&&!protectedLayer('DRUMS')&&drumMachineEnabled){
    if(event.amount===0){evolvingHats=hats.slice();evolvingHatAccents=accents.slice();hatChanges.clear();drumGeneration=0}
    else drumGeneration++;
    if(drumMachineHatBuffer){
@@ -99,22 +100,22 @@ module.exports=String.raw`(function(){
     }
    }
   }
-  if(plan.options.notes&&leads)for(const lane of leads)varyLead(lane,event);
-  if(plan.options.drums&&drumMachineEnabled){
+  if(plan.options.notes&&leads)for(const lane of leads)if(!protectedLayer(lane.key))varyLead(lane,event);
+  if(plan.options.drums&&!protectedLayer('DRUMS')&&drumMachineEnabled){
    if(event.amount===0||!evolvingSnare)evolvingSnare=apply.snareAccents.slice();
    if(event.amount>0&&drumMachineSnareBuffer&&isDrumMachineLaneAudible('snare')){
     const candidates=drumMachineSnarePattern.map((on,i)=>on?i:-1).filter(i=>i>=0);
     if(candidates.length){const i=candidates[(drumGeneration-1)%candidates.length];evolvingSnare[i]=!evolvingSnare[i]}
    }
   }
-  if(plan.options.drums&&drumMachineEnabled)drumMachineBaseAccents.snare=evolvingSnare.slice();
+  if(plan.options.drums&&!protectedLayer('DRUMS')&&drumMachineEnabled)drumMachineBaseAccents.snare=evolvingSnare.slice();
   return {active:active.length,added};
  };
  // Separate lane-cycle callbacks: arrangement sections may be longer/shorter than a source repeat.
  apply.cutEvents=()=>{
   const events=[],closing=plan.events.at(-1).at;
   for(const lane of recuts){
-   if(!lane.buffer()||lane.key==='V'&&!plan.options.recutV)continue;
+   if(protectedLayer(lane.key)||!lane.buffer()||lane.key==='V'&&!plan.options.recutV)continue;
    const seconds=Number(lane.cycle());if(!Number.isFinite(seconds)||seconds<=0)continue;
    // Bound callbacks for extremely short imported sources; normal musical loops retain every repeat.
    const cycle=seconds*Math.max(1,Math.ceil(plan.duration/512/seconds)),phase=(plan.warmup||0)%cycle;
@@ -125,7 +126,7 @@ module.exports=String.raw`(function(){
   return events.sort((a,b)=>a.at-b.at);
  };
  apply.cut=event=>{
-  const lane=recuts.find(x=>x.key===event.key);if(!lane)return;
+  const lane=recuts.find(x=>x.key===event.key);if(!lane||protectedLayer(lane.key))return;
   let next=lane.original;
   if(!event.restore&&lane.buffer()&&lane.audible()>0&&(lane.key!=='V'||plan.options.recutV)){
    const base=lane.original,begin=base.enabled?base.start:0,end=base.enabled?base.end:1,span=end-begin;
@@ -148,10 +149,10 @@ module.exports=String.raw`(function(){
   plan=value;plan.options=plan.options||{notes:false,drums:false,recutV:false};
   for(const lane of recuts){lane.turn=0;lane.developed=''}
   if(plan.options.notes)leads=[
-   {sequence:cloneSequence(bastardLoopLSequence),length:getBastardLoopLPatternLength(),enabled:()=>bastardLoopLEnabled,playable:()=>hasBastardLoopLPlaybackSource(),root:()=>getBastardLoopLRootNote(),seconds:()=>getBastardLoopLStepDurationSeconds(),set:value=>{bastardLoopLSequence=value}},
-   {sequence:cloneSequence(bastardLoopXSequence),length:getBastardLoopXPatternLength(),enabled:()=>bastardLoopXEnabled,playable:()=>hasBastardLoopXPlaybackSource(),root:()=>getBastardLoopXRootNote(),seconds:()=>getBastardLoopXStepDurationSeconds(),set:value=>{bastardLoopXSequence=value}}
+   {key:'L',sequence:cloneSequence(bastardLoopLSequence),length:getBastardLoopLPatternLength(),enabled:()=>bastardLoopLEnabled,playable:()=>hasBastardLoopLPlaybackSource(),root:()=>getBastardLoopLRootNote(),seconds:()=>getBastardLoopLStepDurationSeconds(),set:value=>{bastardLoopLSequence=value}},
+   {key:'X',sequence:cloneSequence(bastardLoopXSequence),length:getBastardLoopXPatternLength(),enabled:()=>bastardLoopXEnabled,playable:()=>hasBastardLoopXPlaybackSource(),root:()=>getBastardLoopXRootNote(),seconds:()=>getBastardLoopXStepDurationSeconds(),set:value=>{bastardLoopXSequence=value}}
   ];
-  if(!plan.options.drums)return {fills:0};
+  if(!plan.options.drums||protectedLayer('DRUMS'))return {fills:0};
   apply.snareAccents=drumMachineBaseAccents.snare.slice();
   if(!drumMachineEnabled||!drumMachineSnareBuffer)return {fills:0};
   // The source patch may solo other drum lanes. Include Roll additively in this
@@ -172,7 +173,7 @@ module.exports=String.raw`(function(){
    // Version 8 carries each newly chosen rhythm; retain queued older plan support.
    const notes=fill.notes||Array.from({length:hits},(_,j)=>({step:end-hits+j-start,ratchet:j>=hits-2?fill.ratchet:1}));
    for(const note of notes){const i=(offset+start+note.step)%length;if(roll.pattern[i])continue;
-    roll.pattern[i]=true;roll.ratchets[i]=note.ratchet;roll.dips[i]=roll.dip<100;roll.accents[i]=false;added=true;
+    roll.pattern[i]=true;roll.ratchets[i]=note.ratchet;roll.dips[i]=roll.dip<100&&!(plan.options.protectedLayers||[]).length;roll.accents[i]=false;added=true;
    }
    if(added)fills++;
   }

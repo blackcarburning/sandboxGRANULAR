@@ -229,3 +229,27 @@ test('Drums off, disabled drums and missing Snare preserve the original lane sol
   assert.equal(f.apply.prepare(p).fills,0);assert.deepEqual(c.drumMachineLaneSolos,['kick','hat']);
  }
 });
+
+test('protected layers retain levels, enabled states, notes, drums, cuts and master filter',()=>{
+ const f=musicalFixture({notes:true,drums:true,recutV:true,protectedLayers:['V','W','L','X','DRUMS','GLOBAL']}),c=f.ctx;
+ const before=JSON.stringify([c.bastardLoopVEnabled,c.bastardLoopWEnabled,c.bastardLoopLSequence,c.bastardLoopXSequence,c.drumMachineRoll,c.drumMachineHatPattern,c.drumMachineHatRatchetPattern,c.drumMachineBaseAccents,c.bastardLoopVCut,c.bastardLoopWCut]);
+ const levels=['V','W','L','X'].map(k=>f.elements.get('performanceBastardLoop'+k+'Level').value);
+ for(const e of f.plan.events)f.apply(e);
+ for(const e of f.apply.cutEvents())f.apply.cut(e);
+ f.apply.cut({key:'V',restore:false});f.apply.tick(12);
+ assert.equal(JSON.stringify([c.bastardLoopVEnabled,c.bastardLoopWEnabled,c.bastardLoopLSequence,c.bastardLoopXSequence,c.drumMachineRoll,c.drumMachineHatPattern,c.drumMachineHatRatchetPattern,c.drumMachineBaseAccents,c.bastardLoopVCut,c.bastardLoopWCut]),before);
+ assert.deepEqual(['V','W','L','X'].map(k=>f.elements.get('performanceBastardLoop'+k+'Level').value),levels);
+ assert.equal(f.prepared.fills,0);assert.equal(f.elements.get('lpfCutoff').value,'12000');
+ assert(!f.apply.cutEvents().some(e=>['V','W'].includes(e.key)));
+});
+test('protecting one layer still permits the others to develop',()=>{
+ const f=musicalFixture({notes:true,drums:true,protectedLayers:['L']});
+ const l=JSON.stringify(f.ctx.bastardLoopLSequence),x=JSON.stringify(f.ctx.bastardLoopXSequence);
+ f.apply(f.plan.events.find(e=>e.amount>0));assert.equal(JSON.stringify(f.ctx.bastardLoopLSequence),l);assert.notEqual(JSON.stringify(f.ctx.bastardLoopXSequence),x);
+});
+test('generated Roll fills never add ducking over a protected layer',()=>{
+ const f=musicalFixture({drums:true,protectedLayers:['L']});
+ assert(f.prepared.fills>0);
+ assert(f.ctx.drumMachineRoll.pattern.some(Boolean));
+ assert(!f.ctx.drumMachineRoll.dips.some(Boolean));
+});

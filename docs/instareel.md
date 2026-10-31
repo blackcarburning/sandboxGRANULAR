@@ -291,3 +291,28 @@ rhythm against its Drums-off retry. It checks new 1kHz Snare hits, varying step
 counts, non-copied rhythms, empty patterns and the protected join. Use
 `INSTAREEL_SECONDS=60 INSTAREEL_VARIATION=subtle INSTAREEL_MUSICAL_TEST=1
 INSTAREEL_RETRY_TEST=1 INSTAREEL_SOLO_TEST=kick,snare` for a representative run.
+
+## Protected layers (2026-10-31)
+
+Expand **Protected layers · exclude from variations** before either creation
+button. Checked lanes retain their original enable/level, source cut, lead notes
+and envelope controls; Drums + Roll also suppresses generated accents, ratchets,
+Roll timeline changes and additive Roll solos. N and Q are included. Protection
+also prevents disabled layers being introduced. Selecting any protection disables
+generated master-filter changes since these would affect protected audio; existing
+user effects remain active. New Roll-fill ducking is also suppressed when any
+protection is selected, without altering existing manual Roll hits/dips. Master filter alone can be protected independently.
+The current selection is sent on every fresh capture as `protectedLayers`,
+validated server-side and recorded in the job plan. It is a reel-only control,
+not part of the editor patch or Song rendering; no core synthesis, saved source
+archive or Song freeze compatibility changes are needed. Older plans without the
+option retain their prior behavior.
+
+Regression coverage: planner canonicalization/invalid keys; arrangement fixtures
+for all protected mutation paths and unprotected note development; phone Chromium
+and WebKit capture tests including selection submission, untouched editor state
+and portrait/landscape containment. Real 30-second server-render evidence uses
+`INSTAREEL_RECUT_TEST=1 INSTAREEL_PROTECTED=V,W` with
+`tests/instareel-browser.cjs`, then `tests/instareel-protection-evidence.py` to
+compare every protected V/W phrase and level against its opening while requiring
+unprotected A/B/C development.

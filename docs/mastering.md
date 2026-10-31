@@ -454,3 +454,9 @@ Verification uses disposable accounts, never production-user fixtures:
 
 These are regression checks for the covered boundaries, not a claim that testing
 can prove the absence of every possible security defect.
+
+Phone patch-action layout follow-up: Save new / Update / Recall share an explicit
+three-column grid; Delete / Refresh use the second row. Labels and padding are
+reduced only inside the private patch section, retaining 32 px button height.
+The console browser fixture checks Recall's horizontal containment and shared
+row at 320/390/844/1024 px, alongside existing pinned meters/audio lifecycle.
