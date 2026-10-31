@@ -78,12 +78,14 @@ if(!root.document)return;
 // Reclaim display-only backing stores. Never unload controls or audio state.
 (function installViewportResources(){
  const doc=root.document, states=new Map(), visible=new Set(), pending=new Set();
- const cards=new Map();let released=0,redraws=0,parked=0;
+ const cards=new Map(), pendingCards=new Map();let released=0,redraws=0,parked=0;
+ const deferLifecycle=()=>root.mygrainUiActivity?.busy||doc.documentElement.dataset.mygrainJumping==='true';
  const style=doc.createElement('style');style.textContent='[data-mygrain-visual-parked], [data-mygrain-visual-parked] * { animation-play-state:paused!important; transition:none!important; will-change:auto!important; backdrop-filter:none!important; -webkit-backdrop-filter:none!important; }';doc.head.append(style);
  const blocked=()=>doc.hidden||root.mygrainUiActivity?.busy||doc.documentElement.dataset.mygrainJumping==='true';
  const inViewport=el=>{if(!el.isConnected||el.closest('[data-mygrain-visual-parked]'))return false;const r=el.getBoundingClientRect();return r.width>0&&r.height>0&&r.bottom>0&&r.right>0&&r.top<root.innerHeight&&r.left<root.innerWidth};
  function release(s){
   if(s.parked||s.el.tagName!=='CANVAS')return;
+  if(s.el.isConnected&&deferLifecycle()){pending.add(s);return;}
   const el=s.el,r=el.getBoundingClientRect();
   s.size=[el.width,el.height];s.css=[el.style.width,el.style.height];
   // Preserve layout even for canvases whose CSS height depends on their bitmap.
@@ -122,7 +124,8 @@ if(!root.document)return;
   el.style.containIntrinsicBlockSize=height+'px';el.style.contentVisibility='hidden';el.dataset.mygrainVisualParked='true';state.parked=true;parked++;
  }
  function revealCard(el,state){if(!state.parked)return;el.style.contentVisibility=state.css[0];el.style.containIntrinsicBlockSize=state.css[1];delete el.dataset.mygrainVisualParked;state.parked=false;parked--;cardObserver.unobserve(el);cardObserver.observe(el);root.mygrainMeters?.refresh(el);for(const canvas of el.querySelectorAll('canvas')){const s=states.get(canvas);if(s){canvasObserver.unobserve(canvas);canvasObserver.observe(canvas)}}}
- const cardObserver=new IntersectionObserver(changes=>{for(const e of changes){const state=cards.get(e.target);if(!state)continue;if(e.isIntersecting&&e.intersectionRatio>0)revealCard(e.target,state);else parkCard(e.target,state)}},{threshold:[0,0.001]});
+ const cardObserver=new IntersectionObserver(changes=>{for(const e of changes){const state=cards.get(e.target);if(!state)continue;pendingCards.set(e.target,e.isIntersecting&&e.intersectionRatio>0)}flushCards()},{threshold:[0,0.001]});
+ function flushCards(){if(deferLifecycle()||doc.hidden)return;for(const [el,isVisible] of pendingCards){pendingCards.delete(el);const state=cards.get(el);if(!state||!el.isConnected)continue;if(isVisible)revealCard(el,state);else parkCard(el,state)}}
  function addTree(el){
   if(el.nodeType!==1)return;
   for(const canvas of [...(el.matches('canvas')?[el]:[]),...el.querySelectorAll('canvas')])register(canvas);
@@ -133,11 +136,11 @@ if(!root.document)return;
    cards.set(card,{parked:false});cardObserver.observe(card);
   }
  }
- function cleanup(){for(const [el,s]of states)if(!el.isConnected){release(s);canvasObserver.unobserve(el);visible.delete(s);pending.delete(s);s.jobs.clear();states.delete(el)}for(const [el,state]of cards)if(!el.isConnected){if(state.parked)parked--;cardObserver.unobserve(el);cards.delete(el)}}
+ function cleanup(){for(const [el,s]of states)if(!el.isConnected){release(s);canvasObserver.unobserve(el);visible.delete(s);pending.delete(s);s.jobs.clear();states.delete(el)}for(const [el,state]of cards)if(!el.isConnected){if(state.parked)parked--;cardObserver.unobserve(el);pendingCards.delete(el);cards.delete(el)}}
  const mutation=new MutationObserver(changes=>{let removed=false;for(const change of changes){for(const el of change.addedNodes)addTree(el);if(change.removedNodes.length)removed=true}if(removed)cleanup()});
- function settle(){for(const s of visible)if(pending.has(s))draw(s)}
+ function settle(){if(blocked())return;flushCards();for(const s of pending){if(!s.el.isConnected)continue;if(!s.visible)release(s);else draw(s)}}
  for(const event of ['mygrain-ui-settled','mygrain-jump-change'])root.addEventListener(event,settle);
- doc.addEventListener('visibilitychange',()=>{if(doc.hidden){for(const s of states.values()){pending.add(s);release(s)}}else{for(const s of visible){pending.add(s);draw(s)}}});
+ doc.addEventListener('visibilitychange',()=>{if(doc.hidden){for(const s of states.values()){pending.add(s);release(s)}}else{flushCards();for(const s of visible){pending.add(s);draw(s)}}});
  const nativeScroll=root.Element?.prototype.scrollIntoView;
  if(nativeScroll&&!root.__mygrainSongRenderDeck)root.Element.prototype.scrollIntoView=function(...args){reveal(this);return nativeScroll.apply(this,args)};
  function start(){if(root.__mygrainSongRenderDeck)return;addTree(doc.body);mutation.observe(doc.body,{subtree:true,childList:true})}
@@ -147,7 +150,10 @@ if(!root.document)return;
 root.mygrainPhone=/iPhone|iPod/.test(navigator.userAgent)||(/Macintosh/.test(navigator.userAgent)&&navigator.maxTouchPoints>1);
 const jobs=new Map(),scripts=new Map(),inflight=new WeakMap();
 function load(src,attributes={}){if(!scripts.has(src))scripts.set(src,new Promise((resolve,reject)=>{const el=document.createElement('script');el.src=src;for(const [key,value] of Object.entries(attributes))el.setAttribute(key,value);const timer=setTimeout(()=>fail('Loading timed out: '),20000);const fail=message=>{clearTimeout(timer);scripts.delete(src);el.remove();reject(Error(message+src+'. Check the connection and retry.'));};el.onload=()=>{clearTimeout(timer);resolve();};el.onerror=()=>fail('Unable to load ');document.head.append(el)}));return scripts.get(src)}
-const observer=new IntersectionObserver(entries=>{for(const e of entries)if(e.isIntersecting)run(e.target)},{rootMargin:'180px'});
+const candidates=new Set();
+const observer=new IntersectionObserver(entries=>{for(const e of entries){if(e.isIntersecting)candidates.add(e.target);else candidates.delete(e.target)}flushLazy()},{rootMargin:'180px'});
+function flushLazy(){if(document.hidden||root.mygrainUiActivity?.busy||document.documentElement.dataset.mygrainJumping==='true')return;for(const el of candidates){candidates.delete(el);run(el)}}
+root.addEventListener('mygrain-ui-settled',flushLazy);root.addEventListener('mygrain-jump-change',flushLazy);
 function run(el){const opening=document.getElementById('start-overlay');if(opening&&getComputedStyle(opening).display!=='none'&&getComputedStyle(opening).opacity!=='0')return;const job=jobs.get(el);if(!job)return inflight.get(el); jobs.delete(el);observer.unobserve(el);const ready=Promise.resolve().then(job).catch(error=>{const retry=document.createElement('button');retry.textContent='Retry loading controls';retry.onclick=()=>{retry.remove();whenVisible(el,job);run(el)};const message=document.createElement('p');message.setAttribute('role','alert');message.textContent=error.message||'Unable to load controls. Please retry.';el.append(message,retry);console.error(error)});inflight.set(el,ready);return ready;}
 function whenVisible(el,job){if(!el)return;jobs.set(el,job);observer.observe(el)}
 root.mygrainDemand={load,whenVisible,run};

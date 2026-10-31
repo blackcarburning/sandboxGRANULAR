@@ -46,6 +46,21 @@ test('display work coalesces per slot, remains deferred while scrolling, and pai
  root.dispatchEvent(new Event('mygrain-jump-change'));assert.equal(paints,20);
  delete doc.documentElement.dataset.mygrainJumping;root.dispatchEvent(new Event('mygrain-jump-change'));assert.equal(paints,104,'reveal paints latest work exactly once');
  root.dispatchEvent(new Event('mygrain-jump-change'));assert.equal(paints,104);
+ // Crossing screen edges while scrolling must not churn bitmap allocations.
+ root.mygrainUiActivity.busy=true;
+ for(let i=0;i<25;i++){
+  observers[0].fn([{target:element,isIntersecting:false,intersectionRatio:0}]);
+  assert.equal(element.width,12,'scroll-time teardown must be deferred');
+  observers[0].fn([{target:element,isIntersecting:true,intersectionRatio:1}]);
+ }
+ assert.equal(root.mygrainDisplay.snapshot().releases,0);
+ root.mygrainUiActivity.busy=false;root.dispatchEvent(new Event('mygrain-ui-settled'));
+ assert.equal(element.width,12);assert.equal(root.mygrainDisplay.snapshot().releases,0,'returning visible needs no destroy/recreate');
+ root.mygrainUiActivity.busy=true;
+ observers[0].fn([{target:element,isIntersecting:false,intersectionRatio:0}]);
+ assert.equal(element.width,12);
+ root.mygrainUiActivity.busy=false;root.dispatchEvent(new Event('mygrain-ui-settled'));
+ assert.equal(element.width,0,'offscreen stores still released after settling');
  observers[0].fn([{target:element,isIntersecting:false,intersectionRatio:0}]);assert.equal(element.width,0);assert.equal(element.height,0);assert.equal(root.mygrainDisplay.snapshot().backingBytes,0);
  observers[0].fn([{target:element,isIntersecting:true,intersectionRatio:1}]);assert.equal(element.width,12);assert.equal(element.height,8);assert.equal(paints,104);assert.equal(root.mygrainDisplay.snapshot().releases,1);
 });
