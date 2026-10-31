@@ -68,3 +68,8 @@ test('protected layer list is canonical, validated and recorded in the render pl
  assert.deepEqual(plan(meta,30,'subtle',1,{protectedLayers:['V','L','V']}).options.protectedLayers,['V','L']);
  for(const protectedLayers of ['V',['foreign'],[{}]])assert.throws(()=>plan(meta,30,'subtle',1,{protectedLayers}));
 });
+test('No variation repeats for the exact target duration, overriding all development options',()=>{
+ const p=plan({bpm:120,patternSteps:16},45,'none',123,{notes:true,drums:true,recutV:true});
+ assert.equal(p.duration,45);assert.equal(p.cycle,2);assert.deepEqual(p.events,[]);assert.deepEqual(p.fills,[]);
+ assert.deepEqual(p.options,{notes:false,drums:false,recutV:false});
+});

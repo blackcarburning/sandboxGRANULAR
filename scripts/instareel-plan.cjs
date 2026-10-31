@@ -5,7 +5,8 @@ function plan(meta, seconds, variation, seed, options = {}) {
  const protectedLayers=[...new Set(options.protectedLayers||[])];
  options={...(protectedLayers.length?{protectedLayers}:{}),notes:options.notes===true,drums:options.drums===true,recutV:options.recutV===true};
  const cycle=meta.patternSteps*(meta.patternCycleMultiplier||1)*60/meta.bpm/4;
- if(!Number.isFinite(seconds)||seconds<30||seconds>60||!['subtle','moderate','extreme'].includes(variation)||!Number.isFinite(cycle)||cycle<=0||cycle>60)throw Error('Choose 30–60 seconds and a source pattern no longer than 60 seconds.');
+ if(!Number.isFinite(seconds)||seconds<30||seconds>60||!['none','subtle','moderate','extreme'].includes(variation)||!Number.isFinite(cycle)||cycle<=0||cycle>60)throw Error('Choose 30–60 seconds and a source pattern no longer than 60 seconds.');
+ if(variation==='none')return {version:8,options:{...options,notes:false,drums:false,recutV:false},fills:[],rollIterations:[],requestedSeconds:seconds,duration:seconds,cycle,repeats:seconds/cycle,bpm:meta.bpm,variation,seed,warmup:cycle,events:[]};
  const low=Math.ceil((30-1e-8)/cycle),high=Math.floor((60+1e-8)/cycle);
  if(low>high)throw Error('This source cycle cannot fit a complete 30–60 second reel. Shorten its pattern.');
  const repeats=Math.max(low,Math.min(high,Math.round(seconds/cycle))),duration=cycle*repeats;

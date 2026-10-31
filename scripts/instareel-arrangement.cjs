@@ -50,6 +50,7 @@ module.exports=String.raw`(function(){
   lane.current=cloneSequence(sequence);lane.set(sequence);
  }
  const apply=event=>{
+  if(plan.variation==='none')return {active:active.length,added:[]};
   active.forEach((x,i)=>{if(!protectedLayer(x.key))level(x,x.value*(1-event.amount*(i===event.pick%Math.max(1,active.length)?1:.15)));});
   const selected=event.amount>0?Math.min(available.length,plan.variation==='extreme'?3:event.amount>.3?2:1):0;
   const added=[];
@@ -113,6 +114,7 @@ module.exports=String.raw`(function(){
  };
  // Separate lane-cycle callbacks: arrangement sections may be longer/shorter than a source repeat.
  apply.cutEvents=()=>{
+  if(plan.variation==='none')return [];
   const events=[],closing=plan.events.at(-1).at;
   for(const lane of recuts){
    if(protectedLayer(lane.key)||!lane.buffer()||lane.key==='V'&&!plan.options.recutV)continue;
@@ -126,6 +128,7 @@ module.exports=String.raw`(function(){
   return events.sort((a,b)=>a.at-b.at);
  };
  apply.cut=event=>{
+  if(plan.variation==='none')return;
   const lane=recuts.find(x=>x.key===event.key);if(!lane||protectedLayer(lane.key))return;
   let next=lane.original;
   if(!event.restore&&lane.buffer()&&lane.audible()>0&&(lane.key!=='V'||plan.options.recutV)){
@@ -150,6 +153,7 @@ module.exports=String.raw`(function(){
   // Snare and Roll share the source: preserve existing rolls even when
   // development is off or drums are protected. Only this render deck changes.
   if(typeof drumMachineLaneSolos!=='undefined'&&drumMachineLaneSolos.includes('snare')&&!drumMachineLaneSolos.includes('roll'))restoreDrumMachineLaneSolos([...drumMachineLaneSolos,'roll']);
+  if(plan.variation==='none')return {fills:0};
   for(const lane of recuts){lane.turn=0;lane.developed=''}
   if(plan.options.notes)leads=[
    {key:'L',sequence:cloneSequence(bastardLoopLSequence),length:getBastardLoopLPatternLength(),enabled:()=>bastardLoopLEnabled,playable:()=>hasBastardLoopLPlaybackSource(),root:()=>getBastardLoopLRootNote(),seconds:()=>getBastardLoopLStepDurationSeconds(),set:value=>{bastardLoopLSequence=value}},

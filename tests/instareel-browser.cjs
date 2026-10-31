@@ -14,7 +14,7 @@ const base=process.env.MYGRAIN_TEST_URL||'http://127.0.0.1:18936/mygrain/';asser
   await page.evaluate(value=>window.instareelMusical=value,!!process.env.INSTAREEL_MUSICAL_TEST);
   await page.evaluate(value=>window.instareelRatchets=value,!!process.env.INSTAREEL_RATCHET_TEST);
   await page.evaluate(value=>window.instareelEvolution=value,!!process.env.INSTAREEL_EVOLUTION_TEST);
-  await page.evaluate(value=>window.instareelRecut=value,!!process.env.INSTAREEL_RECUT_TEST);
+  await page.evaluate(value=>window.instareelRecut=value,!!(process.env.INSTAREEL_RECUT_TEST||process.env.INSTAREEL_REPEAT_TEST));
   await page.evaluate(value=>window.instareelSolo=value,process.env.INSTAREEL_SOLO_TEST||'');
   await page.evaluate(()=>{
    stopAllPerformancePlayback({silent:true});

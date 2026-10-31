@@ -66,7 +66,7 @@ const box=document.createElement('fieldset');box.id='instareelControls';box.data
 box.innerHTML=`<legend>INSTAREEL <small>· 10</small></legend>
  <p>Evolve your current sounds into a loopable 30–60 second reel. Your patch stays unchanged; the finished WAV is not editable.</p>
  <div class="instareel-options"><label>Target seconds <input id="instareelSeconds" type="number" min="30" max="60" step="1" value="45" inputmode="numeric"></label>
- <label>Variation <select id="instareelVariation"><option value="subtle">Subtle</option><option value="moderate">Moderate</option><option value="extreme">Extreme</option></select></label></div>
+ <label>Variation <select id="instareelVariation"><option value="none">No variation · repeat loop</option><option value="subtle" selected>Subtle</option><option value="moderate">Moderate</option><option value="extreme">Extreme</option></select></label></div>
  <div class="instareel-options"><label><input id="instareelNotes" type="checkbox"> X / L root-note variations</label><label><input id="instareelDrums" type="checkbox"> Drum variations + Roll fills</label></div>
  <div class="instareel-options"><label><input id="instareelRecutV" type="checkbox"> Re-cut V · original phrase every other repeat</label></div>
  <details class="instareel-protection"><summary>Protected layers · exclude from variations</summary><p>Checked layers keep their original level, on/off state, notes and cuts. Drums includes Roll fills. Generated master-filter motion is disabled whenever any protection is selected. Your own effects still run.</p><div class="instareel-protected-grid"><label><input type="checkbox" data-mirror-control="instareel-protection" data-reel-protected="A"> A</label><label><input type="checkbox" data-mirror-control="instareel-protection" data-reel-protected="B"> B</label><label><input type="checkbox" data-mirror-control="instareel-protection" data-reel-protected="C"> C</label><label><input type="checkbox" data-mirror-control="instareel-protection" data-reel-protected="V"> V</label><label><input type="checkbox" data-mirror-control="instareel-protection" data-reel-protected="W"> W</label><label><input type="checkbox" data-mirror-control="instareel-protection" data-reel-protected="P"> P</label><label><input type="checkbox" data-mirror-control="instareel-protection" data-reel-protected="O"> O</label><label><input type="checkbox" data-mirror-control="instareel-protection" data-reel-protected="L"> L</label><label><input type="checkbox" data-mirror-control="instareel-protection" data-reel-protected="X"> X</label><label><input type="checkbox" data-mirror-control="instareel-protection" data-reel-protected="M"> M</label><label><input type="checkbox" data-mirror-control="instareel-protection" data-reel-protected="M+"> M+</label><label><input type="checkbox" data-mirror-control="instareel-protection" data-reel-protected="K"> K</label><label><input type="checkbox" data-mirror-control="instareel-protection" data-reel-protected="Q"> Q</label><label><input type="checkbox" data-mirror-control="instareel-protection" data-reel-protected="N"> N · Noise</label><label><input type="checkbox" data-mirror-control="instareel-protection" data-reel-protected="DRUMS"> Drums + Roll</label><label><input type="checkbox" data-mirror-control="instareel-protection" data-reel-protected="GLOBAL"> Master filter</label></div></details>
@@ -86,7 +86,7 @@ const user=()=>root.mygrainAccounts?.user?.username;
 const message=text=>{el('Status').textContent=text};
 function sync(){
  const blocked=busy||root.mygrainAiPatch?.busy||root.mygrainCardHistory?.busy;
- el('NewCurrent').disabled=!!blocked;el('Make').disabled=!!blocked;el('Seconds').disabled=busy;el('Variation').disabled=busy;el('Notes').disabled=busy;el('Drums').disabled=busy;el('RecutV').disabled=busy;el('Cancel').hidden=!busy;el('Cancel').disabled=busy&&!job;
+ el('NewCurrent').disabled=!!blocked;el('Make').disabled=!!blocked;el('Seconds').disabled=busy;el('Variation').disabled=busy;el('Notes').disabled=busy||el('Variation').value==='none';el('Drums').disabled=busy||el('Variation').value==='none';el('RecutV').disabled=busy||el('Variation').value==='none';el('Cancel').hidden=!busy;el('Cancel').disabled=busy&&!job;
  el('Make').textContent=current?.jobId?'Try Another':'Make Reel';
  el('Master').disabled=busy||!current;
  el('Save').disabled=busy||!current?.jobId||!!current?.saved;
@@ -134,16 +134,17 @@ el('Seek').addEventListener('input',()=>{if(!buffer)return;const playing=!!sourc
 function select(item){cancelPlayer();current=item;el('Preview').hidden=false;el('PreviewTitle').textContent=item.name;el('SaveControls').hidden=!item.jobId;el('Seek').max=String(item.duration);update();sync()}
 function length(){
  const seconds=Number(el('Seconds').value),bpm=Number(document.getElementById('globalBpmSlider')?.value)||120;
- el('Length').textContent=`Target ${Number.isFinite(seconds)?seconds:45}s · ${bpm} BPM. Actual duration rounds to complete source cycles (30–60s).`;
+ el('Length').textContent=`Target ${Number.isFinite(seconds)?seconds:45}s · ${bpm} BPM. ${el('Variation').value==='none'?'No variation: repeats unchanged for the exact target duration.':'Actual duration rounds to complete source cycles (30–60s).'}`;
 }
 el('Seconds').addEventListener('input',length);
+el('Variation').addEventListener('change',()=>{length();sync()});
 async function poll(token,identity){
  if(token!==generation||identity!==user())return;
  try{
   const data=await json(`${base}/${job.id}`,{signal:controller.signal});if(token!==generation||identity!==user())return;job=data.job;message(job.message);
   if(job.state==='done'){
    const ready=job;busy=false;controller=null;select({jobId:ready.id,preview:`${base}/${ready.id}/preview`,duration:ready.plan.duration,name:`${ready.plan.duration.toFixed(1)}s · ${ready.plan.variation} · ${ready.plan.bpm} BPM`});
-   message(`${ready.plan.duration.toFixed(1)}s loopable reel ready · ${ready.plan.variation} variations${ready.plan.options?.notes?' · X/L notes':''}${ready.plan.options?.drums?' · drums/fills':''}${ready.plan.options?.recutV&&!ready.plan.options?.protectedLayers?.includes('V')?' · V cuts/original':''}${ready.plan.options?.protectedLayers?.length?' · protected '+ready.plan.options.protectedLayers.join(', '):''} (${ready.plan.requestedSeconds}s requested). Preview, save, or Try Another. Current patch unchanged.`);sync();return;
+   message(`${ready.plan.duration.toFixed(1)}s loopable reel ready · ${ready.plan.variation==='none'?'no variation · repeat loop':ready.plan.variation+' variations'}${ready.plan.options?.notes?' · X/L notes':''}${ready.plan.options?.drums?' · drums/fills':''}${ready.plan.options?.recutV&&!ready.plan.options?.protectedLayers?.includes('V')?' · V cuts/original':''}${ready.plan.options?.protectedLayers?.length?' · protected '+ready.plan.options.protectedLayers.join(', '):''} (${ready.plan.requestedSeconds}s requested). Preview, save, or Try Another. Current patch unchanged.`);sync();return;
   }
   if(['failed','cancelled'].includes(job.state)){busy=false;controller=null;sync();return}
   timer=setTimeout(()=>poll(token,identity),1000);
@@ -156,7 +157,7 @@ async function makeCurrentReel(){
  if(root.mygrainAiPatch?.busy||root.mygrainCardHistory?.busy){message('Wait for the current patch change to finish.');return}
  abortTask();cancelPlayer();el('Preview').hidden=true;job=null;const token=generation;controller=new AbortController();busy=true;capturing=true;sync();root.dispatchEvent(new Event('mygrain-ai-update'));
  try{
-  message(`Capturing current sounds · ${seconds}s requested · ${variation} variations…`);
+  message(`Capturing current sounds · ${seconds}s requested · ${variation==='none'?'no variation · repeat loop':variation+' variations'}…`);
   const adapter=root.mygrainSongBetaAdapter;
   const live=await adapter.capture({liveOnly:true});
   const estimated=[...live.buffers.values()].reduce((sum,b)=>sum+(b?b.length*b.numberOfChannels*2:0),0);
@@ -169,7 +170,7 @@ async function makeCurrentReel(){
   const query=new URLSearchParams({seconds:String(seconds),variation,notes:notes?'1':'0',drums:drums?'1':'0',recutV:recutV?'1':'0',protectedLayers:protectedLayers.join(',')});
   message('Uploading snapshot. Rendering runs on the server; your current patch stays unchanged.');
   const data=await json(base+'?'+query,{method:'POST',headers:{'Content-Type':'application/zip'},body:archive,signal:controller.signal});
-  if(token!==generation||identity!==user())return;job=data.job;sync();message(`Rendering ${job.plan.duration.toFixed(1)}s · ${job.plan.variation} variations (${job.plan.requestedSeconds}s requested)…`);poll(token,identity);
+  if(token!==generation||identity!==user())return;job=data.job;sync();message(`Rendering ${job.plan.duration.toFixed(1)}s · ${job.plan.variation==='none'?'no variation · repeat loop':job.plan.variation+' variations'} (${job.plan.requestedSeconds}s requested)…`);poll(token,identity);
  }catch(error){if(token===generation){abortTask();message(`Could not make reel: ${error.message}. Current patch unchanged.`)}}
  finally{if(token===generation){capturing=false;root.dispatchEvent(new Event('mygrain-ai-update'));sync()}}
 }

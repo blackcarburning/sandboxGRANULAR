@@ -30,6 +30,7 @@ const emit=x=>process.stdout.write(JSON.stringify(x)+'\n');
      const prepared=deck.__instareelApply.prepare(plan);window.instareelStage(`Prepared ${plan.options?.notes?'X/L note variations · ':''}${prepared.fills} Roll fills · starting render`);
     },
     beforeStart(deck,start){
+     if(plan.variation==='none')return;
      const timers=[];deck.__instareelTimers=timers;
      const modulate=()=>{deck.__instareelApply.tick(audioContext.currentTime-start-plan.warmup);timers.push(deck.setTimeout(modulate,50))};modulate();
      for(const event of plan.events){const due=start+plan.warmup+event.at;

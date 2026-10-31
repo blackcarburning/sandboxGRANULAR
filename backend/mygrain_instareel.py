@@ -45,11 +45,11 @@ def plan(meta, seconds, variation, seed, options=None):
     protected = (options or {}).get('protectedLayers', [])
     if not isinstance(protected, list) or len(protected)>16 or any(key not in PROTECTED_LAYERS for key in protected):
         raise ValueError('Invalid protected layers.')
-    if not math.isfinite(seconds) or not 30 <= seconds <= 60 or variation not in ('subtle', 'moderate', 'extreme'):
-        raise ValueError('Choose 30–60 seconds and Subtle, Moderate or Extreme variation.')
+    if not math.isfinite(seconds) or not 30 <= seconds <= 60 or variation not in ('none', 'subtle', 'moderate', 'extreme'):
+        raise ValueError('Choose 30–60 seconds and a valid variation mode.')
     cycle = meta['patternSteps'] * meta.get('patternCycleMultiplier', 1) * 60 / meta['bpm'] / 4
     low, high = math.ceil((30 - 1e-8) / cycle), math.floor((60 + 1e-8) / cycle)
-    if cycle > 60 or low > high:
+    if cycle > 60 or (variation != 'none' and low > high):
         raise ValueError('This source cycle cannot fit a complete 30–60 second reel. Shorten its pattern.')
     repeats = max(low, min(high, math.floor(seconds / cycle + .5)))
     # Canonical musical plan is shared with Node unit tests and the worker.
@@ -57,7 +57,7 @@ def plan(meta, seconds, variation, seed, options=None):
                              str(ROOT / 'scripts/instareel-plan.cjs'), json.dumps([meta, seconds, variation, seed, options or {}])],
                             capture_output=True, timeout=5, check=True)
     value = json.loads(result.stdout)
-    if abs(value['duration'] - cycle * repeats) > .00001:
+    if abs(value['duration'] - (seconds if variation == 'none' else cycle * repeats)) > .00001:
         raise ValueError('Reel duration mismatch.')
     return value
 
@@ -315,8 +315,8 @@ def handle(handler, accounts, songs):
                 raise ValueError('Use Make Reel to create an INSTAREEL.')
             seconds = float((query.get('seconds') or ['45'])[0])
             variation = (query.get('variation') or ['subtle'])[0]
-            if not math.isfinite(seconds) or not 30 <= seconds <= 60 or variation not in ('subtle','moderate','extreme'):
-                raise ValueError('Choose 30–60 seconds and Subtle, Moderate or Extreme variation.')
+            if not math.isfinite(seconds) or not 30 <= seconds <= 60 or variation not in ('none','subtle','moderate','extreme'):
+                raise ValueError('Choose 30–60 seconds and a valid variation mode.')
             length = int(handler.headers.get('Content-Length', '0'))
             if not 0 < length <= LIMIT:
                 raise ValueError('Source snapshot exceeds the 96 MB upload limit. Shorten source samples.')

@@ -26,6 +26,7 @@ class ReelTests(unittest.TestCase):
   with self.assertRaises(ValueError):REELS.plan(meta,30,'subtle',123,{'protectedLayers':['foreign']})
  def test_plan_rounds_cycles_and_bounds_the_target(self):
   meta={'bpm':120,'patternSteps':16,'patternCycleMultiplier':1}
+  self.assertEqual(REELS.plan(meta,45,'none',123)['duration'],45)
   self.assertEqual(REELS.plan(meta,45,'subtle',123)['duration'],46)
   self.assertEqual(REELS.plan(meta,30,'subtle',123,{'notes':True,'drums':True})['options'],{'notes':True,'drums':True,'recutV':False})
   self.assertEqual(REELS.plan(meta,30,'subtle',123)['fills'],[])

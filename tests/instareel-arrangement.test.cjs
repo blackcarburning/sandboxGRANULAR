@@ -262,3 +262,12 @@ test('Snare solo always includes Roll, including variations off and protected dr
   f.apply.prepare(p);assert.deepEqual(c.drumMachineLaneSolos,['kick','snare','roll']);
  }
 });
+test('No variation bypasses cuts, additions, notes, drums and filter automation',()=>{
+ const f=musicalFixture({drums:false}),c=f.ctx;
+ const p=require('../scripts/instareel-plan.cjs').plan({bpm:120,patternSteps:16},45,'none',123,{notes:true,drums:true,recutV:true});
+ const before=JSON.stringify([c.bastardLoopLSequence,c.bastardLoopXSequence,c.drumMachineRoll,c.drumMachineBaseAccents,c.bastardLoopVCut,c.bastardLoopWEnabled]);
+ assert.equal(f.apply.prepare(p).fills,0);assert.deepEqual([...f.apply.cutEvents()],[]);
+ f.apply({amount:.9,pick:3,seed:1});f.apply.cut({key:'V',restore:false});f.apply.tick(5);
+ assert.equal(JSON.stringify([c.bastardLoopLSequence,c.bastardLoopXSequence,c.drumMachineRoll,c.drumMachineBaseAccents,c.bastardLoopVCut,c.bastardLoopWEnabled]),before);
+ assert.equal(f.elements.get('lpfCutoff').value,'12000');
+});
