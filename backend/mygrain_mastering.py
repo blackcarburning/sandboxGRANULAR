@@ -15,7 +15,7 @@ import threading
 import time
 import wave
 
-VERSION = 'lsp-1.2.14-ffmpeg-v1'
+VERSION = 'lsp-1.2.14-ffmpeg-v2'
 PRESETS = {'clean': (-16, 1.3, 30, 140), 'punch': (-14, 1.7, 25, 100), 'dense': (-11, 2.3, 12, 120), 'level': (-16, 1, 30, 140)}
 POOL = concurrent.futures.ThreadPoolExecutor(max_workers=2, thread_name_prefix='mastering')
 LOCK = threading.Lock()
@@ -48,7 +48,7 @@ def lv2(name, controls):
     return "lv2=p='http\\://lsp-plug.in/plugins/lv2/" + name + "':c='" + controls + "'"
 
 
-def chain(preset, gain):
+def chain(preset, gain, makeup=0):
     _, ratio, attack, release = PRESETS[preset]
     filters = [f'volume={gain}dB']
     if preset not in ('clean', 'level'):
@@ -56,6 +56,7 @@ def chain(preset, gain):
     elif preset == 'clean':
         filters.append(lv2('compressor_stereo', 'al=0.354813|cr=1.3|at=30|rt=140|sla=0|mk=1|cwt=1|cdr=0'))
     if preset != 'level':
+        filters.append(f'volume={makeup}dB')
         filters.append(lv2('limiter_stereo', 'alr=0|boost=0|th=0.870964|ovs=16|lk=5|slink=100'))
     return ','.join(filters)
 
@@ -114,18 +115,27 @@ def process(source, output, preset='clean', loop=True):
         # Repeat the source to settle envelope state, then take one exact cycle.
         # Full Songs instead start at zero and flush the lookahead with silence.
         filtered = folder / 'processed.wav'
-        filters = chain(preset, gain) + f',atrim=start_sample={warm_frames + delay}:end_sample={warm_frames + delay + frames},asetpts=PTS-STARTPTS'
         args = ['-stream_loop', '-1', '-i', str(decoded)] if loop else ['-i', str(decoded)]
-        if not loop:
-            filters = f'apad=pad_len={delay + 1024},' + filters
-        # atrim bounds the otherwise infinite loop input.
-        run([*args, '-af', filters, '-t', str(frames / rate), '-ar', str(rate), '-ac', '2', '-c:a', 'pcm_s24le', str(filtered)])
-        after = measure(filtered)
-        correction = min(0, -1.05 - after['truePeakDb'])
-        if correction < 0:
-            run(['-i', str(filtered), '-af', f'volume={correction}dB', '-c:a', 'pcm_s24le', str(output)])
-        else:
-            shutil.copyfile(filtered, output)
+        makeup = 0.0
+        # Compensate compressor loss before limiting, not by raising saved peaks.
+        # Re-render from the original each time; never repeatedly process a master.
+        for attempt in range(4):
+            filters = chain(preset, gain, makeup) + f',atrim=start_sample={warm_frames + delay}:end_sample={warm_frames + delay + frames},asetpts=PTS-STARTPTS'
+            if not loop:
+                filters = f'apad=pad_len={delay + 1024},' + filters
+            run([*args, '-af', filters, '-t', str(frames / rate), '-ar', str(rate), '-ac', '2', '-c:a', 'pcm_s24le', str(filtered)])
+            after = measure(filtered)
+            correction = min(0, -1.05 - after['truePeakDb'])
+            if correction < 0:
+                run(['-i', str(filtered), '-af', f'volume={correction}dB', '-c:a', 'pcm_s24le', str(output)])
+            else:
+                shutil.copyfile(filtered, output)
+            after = measure(output)
+            error = PRESETS[preset][0] - after['lufs']
+            next_makeup = min(6.0, max(-6.0, makeup + error))
+            if preset == 'level' or abs(error) <= .3 or abs(next_makeup - makeup) < .05 or attempt == 3:
+                break
+            makeup = next_makeup
         after = measure(output)
         with wave.open(str(output), 'rb') as wav:
             if wav.getnframes() != frames or wav.getframerate() != rate:
@@ -136,7 +146,7 @@ def process(source, output, preset='clean', loop=True):
             seam = max(abs(int.from_bytes(first[i:i+3], 'little', signed=True) - int.from_bytes(last[i:i+3], 'little', signed=True)) / 8388608 for i in (0, 3))
         if not all(math.isfinite(v) for v in after.values()) or after['truePeakDb'] > -1.0:
             raise ValueError('Mastered peak verification failed.')
-        return {'engine': VERSION, 'preset': preset, 'loop': loop, 'frames': frames, 'sampleRate': rate, 'latencySamples': delay, 'seamStep': seam, 'before': before, 'after': after, 'comparisonGain': min(1, 10 ** ((before['lufs'] - after['lufs']) / 20)), 'originalGain': min(1, 10 ** ((after['lufs'] - before['lufs']) / 20)), 'gainDb': gain}
+        return {'engine': VERSION, 'preset': preset, 'loop': loop, 'frames': frames, 'sampleRate': rate, 'latencySamples': delay, 'seamStep': seam, 'before': before, 'after': after, 'comparisonGain': min(1, 10 ** ((before['lufs'] - after['lufs']) / 20)), 'originalGain': min(1, 10 ** ((after['lufs'] - before['lufs']) / 20)), 'gainDb': gain, 'makeupDb': makeup, 'targetLufs': PRESETS[preset][0]}
 
 
 def handle(handler, method, inner, accounts, user, root, checked):

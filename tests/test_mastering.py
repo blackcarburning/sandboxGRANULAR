@@ -29,6 +29,9 @@ class Mastering(unittest.TestCase):
                 self.assertLessEqual(report['after']['truePeakDb'], -1)
                 self.assertNotEqual(output.read_bytes(), original)
                 self.assertEqual(source.read_bytes(), original)
+                if preset == 'dense':
+                    self.assertGreater(report['makeupDb'], .3)
+                    self.assertLess(abs(report['after']['lufs'] - m.PRESETS[preset][0]), .3)
                 print(preset, loop, report)
     def test_rates_short_loops_and_alignment(self):
         with tempfile.TemporaryDirectory() as folder:

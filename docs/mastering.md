@@ -1,4 +1,4 @@
-# Server mastering (v1, 2026-10-31)
+# Server mastering (v2, 2026-10-31)
 
 Open WAV Folder and choose **Master** beside any clip or exported Song. Presets:
 Clean (aim −16 LUFS), Punch (−14), Dense (−11), Level only (−16 with no dynamics).
@@ -13,6 +13,7 @@ and stereo-linked operation. Latency is calibrated by impulse for each sample
 rate/preset, then removed. Loop processing repeats source material for at least
 2 seconds/one whole cycle before extracting one exact cycle. Song mode instead
 flushes lookahead with silence. Exact frame count/sample rate are verified.
+Up to four source-based renders adjust post-compressor/pre-limiter makeup within ±6 dB towards the preset target. This compensates compressor loss without raising the output peak ceiling. Engine v2 has separate cache keys; v1 masters remain untouched.
 A final constant attenuation is applied if required by measured true peak.
 No loop crossfade is imposed; existing source discontinuities are not repaired.
 
@@ -49,7 +50,7 @@ service is needed. `backend/mygrain_mastering.py` is loaded by the documenter
 server; deployment hook is recorded in `deploy/mastering-host-integration.patch`.
 Apply this zero-context hook with `git apply --unidiff-zero` at the workspace
 root if deploying to another copy. The public static allowlist includes `mastering.js`. UI build marker is
-`Mastering · LSP + FFmpeg · v1`.
+`Mastering · LSP + FFmpeg · v2`.
 
 Checks: `python3 tests/test_mastering.py` (requires NumPy for fixtures),
 `node tests/mastering-browser.cjs` against the isolated Song test server on
