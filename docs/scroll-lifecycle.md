@@ -117,3 +117,34 @@ same-source audio continues, displays resume and drum popup cancellation works.
 Four baseline cases retain WAV blur; final cases show none. These are regression
 and removed-cost checks, not a physical-iPhone underrun reproduction.
 Visible badge and URL marker: v2026.10.31.SCROLL.3 / 20261031-native-popup-3.
+
+## SCROLL-TRACE.1 — diagnostic capture, not a performance cure
+
+The 16:04 submitted report was a saved SCROLL.2 capture from 15:58. It records
+an audio/wall clock ratio as low as 0.6314 despite responsive JavaScript timers
+(maximum delay 99ms). This establishes audio-clock slowdown, not its cause;
+zero canvas backing bytes at capture is not evidence of a native-memory leak.
+
+The existing 1Hz monitor now retains 180 compact tuple rows: audio/wall progress,
+AudioContext output timestamp (when available), scrolling target/phase, viewport,
+display counters, preview ownership, playback and scheduling counters. Tuple
+column names ship in JSON/text exports; marked incidents retain the preceding
+20 rows. Clear releases the ring. No new timer, RAF, audio node, analyser,
+permission prompt, sample data or scroll-time geometry read is introduced.
+
+Submit Current Log explicitly selects the current session. Saved/current choices
+show their build; successful receipts include captured build/time. The existing
+upload timeout now aborts its fetch instead of invoking unrelated undefined WAV
+preview names. Previous saved sessions remain available and are not deleted.
+
+Verification: 35 focused diagnostic/activity checks pass, including slowdown
+and recovery correlation, one-timer ownership, retention/clear and bounded
+long-session exports. All 77 inline scripts parse. A disposable authenticated
+server tests current submission and nested-scroll metadata in Chromium/WebKit,
+portrait and landscape; upload receipts are intercepted locally. No production
+account or diagnostic records are created by these tests. Evidence remains in
+output/mygrain-scroll-trace-20261031/ outside the public app root.
+
+For the next physical-iPhone capture: reload SCROLL-TRACE.1, reproduce for
+30–60 seconds, Mark Crackle while slow, allow ten seconds at rest, then Submit
+Current Log before refreshing. No claim that this diagnostic build fixes audio.

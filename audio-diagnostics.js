@@ -92,6 +92,7 @@
         const getState = options.getState || (() => ({}));
         const startedAt = now();
         const history = [];
+        const scrollTimeline = [];
         const events = [];
         const incidents = [];
         const delays = [];
@@ -183,9 +184,11 @@
                         state: previous.state, visible: previous.visible } : null,
                     note: 'Foreground 1 Hz probe; audio/wall clock ratio over at least 5 seconds; not a hardware underrun detector.' },
                 longTasks: { ...longTasks }, application: read(() => getState(true), { unavailable: true }),
+                scrollTimeline: { cadenceMs: limits.sampleMs, columns: ['uptimeSeconds','audioTime','state','visible','intervalMs','progressRatio','outputContextTime','outputTimestampAgeMs','app'], rows: includeHistory ? scrollTimeline.slice() : [] },
                 history: includeHistory ? history.slice() : [], events: includeHistory ? events.slice() : [],
                 incidents: includeHistory ? incidents.slice() : [],
                 retention: { cadenceMs: limits.sampleMs, historyEveryMs: limits.historyMs, historyLimit: limits.history,
+                    scrollTimelineLimit: 180, scrollTimelineMs: limits.sampleMs,
                     eventLimit: limits.events, incidentLimit: limits.incidents } };
         }
 
@@ -239,6 +242,20 @@
                 timing.audioClockProgressRatio = null;
                 timing.audioClockProgressWindowMs = 0;
             }
+            // Reuse the existing 1Hz probe. No RAF, analyser, audio nodes or
+            // scroll-time layout reads; only bounded scalar metadata.
+            const elapsedMs = previous ? instant - previous.instant : null;
+            const deltaRatio = elapsedMs > 0 && visible && previous.visible && state === 'running' && previous.state === 'running'
+                ? (audioTime - previous.audioTime) * 1000 / elapsedMs : null;
+            const output = read(() => currentContext?.getOutputTimestamp());
+            boundedPush(scrollTimeline, [
+                Math.round((instant - startedAt) / 1000), audioTime, state, visible,
+                elapsedMs === null ? null : Math.round(elapsedMs),
+                finite(deltaRatio) === null ? null : Math.round(deltaRatio * 1000) / 1000,
+                finite(output?.contextTime),
+                output?.performanceTime > 0 ? Math.round(instant - output.performanceTime) : null,
+                read(() => options.getTimelineState?.(), {})
+            ], 180);
             previous = { instant, audioTime, visible, state };
             if (instant - lastHistoryAt >= limits.historyMs) {
                 lastHistoryAt = instant;
@@ -247,7 +264,7 @@
                     contextState: state, contextTime: audioTime, sampleRate: finite(currentContext?.sampleRate), heapUsedBytes: describeHeap(host).usedBytes ?? null,
                     maximumDelayMs: timing.maximumDelayMs, delayedOver120ms: timing.delayedOver120ms,
                     clockStalls: timing.audioClockStallSamples, clockProgressRatio: timing.audioClockProgressRatio,
-                    clockSlowWindows: timing.audioClockSlowWindows, editor: application.editor, uiActivity: application.uiActivity,
+                    clockSlowWindows: timing.audioClockSlowWindows, mediaPreview: application.mediaPreview, popupScroll: application.popupScroll, editor: application.editor, uiActivity: application.uiActivity,
                     counts: application.counts, caches: application.caches,
                     vuMeters: application.vuMeters, undoMemory: application.undoMemory, loopCuts: application.loopCuts,
                     idleAudio: application.idleAudio, processing: application.processing, effects: application.effects, panLab: application.panLab, wasp: application.wasp, visualResources: application.visualResources,
@@ -311,6 +328,7 @@
             record('user-marked-crackle');
             const capture = snapshot(false);
             capture.history = history.slice(-12);
+            capture.scrollTimeline.rows = scrollTimeline.slice(-20);
             capture.events = events.slice(-20);
             // X keeps its own bounded before/after mark windows in the current
             // application trace. Do not replicate the full ring in every incident.
@@ -326,6 +344,7 @@
 
         function clearHistory() {
             history.length = 0;
+            scrollTimeline.length = 0;
             events.length = 0;
             incidents.length = 0;
             delays.length = 0;
@@ -371,6 +390,8 @@
             `Unavailable measurements: ${environment.unavailable.join('; ')}`,
             `Retention: ${JSON.stringify(capture.retention)}`, '', 'Recent phone/audio events:'];
         for (const entry of capture.events) lines.push(JSON.stringify(entry));
+        lines.push('', '1-second scroll/audio timeline (metadata only, not a hardware-underrun counter):', JSON.stringify(capture.scrollTimeline?.columns || []));
+        for (const entry of capture.scrollTimeline?.rows || []) lines.push(JSON.stringify(entry));
         lines.push('', '10-second resource timeline:');
         for (const entry of capture.history) lines.push(JSON.stringify(entry));
         lines.push('', 'Marked crackle snapshots:');

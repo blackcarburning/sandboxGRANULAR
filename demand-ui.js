@@ -6,6 +6,7 @@
         const eligible=!host.__mygrainSongRenderDeck &&
             (/iPhone|iPad|iPod/.test(host.navigator?.userAgent||'') || host.matchMedia?.('(any-pointer: coarse)').matches);
         let scrolling=false,timer=null,until=0,events=0,bursts=0,reason=null,width=host.innerWidth,height=host.innerHeight;
+        let lastScrollTarget=null,scrollTarget=null;
         const listeners=[];
         function settle(){
             timer=null;
@@ -27,7 +28,7 @@
         }
         function listen(target,type,fn,options){target.addEventListener(type,fn,options);listeners.push(()=>target.removeEventListener(type,fn,options));}
         if(eligible){
-            listen(doc,'scroll',()=>mark('scroll'),{passive:true,capture:true});
+            listen(doc,'scroll',event=>{if(event.target!==lastScrollTarget){lastScrollTarget=event.target;scrollTarget=event.target===doc?'document':String(event.target?.id||event.target?.tagName||'unknown').slice(0,80)}mark('scroll')},{passive:true,capture:true});
             listen(host,'resize',()=>{
                 if(host.innerWidth===width && host.innerHeight!==height)mark('viewport-height');
                 width=host.innerWidth;height=host.innerHeight;
@@ -35,8 +36,8 @@
             listen(doc,'visibilitychange',()=>{if(doc.hidden)reset();});
             listen(host,'pagehide',reset);
         }
-        return {get busy(){return scrolling;},snapshot:()=>({eligible:Boolean(eligible),scrolling,events,bursts,reason}),
-            destroy(){reset();for(const remove of listeners.splice(0))remove();}};
+        return {get busy(){return scrolling;},snapshot:()=>({eligible:Boolean(eligible),scrolling,events,bursts,reason,scrollTarget}),
+            destroy(){reset();lastScrollTarget=null;for(const remove of listeners.splice(0))remove();}};
     }
     if(typeof module==='object'&&module.exports)module.exports={create};
     else root.mygrainUiActivity=create(root);

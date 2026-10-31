@@ -418,3 +418,26 @@ test('bounded history retains sleep ownership and processing state at the time o
     for (let n = 0; n < 190; n++) setup.advance(10000, 0);
     assert.equal(setup.monitor.snapshot().history.length, 180);
 });
+
+test('one-second trace correlates nested scroll with audio slowdown and recovery without extra timers', () => {
+    let scrolling = true, reads = 0;
+    const setup = fixture({ monitor: { getTimelineState: () => { reads++; return { scroll: { scrolling, scrollTarget: 'wavRepositoryBrowserList' }, preview: { playing: true } }; } } });
+    setup.context.getOutputTimestamp = () => ({ contextTime: setup.context.currentTime, performanceTime: 1000 });
+    setup.monitor.start();
+    setup.advance(1000, .5);
+    let trace = setup.monitor.snapshot().scrollTimeline;
+    assert.equal(trace.rows.at(-1)[5], .5);
+    assert.equal(trace.rows.at(-1)[8].scroll.scrolling, true);
+    assert.equal(trace.rows.at(-1)[6], .5);
+    scrolling = false;
+    setup.advance();
+    trace = setup.monitor.snapshot().scrollTimeline;
+    assert.equal(trace.rows.at(-1)[5], 1);
+    assert.equal(trace.rows.at(-1)[8].scroll.scrolling, false);
+    assert.equal(reads, 3);
+    assert.equal(setup.timers.size, 1);
+    for (let i = 0; i < 200; i++) setup.advance();
+    assert.equal(setup.monitor.snapshot().scrollTimeline.rows.length, 180);
+    setup.monitor.clearHistory();
+    assert.equal(setup.monitor.snapshot().scrollTimeline.rows.length, 0);
+});
