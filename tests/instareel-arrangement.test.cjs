@@ -253,3 +253,12 @@ test('generated Roll fills never add ducking over a protected layer',()=>{
  assert(f.ctx.drumMachineRoll.pattern.some(Boolean));
  assert(!f.ctx.drumMachineRoll.dips.some(Boolean));
 });
+test('Snare solo always includes Roll, including variations off and protected drums',()=>{
+ for(const options of [{drums:false},{drums:true},{drums:true,protectedLayers:['DRUMS']}]){
+  const f=musicalFixture({drums:false}),c=f.ctx;
+  c.drumMachineLaneSolos=['kick','snare'];
+  const p=require('../scripts/instareel-plan.cjs').plan({bpm:120,patternSteps:16},30,'subtle',123,options);
+  f.apply.prepare(p);assert.deepEqual(c.drumMachineLaneSolos,['kick','snare','roll']);assert(c.isDrumMachineLaneAudible('roll'));
+  f.apply.prepare(p);assert.deepEqual(c.drumMachineLaneSolos,['kick','snare','roll']);
+ }
+});

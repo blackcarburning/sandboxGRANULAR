@@ -316,3 +316,12 @@ and portrait/landscape containment. Real 30-second server-render evidence uses
 `tests/instareel-browser.cjs`, then `tests/instareel-protection-evidence.py` to
 compare every protected V/W phrase and level against its opening while requiring
 unprotected A/B/C development.
+
+### Snare solo implies Roll in reels
+
+Reel deck preparation now adds Roll whenever Snare is soloed, before checking
+variation flags or protected drums. This keeps existing/manual Roll hits audible
+with development off or drums protected. Existing solos are retained, Roll is
+never duplicated, and the live editor's solo selection is not modified. The
+existing generated-fill rule for other solo selections remains unchanged.
+Regression fixtures cover option on/off, protected drums and repeated preparation.

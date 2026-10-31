@@ -147,6 +147,9 @@ module.exports=String.raw`(function(){
  apply.cleanup=()=>{mixDriver=false;refreshMix()};
  apply.prepare=value=>{
   plan=value;plan.options=plan.options||{notes:false,drums:false,recutV:false};
+  // Snare and Roll share the source: preserve existing rolls even when
+  // development is off or drums are protected. Only this render deck changes.
+  if(typeof drumMachineLaneSolos!=='undefined'&&drumMachineLaneSolos.includes('snare')&&!drumMachineLaneSolos.includes('roll'))restoreDrumMachineLaneSolos([...drumMachineLaneSolos,'roll']);
   for(const lane of recuts){lane.turn=0;lane.developed=''}
   if(plan.options.notes)leads=[
    {key:'L',sequence:cloneSequence(bastardLoopLSequence),length:getBastardLoopLPatternLength(),enabled:()=>bastardLoopLEnabled,playable:()=>hasBastardLoopLPlaybackSource(),root:()=>getBastardLoopLRootNote(),seconds:()=>getBastardLoopLStepDurationSeconds(),set:value=>{bastardLoopLSequence=value}},
