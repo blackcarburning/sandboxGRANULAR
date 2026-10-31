@@ -237,3 +237,12 @@ Reel library audio is immutable and does not expose replacement. After replacing
 the panel releases the old audition buffer and requires Load & Play to load the
 updated WAV. Tests cover cancel, exact replacement, recovery, concurrent source
 change rejection, no new library file and no Masters classification.
+
+## LIVE.4 — inline control help
+
+Each of the thirteen mastering sliders has an always-visible, screen-reader-linked
+note explaining its audible role and the meaning of positive/negative dB, Hz,
+percentage and zero/off values as applicable. Positive gain values show a + sign.
+Notes distinguish bass compression from bass boost, limiter drive from input
+drive, and a less-negative sample ceiling from a loudness target. DSP and saved
+settings are unchanged.
