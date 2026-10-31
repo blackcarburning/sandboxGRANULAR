@@ -47,7 +47,8 @@ Ubuntu packages: `lsp-plugins-lv2` (1.2.14), FFmpeg (existing); `lilv-utils` is
 useful for inspection. No JACK server, desktop audio session or external mastering
 service is needed. `backend/mygrain_mastering.py` is loaded by the documenter
 server; deployment hook is recorded in `deploy/mastering-host-integration.patch`.
-The public static allowlist includes `mastering.js`. UI build marker is
+Apply this zero-context hook with `git apply --unidiff-zero` at the workspace
+root if deploying to another copy. The public static allowlist includes `mastering.js`. UI build marker is
 `Mastering · LSP + FFmpeg · v1`.
 
 Checks: `python3 tests/test_mastering.py` (requires NumPy for fixtures),

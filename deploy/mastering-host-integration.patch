@@ -1,22 +1,10 @@
 --- a/fs7300-documenter/server.py
 +++ b/fs7300-documenter/server.py
-@@ -2560,6 +2560,10 @@
- _song_module = importlib.util.module_from_spec(_song_module_spec)
- _song_module_spec.loader.exec_module(_song_module)
- 
+@@ -2562,0 +2563,4 @@
 +_mastering_spec = importlib.util.spec_from_file_location('mygrain_mastering', pathlib.Path(__file__).resolve().parent.parent / 'sandboxGRANULAR' / 'backend' / 'mygrain_mastering.py')
 +_mastering_module = importlib.util.module_from_spec(_mastering_spec)
 +_mastering_spec.loader.exec_module(_mastering_module)
 +
- _instareel_spec = importlib.util.spec_from_file_location('mygrain_instareel', pathlib.Path(__file__).resolve().parent.parent / 'sandboxGRANULAR' / 'backend' / 'mygrain_instareel.py')
- _instareel_module = importlib.util.module_from_spec(_instareel_spec)
- _instareel_spec.loader.exec_module(_instareel_module)
-@@ -2807,6 +2811,8 @@
-             # G-only INSTAREEL uploads/render jobs must not hold account storage locks.
-             if route['base'] == '/mygrain' and (inner == '/api/instareel' or inner.startswith('/api/instareel/')):
-                 return _instareel_module.handle(self, MYGRAIN_ACCOUNTS, _song_module)
+@@ -2809,0 +2814,2 @@
 +            if route['base'] == MYGRAIN_WAVS_ROUTE and (inner == '/api/mastering' or inner.startswith('/api/mastering/')):
 +                return _mastering_module.handle(self, self.command, inner, MYGRAIN_ACCOUNTS, user, ensure_mygrain_repository_root(MYGRAIN_WAVS_ROUTE), _accounts_module.checked_path)
-             # Stateless AI inference must not hold the account storage lock while waiting.
-             if route['base'] == '/mygrain' and inner in ('/api/ai-patch-direction', '/api/ai-prompts', '/api/ai-parts'):
-                 return _ai_patch_module.handle_ai_patch_request(self, self.command, inner, source_root=pathlib.Path(MYGRAIN_BASTARDLOOP_LOCAL_SOURCE_ROOT), prompt_db=MYGRAIN_ACCOUNTS.database.with_name('ai-prompts.sqlite3'))
