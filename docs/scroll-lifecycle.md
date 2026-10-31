@@ -184,3 +184,17 @@ Chromium/WebKit cases at 390×844 and 844×390 complete 1,000 sample notes each
 with at most six transient voices, zero after each settled cycle, 64 under
 intentional held-note overload, and zero active/retired voices after arp Stop.
 Those findings do not confirm or exclude the physical iPhone symptom.
+
+## MASTER-CLOSE.1 — reachable phone mastering exit
+
+On touch devices the live-mastering Close button moves from the top title row
+to a full-width, 44px-minimum footer below the scrollable control area. The
+footer stays visible as controls scroll and includes bottom/side safe-area
+padding. Desktop pointer layout and the existing close/disposal handler remain
+unchanged. No processing, playback or server-render changes.
+
+Four Chromium/WebKit phone cases (390×844, 844×390) verify a single Close button,
+its lower-screen position and direct hit target, stable position after internal
+scrolling, usable control area, no horizontal overflow, and dismissal via tap.
+Evidence: output/mygrain-master-close-20261031/ outside public app root. Native
+Safari chrome cannot be reproduced by these browser emulation checks.
