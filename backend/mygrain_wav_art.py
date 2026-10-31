@@ -87,6 +87,21 @@ def save(root, name, data):
     return info(root, name)
 
 
+def rebind_after_replace(root, name, previous_signature):
+    """Same logical WAV: retain art bytes/version, change only its audio binding."""
+    wav, meta, image, thumb = paths(root, name)
+    if not meta.is_file() or meta.stat().st_size > 4096:
+        return
+    try:
+        saved = json.loads(meta.read_text())
+    except (OSError, ValueError):
+        return
+    if not isinstance(saved, dict) or saved.get('signature') != previous_signature or not image.is_file() or not thumb.is_file():
+        return
+    saved['signature'] = signature(wav)
+    atomic(meta, json.dumps(saved).encode())
+
+
 def copy_art(source_root, source_name, target_root, target_name):
     if not info(source_root, source_name):
         return

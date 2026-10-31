@@ -7,10 +7,11 @@
 +_mastering_module = importlib.util.module_from_spec(_mastering_spec)
 +_mastering_spec.loader.exec_module(_mastering_module)
 +
-@@ -2672 +2677,2 @@
+@@ -2672 +2677,3 @@
 -        wav_feedback_invalidated=lambda filename: delete_mygrain_repository_feedback(MYGRAIN_WAVS_ROUTE, filename), wav_art_copy=_wav_art_module.copy_art)
 +        wav_feedback_invalidated=lambda filename: delete_mygrain_repository_feedback(MYGRAIN_WAVS_ROUTE, filename), wav_art_copy=_wav_art_module.copy_art,
-+        wav_master_copy=_mastering_module.copy_info, wav_master_info=_mastering_module.info)
++        wav_master_copy=_mastering_module.copy_info, wav_master_info=_mastering_module.info,
++        wav_art_replaced=_wav_art_module.rebind_after_replace)
 @@ -2809,0 +2816,2 @@
 +            if route['base'] == MYGRAIN_WAVS_ROUTE and (inner == '/api/mastering' or inner.startswith('/api/mastering/')):
 +                return _mastering_module.handle(self, self.command, inner, MYGRAIN_ACCOUNTS, user, ensure_mygrain_repository_root(MYGRAIN_WAVS_ROUTE), _accounts_module.checked_path, _instareel_module)

@@ -233,6 +233,8 @@ def replace_wav(root, name, output, expected_hash, checked):
     target = checked(root / name, root)
     if not target.is_file() or hashlib.sha256(target.read_bytes()).hexdigest() != expected_hash:
         raise ValueError('The original WAV changed during rendering. Nothing was replaced; reload it.')
+    original_stat = target.stat()
+    previous_signature = signature(target)
     recovery = checked(root / '.mastering-recovery', root)
     recovery.mkdir(mode=0o700, exist_ok=True)
     backup = checked(recovery / secrets.token_hex(16), root)
@@ -245,11 +247,14 @@ def replace_wav(root, name, output, expected_hash, checked):
     staging = checked(root / ('.master-replace-' + secrets.token_hex(16)), root)
     try:
         shutil.copyfile(output, staging)
+        shutil.copymode(target, staging)
+        os.utime(staging, ns=(original_stat.st_atime_ns, original_stat.st_mtime_ns))
         os.replace(staging, target)
     finally:
         staging.unlink(missing_ok=True)
     # A replaced WAV remains a normal source, never a Masters library entry.
     old_metadata.unlink(missing_ok=True)
+    save_info(root, name, {'kind': 'replacement'})
     # Do not let historical cache adoption reclassify an unchanged/neutral
     # replacement as a Masters entry. Other masters remain untouched.
     cache = checked(root / '.mastering-cache', root)
@@ -261,6 +266,8 @@ def replace_wav(root, name, output, expected_hash, checked):
                     entry.unlink()
             except (OSError, ValueError, TypeError):
                 continue
+
+    return previous_signature
 
 
 def master_label(preset, target):
@@ -314,6 +321,14 @@ def info(root, name):
         return None
 
 
+def replacement_info(root, name):
+    try:
+        data = json.loads(metadata_path(root, name).read_text())
+        return isinstance(data, dict) and data.get('kind') == 'replacement' and data.get('signature') == signature(Path(root) / name)
+    except (OSError, ValueError, TypeError):
+        return False
+
+
 def decorate(root, files):
     # Adopt hash-verified historical outputs without renaming originals or notes.
     root = Path(root)
@@ -326,7 +341,7 @@ def decorate(root, files):
             try:
                 entry = json.loads(path.read_text())
                 name, report = entry['savedName'], entry['report']
-                if name not in by_name or info(root, name):
+                if name not in by_name or info(root, name) or replacement_info(root, name):
                     continue
                 metadata_path(root, name)
                 if hashlib.sha256((root / name).read_bytes()).hexdigest() != entry['sha256']:
@@ -341,6 +356,8 @@ def decorate(root, files):
     canonical = lambda name: re.fullmatch(r'master-(?:[a-z]+-minus[0-9.]+LUFS|live-[a-z]+)(?:-[^/\\]+)?\.wav', name)
     used = {f['name'] for f in files if canonical(f['name'])}
     for file in files:
+        if replacement_info(root, file['name']):
+            file['mastered'] = True
         data = info(root, file['name'])
         if data:
             label = file['name'] if canonical(file['name']) else data['label']
@@ -357,6 +374,8 @@ def decorate(root, files):
 
 def copy_info(source_root, source_name, target_root, target_name):
     data = info(source_root, source_name)
+    if not data and replacement_info(source_root, source_name):
+        data = {'kind': 'replacement'}
     if data:
         # Copy only mastering settings/category, never source notes or comments.
         save_info(target_root, target_name, {k: data[k] for k in ('kind', 'preset', 'targetLufs', 'engine', 'liveSettings') if k in data})
@@ -458,9 +477,8 @@ def handle(handler, method, inner, accounts, user, root, checked, reels=None):
                 # attach an editable patch that misrepresents the mastered DSP.
                 if replace_original:
                     with accounts.user_lock(user):
-                        replace_wav(root, name, output, source_hash, checked)
-                        accounts.begin_file_change(name, deleting=True)
-                        accounts.wav_created(name)
+                        previous_signature = replace_wav(root, name, output, source_hash, checked)
+                        accounts.wav_content_replaced(name, previous_signature)
                     with LOCK:
                         job.update(status='done', savedName=name, report=report, replaced=True)
                     return

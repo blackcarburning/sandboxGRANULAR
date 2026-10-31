@@ -60039,6 +60039,13 @@ case 'bastardW':
                 const name = document.createElement('div');
                 name.className = 'sample-browser-name';
                 name.textContent = file.displayName || file.name;
+                if (file.mastered) {
+                    const tag = document.createElement('small');
+                    tag.className = 'wav-mastered-tag';
+                    tag.textContent = ' (mastered)';
+                    tag.style.cssText = 'font-size:.75em;font-weight:normal;color:#91d7bd;white-space:nowrap';
+                    name.append(tag);
+                }
 
                 const downloadButton = document.createElement('button');
                 downloadButton.className = 'performance-btn';
@@ -60462,7 +60469,7 @@ case 'bastardW':
                             && JSON.stringify(previous.patternExport) === JSON.stringify(file.patternExport)
                             && JSON.stringify(previous.artwork) === JSON.stringify(file.artwork)
                             && JSON.stringify(previous.mastering) === JSON.stringify(file.mastering)
-                            && previous.displayName === file.displayName) return previous;
+                            && previous.displayName === file.displayName && previous.mastered === file.mastered) return previous;
                         return { ...file, feedback, feedbackDraft: previous?.feedbackDraft
                             && isWavRepositoryBrowserFeedbackDirty(previous) ? previous.feedbackDraft : null };
                     })

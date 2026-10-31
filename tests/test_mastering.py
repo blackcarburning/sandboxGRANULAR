@@ -152,6 +152,7 @@ class Mastering(unittest.TestCase):
             output = root/'render.tmp'; output.write_bytes(b'mastered')
             m.save_info(root, source.name, {'kind':'waves', 'preset':'clean', 'targetLufs':-16})
             expected = hashlib.sha256(source.read_bytes()).hexdigest()
+            original_mtime = source.stat().st_mtime_ns
             def checked(p, base):
                 if p.is_symlink() or not p.resolve().is_relative_to(base.resolve()):
                     raise ValueError('unsafe')
@@ -162,6 +163,12 @@ class Mastering(unittest.TestCase):
             self.assertFalse((cache/'old.json').exists())
             self.assertEqual(source.read_bytes(), b'mastered')
             self.assertIsNone(m.info(root, source.name))
+            self.assertEqual(source.stat().st_mtime_ns, original_mtime)
+            self.assertTrue(m.replacement_info(root, source.name))
+            rows = m.decorate(root, [{'name': source.name}])
+            self.assertTrue(rows[0]['mastered'])
+            self.assertNotIn('mastering', rows[0])
+            self.assertNotIn('displayName', rows[0])
             recovery = list((root/'.mastering-recovery').iterdir())
             self.assertEqual(len(recovery), 1)
             self.assertEqual((recovery[0]/'original.wav').read_bytes(), b'original')

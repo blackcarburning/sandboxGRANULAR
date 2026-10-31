@@ -175,13 +175,14 @@ def verify_password(password, encoded):
 
 
 class Accounts:
-    def __init__(self, database, users_root, legacy_paths, wav_feedback_invalidated=None, wav_art_copy=None, wav_master_copy=None, wav_master_info=None):
+    def __init__(self, database, users_root, legacy_paths, wav_feedback_invalidated=None, wav_art_copy=None, wav_master_copy=None, wav_master_info=None, wav_art_replaced=None):
         self.database = pathlib.Path(database)
         self.users_root = pathlib.Path(users_root)
         self.legacy_paths = {key: pathlib.Path(path) for key, path in legacy_paths.items()}
         self.storage_lock = threading.RLock()
         self.user_locks = {}
         self.wav_feedback_invalidated = wav_feedback_invalidated
+        self.wav_art_replaced = wav_art_replaced
         self.wav_art_copy = wav_art_copy
         self.wav_master_copy = wav_master_copy
         self.wav_master_info = wav_master_info
@@ -456,6 +457,18 @@ class Accounts:
             connection.execute('''INSERT INTO wav_provenance (user_id, filename, created_by_id, file_signature) VALUES (?, ?, ?, ?)
                 ON CONFLICT(user_id, filename) DO UPDATE SET created_by_id=excluded.created_by_id, file_signature=excluded.file_signature''',
                                (user_id, filename, user_id, signature))
+
+    def wav_content_replaced(self, filename, previous_signature):
+        """Keep track identity, attribution and shares after an owner-approved master."""
+        user_id = current_user()['id']
+        root = self.path_for('wavs')
+        signature = self.file_signature(root / filename)
+        with self.connection() as connection:
+            connection.execute('''INSERT INTO wav_provenance (user_id, filename, created_by_id, file_signature) VALUES (?, ?, NULL, ?)
+                ON CONFLICT(user_id, filename) DO UPDATE SET file_signature=excluded.file_signature''',
+                               (user_id, filename, signature))
+        if self.wav_art_replaced:
+            self.wav_art_replaced(root, filename, previous_signature)
 
     def invalidate_changed_wav(self, filename):
         user_id = current_user()['id']

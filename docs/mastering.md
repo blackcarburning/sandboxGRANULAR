@@ -345,3 +345,45 @@ Browser tests cover lazy opening, minimise/reopen, drag, unchanged header height
 and viewport containment at 320/390/844/1024 in Chromium and WebKit, alongside the
 existing audio/display gating checks. Unit tests verify independent VU sampling
 suspension without stopping the remaining meter telemetry.
+
+## Same-track replacement identity (2026-10-31)
+
+Replacing an original now retains its filename and original nanosecond mtime,
+keeping its position in the repository's modification-time sort. The WAV bytes
+are atomically swapped, with the private recovery original still retained.
+
+`Accounts.wav_content_replaced` updates only the existing provenance signature
+(never its creator) and refreshes the artwork binding against the pre-replacement
+signature. It does not delete/recreate the track, invalidate notes or alter share
+records. Artwork image/thumbnail bytes and version URLs remain identical. Stale
+artwork belonging to an unrelated file is not adopted. Comments, timestamped
+notes and filename-keyed favourite hearts are untouched. Editable pattern ZIPs
+remain untouched, but their audio-integrity checks are not bypassed: mastered
+PCM is not misrepresented as an unprocessed editable patch.
+
+A signature-bound `kind: replacement` record supplies a small `(mastered)` badge.
+It is deliberately not returned by the Masters classification helper, does not
+rename the WAV and follows existing metadata rename/delete/copy lifecycle hooks.
+File-list reuse considers the badge field so same-size neutral renders still
+refresh their row. Preview worklet/source invalidation and source-hash checks
+remain unchanged. WAV delivery is `no-store`; phone preview caches already use
+inode/ctime as well as mtime, so preserving list order does not reuse old PCM.
+
+Deployment requires the `wav_art_replaced` callback in the documenter account
+configuration; see `deploy/mastering-host-integration.patch`, then restart
+`fs7300-documenter.service` to reload Python modules.
+
+Verified with disposable authenticated fixtures in phone Chromium and WebKit:
+confirmed Replace/Cancel, original filename, changed audio hash, exact ordered
+file-list equality, unchanged feedback (including timestamped notes), same art
+metadata and image/thumbnail bytes, unchanged hearts and share records, unchanged
+attribution, visible badge/thumbnail, no extra Masters entry, and fresh audition.
+No production WAVs were modified in testing.
+
+Checks: `python3 -m unittest tests.test_mastering` (7),
+`python3 -m unittest tests.test_mastering_replacement` (2), focused artwork HTTP
+lifecycle/limits tests (2), inline script parse, and
+`node tests/mastering-live-browser.cjs` (both engines). An initial broader HTTP
+suite hit an intermittent BrokenPipe while sending an oversized rejected art
+upload; the pre-change handler and focused current lifecycle/limit checks passed.
+Physical iPhone verification is still separate from browser emulation.
