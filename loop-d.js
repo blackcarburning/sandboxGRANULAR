@@ -7,6 +7,7 @@ const speedValues=[.125,.25,.5,1,2,4],normalizeSpeed=value=>speedValues.includes
 const defaults=()=>({version:1,enabled:false,fill:'repeat',speed:1,level:.5,pitch:0,reverse:false,shift:0,cut:MygrainVocalCut.normalize(),metadata:null});
 let state=defaults(),cache=null,voice=null,revision=0,busy=false,controller=null,preview=false,auditionSerial=0,metroTimer=null,auditionLoops=false,transportWanted=false;
 const metroNodes=new Set();
+let checkedCycle=null;
 const clone=v=>JSON.parse(JSON.stringify(v));
 const duration=()=>getPatternLengthSteps()*60/getTransportClockBpm()/4;
 function settings(){return {...clone(state),metadata:bastardLoopDMetadata?clone(bastardLoopDMetadata):null};}
@@ -39,7 +40,7 @@ function fitted(){
 function playback({uncut=false}={}){const b=fitted();return !b||uncut?b:MygrainVocalCut.gate(audioContext,b,state.cut,b.duration);}
 function level(){return state.enabled?state.level*getLoopLayerSoloGain('bastardd'):0;}
 function stop(options={}){
- if(!options.preserveIntent)transportWanted=false;
+ if(!options.preserveIntent){transportWanted=false;checkedCycle=null;}
  auditionSerial++;if(metroTimer)clearInterval(metroTimer);metroTimer=null;
  for(const {oscillator,gain}of metroNodes){try{oscillator.stop();oscillator.disconnect();gain.disconnect()}catch{}}metroNodes.clear();
  preview=false;if(!voice)return;
@@ -54,7 +55,7 @@ function start(at=null,{audition=false}={}){
  const volume=audition?Math.max(.25,state.level):level();gain.gain.setValueAtTime(0,time);gain.gain.linearRampToValueAtTime(volume*MIX_HEADROOM*.88,time+.004);source.connect(gain);
  const route=root.mygrainChannelEq.connect('D',gain,preFilterGainNode,source);
  const shift=state.shift*60/getTransportClockBpm()/4,elapsed=Number.isFinite(origin)?Math.max(0,time-origin):0,offset=((elapsed-shift)%b.duration+b.duration)%b.duration;
- voice={source,gain,route,origin:Number.isFinite(origin)?origin:time};source.onended=()=>{if(voice?.source===source)stop()};startTransportSource(source,time,offset);preview=audition;return true;
+ voice={source,gain,route,origin:Number.isFinite(origin)?origin:time};source.onended=()=>{if(voice?.source===source)stop({preserveIntent:!preview})};startTransportSource(source,time,offset);preview=audition;return true;
 }
 async function audition(mode='metronome'){
  const serial=++auditionSerial;if(!await ensureAudioReadyForKeyInteraction()||serial!==auditionSerial)return;
@@ -66,6 +67,18 @@ async function audition(mode='metronome'){
 }
 function stopAudition(){const loops=auditionLoops;auditionLoops=false;stop();if(loops)stopAllBastardLoopLayers();}
 function update({gainOnly=false}={}){if(gainOnly&&voice&&!preview&&level()>0){voice.gain.gain.setTargetAtTime(level()*MIX_HEADROOM*.88,audioContext.currentTime,.01);sync();return;}if(voice){if(preview)start(audioContext.currentTime,{audition:true});else if(level()>0)start(getSharedLoopTransportOriginTime());else stop({preserveIntent:true});}else if(transportWanted&&bastardLoopPlaying&&level()>0)start(getSharedLoopTransportOriginTime());sync();}
+// A health check, not a retrigger: existing/future-scheduled voices stay untouched.
+// Audio time and the shared origin keep recovery phase-locked after UI stalls.
+function checkCycle(){
+ if(root.__mygrainSongRenderDeck||!transportWanted||!bastardLoopPlaying||preview||!audioContext||audioContext.state!=='running'||!engineInitialized||engineStarting||stateSaveSuspended||transportSync.depth>0||busy||root.mygrainCardHistory?.busy)return false;
+ const origin=getSharedLoopTransportOriginTime(),seconds=duration();
+ if(!Number.isFinite(origin)||!(seconds>0))return false;
+ const cycle=Math.floor((audioContext.currentTime-origin)/seconds),stamp=[origin,seconds,cycle].join(':');
+ if(stamp===checkedCycle)return false;
+ checkedCycle=stamp;
+ if(voice||level()<=0||!bastardLoopDBuffer)return false;
+ return start(origin);
+}
 function enable(value,options={}){state.enabled=!!value;if(value&&bastardLoopPlaying)transportWanted=true;update();if(!options.skipSave)saveState();}
 function cut(value,options={}){state.cut=MygrainVocalCut.normalize(value);if(!options.skipRestart)update();else sync();if(!options.skipSave)saveState();return state.cut;}
 function gapSettings(base=state.cut,random=Math.random,amount=3){
@@ -120,12 +133,12 @@ async function load({path,file}={},options={}){
 function edit(label,action){if(root.mygrainCardHistory?.busy)throw Error('Wait for the current sound change.');return root.mygrainCardHistory?root.mygrainCardHistory.runDraftEdit(label,action):action();}
 function random(options={}){return options.batch?load({},options):edit('D random loop',()=>load({},options));}
 let editor=null;
-root.mygrainD={settings,restore,playback,fitted,repetitions,duration,apply,start,stop,stopAll(){stop();stopBrowserPreview()},enable,level,cut,randomGaps,gapSettings,sync,random,load,choose:path=>edit('D choose loop',()=>load({path})),get busy(){return busy},get previewing(){return [SAMPLE_BROWSER_TARGETS.bastardLoopD,SAMPLE_BROWSER_TARGETS.bastardLoopV,SAMPLE_BROWSER_TARGETS.bastardLoopX].includes(dropboxSampleBrowserTarget)&&Array.from(document.querySelectorAll('#dropboxSampleBrowserList audio')).some(audio=>!audio.paused)},get source(){return voice?.source},get gain(){return voice?.gain},get state(){return state},invalidate(){cache=null;queueMicrotask(()=>{if(transportWanted&&bastardLoopPlaying)update()})},playable:()=>state.enabled&&!!bastardLoopDBuffer&&state.level>0};
+root.mygrainD={settings,restore,checkCycle,playback,fitted,repetitions,duration,apply,start,stop,stopAll(){stop();stopBrowserPreview()},enable,level,cut,randomGaps,gapSettings,sync,random,load,choose:path=>edit('D choose loop',()=>load({path})),get busy(){return busy},get previewing(){return [SAMPLE_BROWSER_TARGETS.bastardLoopD,SAMPLE_BROWSER_TARGETS.bastardLoopV,SAMPLE_BROWSER_TARGETS.bastardLoopX].includes(dropboxSampleBrowserTarget)&&Array.from(document.querySelectorAll('#dropboxSampleBrowserList audio')).some(audio=>!audio.paused)},get source(){return voice?.source},get gain(){return voice?.gain},get state(){return state},invalidate(){cache=null;queueMicrotask(()=>{if(transportWanted&&bastardLoopPlaying)update()})},playable:()=>state.enabled&&!!bastardLoopDBuffer&&state.level>0};
 restore(readStoredStateSnapshot()?.modes?.loopD);
 editor=new MygrainVocalCut.Editor({prefix:'bastardLoopDCut',settings:()=>state.cut,set:cut,randomize:()=>randomGaps(),edit,buffer:()=>playback({uncut:true}),timing:()=>({duration:duration(),cycle:duration(),bar:getLoopBarDurationSeconds(),frames:Math.round(duration()*(bastardLoopDBuffer?.sampleRate||48000))}),audition,stop:stopAudition,phase:()=>voice?((audioContext.currentTime-voice.origin)%duration())/duration():null});
 const handle=(id,action)=>el(id).addEventListener('click',()=>Promise.resolve().then(action).catch(e=>setStatus(e.message,'error')));
 handle('performanceBastardLoopDToggleBtn',()=>edit('D on/off',()=>enable(!state.enabled)));handle('performanceBastardLoopDLayerSoloBtn',()=>setLoopLayerSolo('bastardd',{toggle:true}));
-handle('loopDRandom',()=>random());handle('loopDToggle',()=>edit('D on/off',()=>enable(!state.enabled)));handle('loopDSolo',()=>{setLoopLayerSolo('bastardd',{toggle:true});update()});
+handle('loopDRandom',()=>random());handle('loopDToggle',()=>edit('D on/off',()=>enable(!state.enabled)));handle('loopDSolo',()=>setLoopLayerSolo('bastardd',{toggle:true}));
 handle('loopDReverse',()=>edit('D reverse',()=>{state.reverse=!state.reverse;cache=null;update();saveState()}));
 for(const [id,dir]of [['loopDShiftLeft',-1],['loopDShiftRight',1]])handle(id,()=>edit('D shift',()=>{state.shift+=dir;update();saveState()}));
 handle('loopDCut',()=>editor.open());handle('loopDGaps',()=>edit('D random gaps',()=>randomGaps()));
@@ -137,6 +150,6 @@ function stopBrowserPreview(){
 handle('loopDBrowse',()=>openDropboxSampleBrowser(SAMPLE_BROWSER_TARGETS.bastardLoopD));
 // Shared parameter changes refit from the original, never stretch a stretched copy.
 for(const name of ['applyGlobalBpm','syncPatternLengthControls']){const raw=root[name];root[name]=function(...args){const was=!!voice,result=raw(...args);cache=null;if(was)update();else sync();return result};}
-const soloSync=syncLoopLayerSoloButtons;syncLoopLayerSoloButtons=function(...a){const r=soloSync(...a);if(root.mygrainD){if(voice||(transportWanted&&bastardLoopPlaying))update();else sync();}return r};
+const soloSync=syncLoopLayerSoloButtons;syncLoopLayerSoloButtons=function(...a){const r=soloSync(...a);if(root.mygrainD){if(voice||(transportWanted&&bastardLoopPlaying))update({gainOnly:true});else sync();}return r};
 sync();
 })(window);

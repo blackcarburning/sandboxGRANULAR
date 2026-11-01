@@ -86,6 +86,7 @@
         function sync() {
             if (disposed) return;
             configure();
+            adapter.checkPlayback?.();
             checkIdle();
             setClock(clockWanted());
             try {

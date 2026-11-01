@@ -64,3 +64,31 @@ legacy settings without it use ×1. Loop-copy routing includes loopDSpeed.
 The D browser regression covers all six speeds in both fill modes, repeated
 changes and source hashes, original WSOLA inputs, exact pattern frames, saved
 half-speed server rendering, legacy renders and warm-cache reuse.
+
+## Solo/dropout recovery — v2026.11.01.D.14
+
+Reproduced: start with D soloed, solo A, then solo D again. D had no source
+although `bastardLoopPlaying` remained true. A's `stopBastardLoop` called D's
+`stopAll` even for A-only mute/replacement (`preserveTransportState:true`),
+erasing D's transport intent. Only an actual whole-transport stop now does that;
+`stopAllBastardLoopLayers` still stops D before any UI refresh callbacks.
+
+Solo-button refresh updates existing D gain without replacing its source. A
+native unexpected D `ended` preserves transport intent, while explicit D/transport
+Stop clears it before cleanup. `mygrainD.checkCycle()` inspects once per observed
+audio-time pattern cycle through the existing background controller bookkeeping
+and native scheduler pulses. It creates no timer, analyser or audio clock. Missing
+eligible D voices restart through the same origin/shift-aware `start` entrypoint;
+existing and future-scheduled voices are untouched. Audition, stopped/suspended
+contexts, startup, render/restore transactions, history edits and active D loads
+cannot be revived by the check. Mute/solo/enable and loaded source guards remain
+in force. No silence detection: intentional cut/gap silence is not a dropout.
+
+The server worker loads the same editor and isolated render deck; normal D start,
+stop and restore paths include the fix. There is no new DSP or serialized state,
+so existing correct freezes need no render-version invalidation. Verify current D
+and legacy pre-D sources, source SHA preservation and warm cache via
+`D_FORCE_SERVER=1 node tests/loop-d-browser.cjs` against the isolated 18983 store.
+`node tests/loop-d-resume-browser.cjs` checks real PCM, repeated solo/mute/restore,
+A-only teardown, stable voice identity under UI refresh, actual native-ended
+recovery, stopped/muted silence beyond cycle boundaries and fresh playback.
