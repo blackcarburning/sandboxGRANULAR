@@ -43,7 +43,7 @@ function stop(){
  const v=voice;voice=null;try{v.source.onended=null;v.source.stop()}catch{};v.source.disconnect();v.gain.disconnect();v.route?.disconnect();
 }
 function start(at=null,{audition=false}={}){
- if(!audioContext||!preFilterGainNode||!bastardLoopDBuffer||(!audition&&level()<=0))return false;
+ if(!audioContext||audioContext.state==='closed'||!preFilterGainNode||!bastardLoopDBuffer||(!audition&&level()<=0))return false;
  const b=playback();if(!b)return false;
  stop();const timing=resolveTransportLaneStart(at,'D'),time=timing.time,origin=timing.origin;
  const source=audioContext.createBufferSource(),gain=audioContext.createGain();source.buffer=b;source.loop=true;source.loopEnd=b.duration;

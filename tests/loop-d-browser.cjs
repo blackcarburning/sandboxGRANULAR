@@ -55,6 +55,6 @@ const songs=await p.evaluate(async()=>{
 });assert(songs.legacyOff&&songs.restored&&songs.playing);assert(songs.rms.every(x=>x>1e-6));assert.deepEqual(songs.hashes,songs.after);assert.deepEqual(songs.renders,songs.warm);
 await p.reload();await start();assert(await p.evaluate(()=>!!bastardLoopDBuffer&&mygrainD.settings().enabled));
 for(const size of [{width:390,height:844},{width:844,height:390}]){await p.setViewportSize(size);await p.locator('#loopDCut').scrollIntoViewIfNeeded();await p.locator('#loopDCut').tap();assert(await p.locator('#bastardLoopDCutClose').isVisible());assert(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await p.locator('#bastardLoopDCutClose').tap();}
-console.log('PAGE_ERRORS',engine,JSON.stringify(errors));await p.locator('#bastardLoopDCard').scrollIntoViewIfNeeded();await p.locator('#bastardLoopDCard').screenshot({path:'/tmp/mygrain-d-'+engine+'.png'});assert.deepEqual(errors.filter(e=>!(e.name==='AbortError'&&e.message==='Cancelled')),[]);console.log('PASS',engine,JSON.stringify({fit,batches,reel,songs}));await ctx.close();
+console.log('PAGE_ERRORS',engine,JSON.stringify(errors));await p.locator('#bastardLoopDCard').scrollIntoViewIfNeeded();await p.locator('#bastardLoopDCard').screenshot({path:'/tmp/mygrain-d-'+engine+'.png'});assert.deepEqual(errors,[]);console.log('PASS',engine,JSON.stringify({fit,batches,reel,songs}));await ctx.close();
 }finally{await browser.close()}
 }})().catch(e=>{console.error(e);process.exitCode=1});
