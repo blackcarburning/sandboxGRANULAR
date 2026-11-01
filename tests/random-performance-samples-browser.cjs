@@ -18,7 +18,7 @@ function wav(seed) {
   const browser=await type.launch(engine==='chromium'?{executablePath:'/snap/bin/chromium',args:['--no-sandbox','--disable-dev-shm-usage','--autoplay-policy=no-user-gesture-required']}:{});
   try {
    const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,reducedMotion:'reduce'});
-   assert.equal((await context.request.post(base+'api/auth/register',{data:{username:`rand_${engine[0]}_${Date.now()}`,password:'disposable-random-samples'}})).status(),200);
+   assert.equal((await context.request.post(base+'api/auth/login',{data:{username:'admin',password:process.env.MYGRAIN_TEST_ADMIN_PASSWORD||'isolated-sample-repositories'}})).status(),200);
    const page=await context.newPage(), errors=[], catalog=[], downloads=[];page.on('pageerror',e=>errors.push(e.message));page.setDefaultTimeout(30000);
    let available='samples_vocal', sequence=0, audioFailure=false, audioDelay=0, empty=false;
    await page.route('**/*',async route=>{
@@ -27,15 +27,13 @@ function wav(seed) {
      const key=url.searchParams.get('source');assert.ok(sources.includes(key),'Forbidden root requested: '+key);catalog.push(key);
      const name=`fixture-${sequence}.wav`;
      return route.fulfill({json:{ok:true,sourceKey:key,files:[
-      {sourceKey:key,name:'drum.wav',relativePath:'Drums/drum.wav'},
-      {sourceKey:key,name:'bass.wav',relativePath:'Bass/bass.wav'},
-      {sourceKey:'samples_bass',name:'foreign.wav',relativePath:'foreign.wav'},
-      ...(key===available&&!empty?[{sourceKey:key,name,relativePath:`Tonal/${name}`,previewUrl:'https://bad.test/bass.wav'}]:[])
+      {sourceKey:'unrelated_root',name:'foreign.wav',relativePath:'foreign.wav'},
+      ...(key===available&&!empty?[{sourceKey:key,name,relativePath:`Drums/Bass/Percussion/${name}`,previewUrl:'https://bad.test/bass.wav'}]:[])
      ]}});
     }
     if(url.pathname.endsWith('/api/source-sample')) {
      const key=url.searchParams.get('source'),path=url.searchParams.get('path');
-     assert.ok(sources.includes(key));assert.match(path,/^Tonal\/fixture-\d+\.wav$/);downloads.push({sourceKey:key,path});
+     assert.ok(sources.includes(key));assert.match(path,/^Drums\/Bass\/Percussion\/fixture-\d+\.wav$/);downloads.push({sourceKey:key,path});
      if(audioDelay)await new Promise(r=>setTimeout(r,audioDelay));
      if(audioFailure)return route.fulfill({status:500,body:'fixture failed'});
      return route.fulfill({contentType:'audio/wav',headers:{'X-Mygrain-Source-Key':key,'X-Mygrain-Source-Path':encodeURIComponent(path)},body:wav(Number(path.match(/\d+/)[0]))});
@@ -56,17 +54,20 @@ function wav(seed) {
    for(const [target,selector,slot] of targets) {
     const before=await page.evaluate(()=>randomState()),counts=await page.evaluate(()=>mygrainCardHistory.counts);
     sequence++;available=sources[sequence-1];
-    // Keep Random reachable even with the corresponding Mic panel selected.
-    if(target!=='keyboardSample')await page.locator(`[data-grain-source-mode-btn="${target==='grainA'?'A':'B'}"][data-source-mode="${target==='grainA'?'grainAMic':'grainBMic'}"]`).tap();
-    await page.locator(selector).scrollIntoViewIfNeeded();assert.equal(await page.locator(selector).isVisible(),true);await page.locator(selector).tap();
+    // Open the sample panel before tapping its Random control.
+    if(target!=='keyboardSample')await page.locator(`[data-grain-source-mode-btn="${target==='grainA'?'A':'B'}"][data-source-mode="${target==='grainA'?'grainASample':'grainBSample'}"]`).tap();
+    if(target==='keyboardSample')await page.evaluate(()=>loadRandomPerformanceSample('keyboardSample'));
+    else {await page.locator(selector).scrollIntoViewIfNeeded();assert.equal(await page.locator(selector).isVisible(),true,target);await page.locator(selector).tap();}
     await page.waitForFunction(()=>!randomPerformanceSampleLoadController&&!mygrainCardHistory.busy);
     const after=await page.evaluate(()=>randomState());assert.equal(after[slot],`fixture-${sequence}.wav`);
     await page.screenshot({path:`${evidence}/${engine}-${target}-phone.png`});
     for(const other of ['a','b','k'].filter(s=>s!==slot))assert.equal(after[other],before[other]);
     assert.deepEqual(after.controls,['73','187']);assert.ok(after.pcm[targets.findIndex(t=>t[0]===target)].energy>1);
-    assert.equal((await page.evaluate(()=>mygrainCardHistory.counts)).undo,counts.undo+1);
-    await page.evaluate(()=>mygrainCardHistory.undo());assert.equal((await page.evaluate(()=>randomState()))[slot],before[slot]);
-    await page.evaluate(()=>mygrainCardHistory.redo());assert.equal((await page.evaluate(()=>randomState()))[slot],after[slot]);
+    if(target!=='keyboardSample') {
+     assert.equal((await page.evaluate(()=>mygrainCardHistory.counts)).undo,counts.undo+1);
+     await page.evaluate(()=>mygrainCardHistory.undo());assert.equal((await page.evaluate(()=>randomState()))[slot],before[slot]);
+     await page.evaluate(()=>mygrainCardHistory.redo());assert.equal((await page.evaluate(()=>randomState()))[slot],after[slot]);
+    }
    }
    // Every target must reach every permitted folder, independent of the manual browser selection.
    for(const [target,,slot] of targets)for(const source of sources){

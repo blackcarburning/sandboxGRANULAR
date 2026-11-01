@@ -1,0 +1,38 @@
+--- a/fs7300-documenter/server.py
++++ b/fs7300-documenter/server.py
+@@ -242,6 +242,12 @@
+     },
+     "samples_loops": {"remote": "dropbox:SAMPLES_LOOPS", "label": "SAMPLES_LOOPS", "filename_prefix": "bastardloop-loops", "local_dir": "SAMPLES_LOOPS"},
+     "samples_perc": {"remote": "dropbox:SAMPLES_PERC", "label": "SAMPLES_PERC", "filename_prefix": "drum-perc", "local_dir": "SAMPLES_PERC"},
++    "samples_atmos": {"remote": "dropbox:SAMPLES_ATMOS", "label": "SAMPLES_ATMOS", "filename_prefix": "samples_atmos", "local_dir": "SAMPLES_ATMOS"},
++    "samples_sean": {"remote": "dropbox:SAMPLES_SEAN", "label": "SAMPLES_SEAN", "filename_prefix": "samples_sean", "local_dir": "SAMPLES_SEAN"},
++    "samples_special": {"remote": "dropbox:SAMPLES_SPECIAL", "label": "SAMPLES_SPECIAL", "filename_prefix": "samples_special", "local_dir": "SAMPLES_SPECIAL"},
++    "samples_splice": {"remote": "dropbox:SAMPLES_SPLICE", "label": "SAMPLES_SPLICE", "filename_prefix": "samples_splice", "local_dir": "SAMPLES_SPLICE"},
++    "samples_toms": {"remote": "dropbox:SAMPLES_TOMS", "label": "SAMPLES_TOMS", "filename_prefix": "samples_toms", "local_dir": "SAMPLES_TOMS"},
++    "sampledrop_rich": {"remote": "dropbox:SAMPLEDROP_RICH", "label": "SAMPLEDROP_RICH", "filename_prefix": "sampledrop_rich", "local_dir": "SAMPLEDROP_RICH"},
+     "samples_crash": {
+         "remote": "dropbox:SAMPLES_CRASH",
+         "label": "SAMPLES_CRASH",
+@@ -701,6 +707,8 @@
+     cached_files = cache_entry.get("files") or []
+     if (
+         not force_refresh
++        # Local mirrors change during sync: enumerate every random request.
++        and not resolve_existing_bastardloop_local_source_root(source_key)
+         and cached_files
+         and cache_entry.get("expires_at", 0) > now
+     ):
+@@ -1264,7 +1272,12 @@
+              str(get_bastardloop_local_source_root(source_key)))
+     identity = (scope, source_key, relative_path, hashlib.sha256(payload).digest(), MYGRAIN_BASTARDLOOP_TARGET_SAMPLE_RATE, 'pcm-v1')
+     def decode():
+-        source_rate, raw_data = wavfile.read(BytesIO(payload))
++        if pathlib.PurePosixPath(relative_path).suffix.lower() in {".aif", ".aiff"}:
++            # AIFF files are part of the same recursive pool, not silent skips.
++            import soundfile
++            raw_data, source_rate = soundfile.read(BytesIO(payload), dtype="float32")
++        else:
++            source_rate, raw_data = wavfile.read(BytesIO(payload))
+         samples = ensure_stereo(resample_audio_channels(audio_samples_to_float32(raw_data), int(source_rate), MYGRAIN_BASTARDLOOP_TARGET_SAMPLE_RATE))
+         return samples, {}
+     def conform():

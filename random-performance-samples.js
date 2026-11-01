@@ -1,8 +1,7 @@
 (function (scope) {
     'use strict';
     // Independent of browser folder selection and all drum/bass randomizers.
-    const sources = Object.freeze(['samples_vocal', 'samples_piano', 'samples_orch', 'sampledrop', 'sampledrop2', 'splice_claw']);
-    const excludedFolder = /(?:^|[^a-z])(?:bass(?:es)?|drums?|drumkits?|percussion|kicks?|snares?|hi[ _-]?hats?|hats?|cymbals?)(?:$|[^a-z])/i;
+    const sources = Object.freeze(['samples_vocal', 'samples_piano', 'samples_orch', 'sampledrop', 'sampledrop2', 'splice_claw', 'samples_modular', 'samples_loops', 'samples_perc', 'samples_bass', 'samples_kicks', 'samples_snares', 'samples_hats', 'samples_clap', 'samples_crash', 'samples_terra', 'samples_leads', 'samples_atmos', 'samples_sean', 'samples_special', 'samples_splice', 'samples_toms', 'sampledrop_rich']);
     function eligibleFile(file, sourceKey) {
         if (!sources.includes(sourceKey) || (file?.sourceKey && file.sourceKey !== sourceKey)) return false;
         const path = file?.relativePath;
@@ -10,7 +9,7 @@
         const parts = path.split('/');
         if (parts.some(part => !part || part === '.' || part === '..')) return false;
         if (!/\.(wav|wave|mp3|ogg|flac|m4a|aiff?|aac|opus)$/i.test(parts.at(-1))) return false;
-        return !parts.slice(0, -1).some(part => excludedFolder.test(part));
+        return true; // No instrument, pack, filename or folder-name exclusions.
     }
     async function chooseSample({ catalogUrl, fetch: request = scope.fetch.bind(scope), signal, guard = () => {}, current = null, random = Math.random }) {
         const folders = [...sources];
@@ -23,15 +22,14 @@
             guard();
             if (signal?.aborted) throw new Error('Random sample load cancelled.');
             try {
-                const url = new URL(catalogUrl); url.searchParams.set('source', sourceKey);
+                const url = new URL(catalogUrl); url.searchParams.set('source', sourceKey); url.searchParams.set('refresh', '1');
                 const response = await request(url.href, { cache: 'no-store', signal });
                 if (response.status === 401 || response.status === 403) throw Object.assign(new Error('Sign in again before loading a random sample.'), { authentication: true });
                 const payload = await response.json();
                 guard();
                 if (!response.ok || !payload.ok) throw new Error(payload.error || `Sample folder unavailable (${response.status}).`);
                 if (payload.sourceKey && payload.sourceKey !== sourceKey) throw new Error('Sample folder identity did not match the requested folder.');
-                const files = (Array.isArray(payload.files) ? payload.files : []).filter(file => eligibleFile(file, sourceKey)
-                    && !(current?.sourceKey === sourceKey && current?.relativePath === file.relativePath));
+                const files = (Array.isArray(payload.files) ? payload.files : []).filter(file => eligibleFile(file, sourceKey));
                 if (!files.length) continue;
                 const selected = files[Math.floor(random() * files.length)];
                 return { sourceKey, relativePath: selected.relativePath, fileName: selected.name || selected.relativePath.split('/').pop() };
@@ -41,7 +39,7 @@
                 lastError = error;
             }
         }
-        throw new Error(`No new eligible samples found in the six allowed folders.${lastError ? ` ${lastError.message}` : ''}`);
+        throw new Error(`No new eligible samples found in the sample libraries.${lastError ? ` ${lastError.message}` : ''}`);
     }
     const api = Object.freeze({ sources, eligibleFile, chooseSample });
     if (typeof module === 'object' && module.exports) module.exports = api;

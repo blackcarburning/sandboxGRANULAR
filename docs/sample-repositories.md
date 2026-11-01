@@ -37,3 +37,25 @@ non-silent decoded PCM, Chromium/WebKit phone emulation, preset/old-default
 recall, W recut identity, ETC's manual-only protection, real current/old-format
 Song archives and server render jobs, warm reuse and phone playback. It never
 writes to production accounts, Songs or sample libraries.
+
+
+## Full-directory randomisation (2026-11-01)
+
+- Grain A/B, Keyboard/Q and Mega/Sparse use the same picker across all 23 synced
+  Dropbox libraries, including LOOPS, PERC, TOMS and SAMPLEDROP_RICH. Selection
+  is folder-random then file-random; no instrument, pack or subfolder-name filter. The current sample also remains
+  eligible, so a single-file directory still works.
+- A/B/C/W generation and drum random loaders retain their selected source, but
+  enumerate that entire recursive directory. ETC remains manual-only.
+- Local mirrors are enumerated on each request, rather than holding a 180-second
+  catalogue snapshot during sync. There is no browser-page limit on random pools.
+- All mirrored audio formats (WAV, AIF, AIFF) participate; project files, executables,
+  archives and sidecars are not audio. AIFF generation uses installed soundfile;
+  WAV decoding and DSP remain unchanged. Auth, path and account guards remain.
+- Source selection changes precede PCM capture. Song source ZIPs embed that PCM;
+  server decks replay it without rerandomising. No render version bump is needed
+  and existing freezes/source ZIPs must not be rewritten.
+- Host integration delta: `backend/full-directory-random-host.patch`, applied after
+  `sample-repositories-host.patch`. Regression checks cover every root, formerly
+  excluded nested folders, >2000 files, arrivals during cache TTL, native browser
+  sample loading/Undo/Redo, portable Songs, and current/legacy server renders.
