@@ -150,6 +150,7 @@ module.exports=String.raw`(function(){
  apply.tick=seconds=>{refreshMix();if(motion&&filter){filter.value=String(Math.max(Number(filter.min)||20,motion.base*(1+motion.depth*Math.sin(2*Math.PI*motion.hz*(seconds-motion.at)))));filter.dispatchEvent(new Event('input',{bubbles:true}))}};
  apply.cleanup=()=>{mixDriver=false;refreshMix()};
  apply.prepare=value=>{
+  if(typeof capRandomCrashLevel==='function')capRandomCrashLevel();
   plan=value;plan.options=plan.options||{notes:false,drums:false,recutV:false};
   // Snare and Roll share the source: preserve existing rolls even when
   // development is off or drums are protected. Only this render deck changes.
