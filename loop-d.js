@@ -4,15 +4,15 @@
 'use strict';
 const card=document.getElementById('bastardLoopDCard'),el=id=>document.getElementById(id);
 const defaults=()=>({version:1,enabled:false,fill:'repeat',level:.5,pitch:0,reverse:false,shift:0,cut:MygrainVocalCut.normalize(),metadata:null});
-let state=defaults(),cache=null,voice=null,revision=0,busy=false,controller=null,preview=false,catalog=[],auditionSerial=0,metroTimer=null,auditionLoops=false;
+let state=defaults(),cache=null,voice=null,revision=0,busy=false,controller=null,preview=false,auditionSerial=0,metroTimer=null,auditionLoops=false,transportWanted=false;
 const metroNodes=new Set();
 const clone=v=>JSON.parse(JSON.stringify(v));
 const duration=()=>getPatternLengthSteps()*60/getTransportClockBpm()/4;
 function settings(){return {...clone(state),metadata:bastardLoopDMetadata?clone(bastardLoopDMetadata):null};}
 function restore(value){
- revision++;controller?.abort();stop();const v=value||{},base=defaults();
+ revision++;controller?.abort();stop({preserveIntent:true});const v=value||{},base=defaults();
  state={...base,enabled:v.enabled===true,fill:v.fill==='single'?'single':'repeat',level:Math.max(0,Math.min(1,Number.isFinite(v.level)?v.level:.5)),pitch:Math.max(-24,Math.min(24,Number(v.pitch)||0)),reverse:v.reverse===true,shift:Math.round(Number(v.shift)||0),cut:MygrainVocalCut.normalize(v.cut)};
- bastardLoopDMetadata=v.metadata||null;cache=null;sync();
+ bastardLoopDMetadata=v.metadata||null;cache=null;if(transportWanted&&bastardLoopPlaying)update();else sync();
 }
 function repetitions(buffer=bastardLoopDBuffer){
  if(!buffer||state.fill==='single')return 1;
@@ -36,16 +36,18 @@ function fitted(){
 }
 function playback({uncut=false}={}){const b=fitted();return !b||uncut?b:MygrainVocalCut.gate(audioContext,b,state.cut,b.duration);}
 function level(){return state.enabled?state.level*getLoopLayerSoloGain('bastardd'):0;}
-function stop(){
+function stop(options={}){
+ if(!options.preserveIntent)transportWanted=false;
  auditionSerial++;if(metroTimer)clearInterval(metroTimer);metroTimer=null;
  for(const {oscillator,gain}of metroNodes){try{oscillator.stop();oscillator.disconnect();gain.disconnect()}catch{}}metroNodes.clear();
  preview=false;if(!voice)return;
  const v=voice;voice=null;try{v.source.onended=null;v.source.stop()}catch{};v.source.disconnect();v.gain.disconnect();v.route?.disconnect();
 }
 function start(at=null,{audition=false}={}){
+ if(!audition)transportWanted=true;
  if(!audioContext||audioContext.state==='closed'||!preFilterGainNode||!bastardLoopDBuffer||(!audition&&level()<=0))return false;
  const b=playback();if(!b)return false;
- stop();const timing=resolveTransportLaneStart(at,'D'),time=timing.time,origin=timing.origin;
+ stop({preserveIntent:true});const timing=resolveTransportLaneStart(at,'D'),time=timing.time,origin=timing.origin;
  const source=audioContext.createBufferSource(),gain=audioContext.createGain();source.buffer=b;source.loop=true;source.loopEnd=b.duration;
  const volume=audition?Math.max(.25,state.level):level();gain.gain.setValueAtTime(0,time);gain.gain.linearRampToValueAtTime(volume*MIX_HEADROOM*.88,time+.004);source.connect(gain);
  const route=root.mygrainChannelEq.connect('D',gain,preFilterGainNode,source);
@@ -61,8 +63,8 @@ async function audition(mode='metronome'){
  tick();metroTimer=setInterval(tick,25);
 }
 function stopAudition(){const loops=auditionLoops;auditionLoops=false;stop();if(loops)stopAllBastardLoopLayers();}
-function update({gainOnly=false}={}){if(gainOnly&&voice&&!preview&&level()>0){voice.gain.gain.setTargetAtTime(level()*MIX_HEADROOM*.88,audioContext.currentTime,.01);sync();return;}if(voice){if(preview)start(audioContext.currentTime,{audition:true});else if(level()>0)start(getSharedLoopTransportOriginTime());else stop();}else if(bastardLoopPlaying&&level()>0)start(getSharedLoopTransportOriginTime());sync();}
-function enable(value,options={}){state.enabled=!!value;update();if(!options.skipSave)saveState();}
+function update({gainOnly=false}={}){if(gainOnly&&voice&&!preview&&level()>0){voice.gain.gain.setTargetAtTime(level()*MIX_HEADROOM*.88,audioContext.currentTime,.01);sync();return;}if(voice){if(preview)start(audioContext.currentTime,{audition:true});else if(level()>0)start(getSharedLoopTransportOriginTime());else stop({preserveIntent:true});}else if(transportWanted&&bastardLoopPlaying&&level()>0)start(getSharedLoopTransportOriginTime());sync();}
+function enable(value,options={}){state.enabled=!!value;if(value&&bastardLoopPlaying)transportWanted=true;update();if(!options.skipSave)saveState();}
 function cut(value,options={}){state.cut=MygrainVocalCut.normalize(value);if(!options.skipRestart)update();else sync();if(!options.skipSave)saveState();return state.cut;}
 function gapSettings(base=state.cut,random=Math.random,amount=3){
  const n=getPatternLengthSteps(),candidates=Array.from({length:n-1},(_,i)=>i+1),gaps=[];
@@ -84,7 +86,7 @@ function sync(){
 async function apply(buffer,label,metadata={}){
  if(!buffer)throw Error('Loop D has no audio frames.');
  const old=bastardLoopDBuffer;bastardLoopDBuffer=buffer;bastardLoopDMetadata={...metadata,fileName:metadata.fileName||metadata.filename||label||'loop.wav',durationSeconds:buffer.duration};cache=null;
- try{fitted();await saveAudioBufferToDB(buffer,BASTARD_LOOP_D_AUDIO_BUFFER_KEY)}catch(e){bastardLoopDBuffer=old;cache=null;throw e}sync();return buffer;
+ try{fitted();await saveAudioBufferToDB(buffer,BASTARD_LOOP_D_AUDIO_BUFFER_KEY)}catch(e){bastardLoopDBuffer=old;cache=null;throw e}update();return buffer;
 }
 async function load({path,file}={},options={}){
  if(busy)throw Error('Wait for Loop D to finish loading.');
@@ -108,6 +110,7 @@ async function load({path,file}={},options={}){
   guard();const buffer=await ctx.decodeAudioData(data);guard();
   if(!buffer.length||buffer.duration>300)throw Error('Choose a loop no longer than five minutes.');
   state.cut=MygrainVocalCut.normalize();await apply(buffer,meta.fileName,meta);guard();state.enabled=true;sourceMutationSerial++;
+  if(bastardLoopPlaying)transportWanted=true;
   if(options.batch)randomGaps({skipSave:true,skipRestart:true});update();saveState();return settings();
  }catch(e){if(token===revision&&ctx===audioContext&&account===root.mygrainAccounts?.user?.username){bastardLoopDBuffer=old.buffer;bastardLoopDMetadata=old.metadata;state=old.state;cache=null;if(old.buffer)await saveAudioBufferToDB(old.buffer,BASTARD_LOOP_D_AUDIO_BUFFER_KEY);else await clearAudioBufferFromDB(BASTARD_LOOP_D_AUDIO_BUFFER_KEY);update();}throw e;}
  finally{clearTimeout(timeout);if(controller===abort)controller=null;busy=false;sync();}
@@ -115,7 +118,7 @@ async function load({path,file}={},options={}){
 function edit(label,action){if(root.mygrainCardHistory?.busy)throw Error('Wait for the current sound change.');return root.mygrainCardHistory?root.mygrainCardHistory.runDraftEdit(label,action):action();}
 function random(options={}){return options.batch?load({},options):edit('D random loop',()=>load({},options));}
 let editor=null;
-root.mygrainD={settings,restore,playback,fitted,repetitions,duration,apply,start,stop,stopAll(){stop();stopBrowserPreview()},enable,level,cut,randomGaps,gapSettings,sync,random,load,get busy(){return busy},get previewContext(){return browserPreviewContext},get previewGain(){return browserPreviewGain},get previewing(){return !!(browserPreviewPending||browserPreview||browserAbort)},get source(){return voice?.source},get gain(){return voice?.gain},get state(){return state},invalidate(){cache=null},playable:()=>state.enabled&&!!bastardLoopDBuffer&&state.level>0};
+root.mygrainD={settings,restore,playback,fitted,repetitions,duration,apply,start,stop,stopAll(){stop();stopBrowserPreview()},enable,level,cut,randomGaps,gapSettings,sync,random,load,choose:path=>edit('D choose loop',()=>load({path})),get busy(){return busy},get previewing(){return dropboxSampleBrowserTarget===SAMPLE_BROWSER_TARGETS.bastardLoopD&&Array.from(document.querySelectorAll('#dropboxSampleBrowserList audio')).some(audio=>!audio.paused)},get source(){return voice?.source},get gain(){return voice?.gain},get state(){return state},invalidate(){cache=null;queueMicrotask(()=>{if(transportWanted&&bastardLoopPlaying)update()})},playable:()=>state.enabled&&!!bastardLoopDBuffer&&state.level>0};
 restore(readStoredStateSnapshot()?.modes?.loopD);
 editor=new MygrainVocalCut.Editor({prefix:'bastardLoopDCut',settings:()=>state.cut,set:cut,randomize:()=>randomGaps(),edit,buffer:()=>playback({uncut:true}),timing:()=>({duration:duration(),cycle:duration(),bar:getLoopBarDurationSeconds(),frames:Math.round(duration()*(bastardLoopDBuffer?.sampleRate||48000))}),audition,stop:stopAudition,phase:()=>voice?((audioContext.currentTime-voice.origin)%duration())/duration():null});
 const handle=(id,action)=>el(id).addEventListener('click',()=>Promise.resolve().then(action).catch(e=>setStatus(e.message,'error')));
@@ -126,38 +129,12 @@ for(const [id,dir]of [['loopDShiftLeft',-1],['loopDShiftRight',1]])handle(id,()=
 handle('loopDCut',()=>editor.open());handle('loopDGaps',()=>edit('D random gaps',()=>randomGaps()));
 el('loopDFile').addEventListener('change',e=>{const file=e.target.files[0];if(file)edit('D import loop',()=>load({file})).catch(e=>setStatus(e.message,'error'));e.target.value=''});
 for(const [id,event,field,convert]of [['loopDFill','change','fill',v=>v],['performanceBastardLoopDLevel','input','level',v=>Number(v)/100],['performanceBastardLoopDCardLevel','input','level',v=>Number(v)/100],['loopDPitch','input','pitch',Number]])el(id).addEventListener(event,e=>{state[field]=convert(e.target.value);if(field!=='level')cache=null;update({gainOnly:field==='level'});saveState()});
-let browserPath='',browserPreview=null,browserPreviewGain=null,browserPreviewSerial=0,browserAbort=null,browserPreviewPending=false,browserPreviewContext=null,browserKeepalive=null;
-const browserDialog=el('loopDBrowser');document.body.append(browserDialog);
 function stopBrowserPreview(){
- browserPreviewPending=false;browserPreviewSerial++;browserAbort?.abort();browserAbort=null;
- for(const node of [browserPreview,browserKeepalive])if(node){try{node.stop()}catch{}node.disconnect();}
- browserPreview=null;browserKeepalive=null;browserPreviewGain?.disconnect();browserPreviewGain=null;
- const ctx=browserPreviewContext;browserPreviewContext=null;if(ctx&&ctx.state!=='closed')ctx.close().catch(()=>{});
+ if([SAMPLE_BROWSER_TARGETS.bastardLoopD,SAMPLE_BROWSER_TARGETS.bastardLoopV].includes(dropboxSampleBrowserTarget))document.querySelectorAll('#dropboxSampleBrowserList audio').forEach(audio=>{if(audio.__mygrainPreview?.stop)audio.__mygrainPreview.stop();else audio.pause()});
 }
-async function previewChoice(path){
- stopBrowserPreview();browserPath=path;el('loopDLoad').disabled=false;for(const row of el('loopDChoices').children)row.setAttribute('aria-selected',String(row.dataset.path===path));
- const token=browserPreviewSerial,account=root.mygrainAccounts?.user?.username;browserPreviewPending=true;
- el('loopDBrowserStatus').textContent='Loading preview: '+path.split('/').pop()+'…';
- try{
-  // A preview owns its own output and clock. Main transport may remain suspended.
-  // Create, resume and prime this context synchronously inside the row tap.
-  const Context=root.AudioContext||root.webkitAudioContext,ctx=browserPreviewContext=new Context({latencyHint:'interactive'});
-  const resumed=ctx.resume(),keepalive=browserKeepalive=ctx.createBufferSource();keepalive.buffer=ctx.createBuffer(1,128,ctx.sampleRate);keepalive.loop=true;keepalive.connect(ctx.destination);keepalive.start();
-  await resumed;if(token!==browserPreviewSerial||!browserDialog.open)return;
-  const abort=browserAbort=new AbortController(),url=new URL(DROPBOX_SAMPLE_SOURCE_API_URL,document.baseURI);url.searchParams.set('source','samples_loops');url.searchParams.set('path',path);
-  const r=await fetch(url,{cache:'no-store',signal:abort.signal});if(!r.ok)throw Error('Preview unavailable ('+r.status+').');const bytes=await r.arrayBuffer();if(bytes.byteLength>32*1024*1024)throw Error('Preview is too large.');const buffer=await ctx.decodeAudioData(bytes);
-  if(token!==browserPreviewSerial)return;
-  if(!browserDialog.open||ctx.state==='closed'||account!==root.mygrainAccounts?.user?.username||!root.mygrainAccounts?.authenticated){stopBrowserPreview();return;}
-  const source=ctx.createBufferSource(),gain=ctx.createGain();source.buffer=buffer;gain.gain.setValueAtTime(0,ctx.currentTime);gain.gain.linearRampToValueAtTime(.5,ctx.currentTime+.008);source.connect(gain);gain.connect(ctx.destination);browserPreview=source;browserPreviewGain=gain;browserAbort=null;browserPreviewPending=false;
-  source.onended=()=>{if(browserPreview===source){stopBrowserPreview();el('loopDBrowserStatus').textContent='Selected: '+path.split('/').pop();}};source.start();keepalive.stop();keepalive.disconnect();browserKeepalive=null;el('loopDBrowserStatus').textContent='Previewing '+path.split('/').pop();
- }catch(e){if(token===browserPreviewSerial){stopBrowserPreview();if(e.name!=='AbortError')el('loopDBrowserStatus').textContent=e.message;}}
-}
-function filter(){const q=el('loopDSearch').value.toLocaleLowerCase();el('loopDChoices').replaceChildren(...catalog.filter(f=>f.relativePath.toLocaleLowerCase().includes(q)).map(f=>{const row=document.createElement('button');row.type='button';row.className='loop-d-choice';row.dataset.path=f.relativePath;row.setAttribute('role','option');row.setAttribute('aria-selected',String(browserPath===f.relativePath));row.textContent=f.relativePath;row.addEventListener('click',()=>previewChoice(f.relativePath));return row;}));}
-handle('loopDBrowse',async()=>{stopBrowserPreview();browserPath='';el('loopDLoad').disabled=true;el('loopDSearch').value='';el('loopDChoices').replaceChildren();browserDialog.showModal();el('loopDBrowserStatus').textContent='Loading all loop folders…';const r=await fetch(new URL('/mygrain-bastardloops/api/source-files?source=samples_loops&refresh=1',document.baseURI),{cache:'no-store'}),p=await r.json();if(!r.ok||!p.ok)throw Error(p.error||'Loop directory unavailable.');if(!browserDialog.open)return;catalog=p.files||[];filter();el('loopDBrowserStatus').textContent=catalog.length+' loops · Tap to preview';});
-root.addEventListener('mygrain-account-lock',stopBrowserPreview);root.addEventListener('pagehide',stopBrowserPreview);
-el('loopDSearch').addEventListener('input',filter);browserDialog.addEventListener('close',stopBrowserPreview);browserDialog.addEventListener('cancel',stopBrowserPreview);handle('loopDBrowserClose',()=>{stopBrowserPreview();browserDialog.close()});handle('loopDLoad',async()=>{const path=browserPath;if(!path)throw Error('Choose a loop.');stopBrowserPreview();await edit('D choose loop',()=>load({path}));browserDialog.close()});
+handle('loopDBrowse',()=>openDropboxSampleBrowser(SAMPLE_BROWSER_TARGETS.bastardLoopD));
 // Shared parameter changes refit from the original, never stretch a stretched copy.
 for(const name of ['applyGlobalBpm','syncPatternLengthControls']){const raw=root[name];root[name]=function(...args){const was=!!voice,result=raw(...args);cache=null;if(was)update();else sync();return result};}
-const soloSync=syncLoopLayerSoloButtons;syncLoopLayerSoloButtons=function(...a){const r=soloSync(...a);if(root.mygrainD){if(voice)update();else sync();}return r};
+const soloSync=syncLoopLayerSoloButtons;syncLoopLayerSoloButtons=function(...a){const r=soloSync(...a);if(root.mygrainD){if(voice||(transportWanted&&bastardLoopPlaying))update();else sync();}return r};
 sync();
 })(window);

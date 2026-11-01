@@ -26,3 +26,20 @@ selection/import, history, Mega/Sparse, reel gaps, new and pre-D server Song ren
 warm-cache reuse and original source hashes. `D_FORCE_SERVER=1` explicitly exercises dedicated server-arm worker jobs;
 `D_ENGINE=chromium` or `webkit` limits the browser pass. Never run it against
 production data.
+
+## Playback lifecycle and sample selection
+
+D preserves transport intent across settings/history restoration, solo/mute,
+source replacement and audio-slot invalidation. Explicit Stop clears that intent;
+UI synchronization must not resurrect a stopped source. Resumed sources use the
+shared transport origin, retaining pattern phase rather than starting at zero.
+
+D and V use X's shared sample browser, including search, favourites, collections,
+native media preview and per-row Load actions. D is scoped to SAMPLES_LOOPS;
+V is scoped to SAMPLES_VOCAL and imports the complete selected vocal.
+The separate D picker and its preview AudioContext are no longer used.
+
+`tests/loop-d-v-shared-browser.cjs` exercises both mobile browser engines,
+favourite persistence, stopped-engine media preview, real D/V loading, and D
+restore, Undo/Redo, solo/mute, timing, source replacement and audible PCM.
+`tests/loop-d-stop-browser.cjs` checks that Stop silences D and shared previews.
