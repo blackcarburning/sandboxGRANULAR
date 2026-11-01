@@ -92,3 +92,17 @@ and legacy pre-D sources, source SHA preservation and warm cache via
 `node tests/loop-d-resume-browser.cjs` checks real PCM, repeated solo/mute/restore,
 A-only teardown, stable voice identity under UI refresh, actual native-ended
 recovery, stopped/muted silence beyond cycle boundaries and fresh playback.
+
+## Load status (D.15)
+
+D has a dedicated accessible info line beneath its source details. Random, browser
+and file imports report downloading/reading, decoding, fitting and saving, then
+retain the loaded filename or failure message. While the D sample browser is
+open, its existing status line mirrors the same progress. Long filenames wrap
+within the card on phones. Restoring another sound clears the transient message.
+
+This is UI-only instrumentation: source bytes, fitting, playback, rollback, saved
+parts and server Song rendering are unchanged; no render-version bump is needed.
+Verification: `node tests/loop-d-load-status-browser.cjs` against the isolated D
+fixture server covers delayed download, failure rollback, retry, random, browser
+selection and imported files in Chromium/WebKit at phone and desktop widths.

@@ -6,3 +6,7 @@
 #bastardLoopDCard input[type=range]{accent-color:#008cff}
 #bastardLoopDCutOverlay .weird-cut-shell{border-color:#168bff}
 @media(max-width:480px){#bastardLoopDCard .performance-actions{display:flex;flex-wrap:wrap}#bastardLoopDCard .performance-actions>*{min-width:0;max-width:100%}}
+
+#loopDLoadStatus{overflow-wrap:anywhere;color:#a9ddff}
+#loopDLoadStatus[data-state=error]{color:#ffb5aa}
+#loopDLoadStatus[data-state=success]{color:#a5edc4}

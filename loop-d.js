@@ -12,7 +12,7 @@ const clone=v=>JSON.parse(JSON.stringify(v));
 const duration=()=>getPatternLengthSteps()*60/getTransportClockBpm()/4;
 function settings(){return {...clone(state),metadata:bastardLoopDMetadata?clone(bastardLoopDMetadata):null};}
 function restore(value){
- revision++;controller?.abort();stop({preserveIntent:true});const v=value||{},base=defaults();
+ revision++;controller?.abort();if(el('loopDLoadStatus'))el('loopDLoadStatus').hidden=true;stop({preserveIntent:true});const v=value||{},base=defaults();
  state={...base,enabled:v.enabled===true,fill:v.fill==='single'?'single':'repeat',speed:normalizeSpeed(v.speed),level:Math.max(0,Math.min(1,Number.isFinite(v.level)?v.level:.5)),pitch:Math.max(-24,Math.min(24,Number(v.pitch)||0)),reverse:v.reverse===true,shift:Math.round(Number(v.shift)||0),cut:MygrainVocalCut.normalize(v.cut)};
  bastardLoopDMetadata=v.metadata||null;cache=null;if(transportWanted&&bastardLoopPlaying)update();else sync();
 }
@@ -87,6 +87,10 @@ function gapSettings(base=state.cut,random=Math.random,amount=3){
  return MygrainVocalCut.normalize({...base,gapEnabled:true,gaps});
 }
 function randomGaps(options={}){if(!bastardLoopDBuffer)throw Error('Load a loop in D first.');return cut(gapSettings(),options);}
+function loadStatus(message,kind='loading'){
+ const line=el('loopDLoadStatus');if(line){line.hidden=false;line.textContent=message;line.dataset.state=kind;}
+ if(dropboxSampleBrowserTarget===SAMPLE_BROWSER_TARGETS.bastardLoopD&&!el('dropboxSampleBrowserOverlay')?.hidden)setDropboxSampleBrowserStatus(message);
+}
 function sync(){
  if(!card)return;
  el('loopDFill').value=state.fill;el('loopDSpeed').value=String(state.speed);for(const id of ['performanceBastardLoopDLevel','performanceBastardLoopDCardLevel'])el(id).value=String(state.level*100);el('performanceBastardLoopDLevelValue').textContent=Math.round(state.level*100)+'%';const layerToggle=el('performanceBastardLoopDToggleBtn');layerToggle.classList.toggle('layer-muted',!state.enabled);layerToggle.textContent=state.enabled?'Loop D On':'Loop D Off';layerToggle.setAttribute('aria-pressed',String(state.enabled));const layerSolo=el('performanceBastardLoopDLayerSoloBtn');layerSolo.textContent=hasLoopLayerSolo('bastardd')?'Solo On':'Solo Off';layerSolo.setAttribute('aria-pressed',String(hasLoopLayerSolo('bastardd')));el('loopDPitch').value=state.pitch;
@@ -98,17 +102,19 @@ function sync(){
  el('loopDMeta').textContent=busy?'Loading and stretching loop…':bastardLoopDBuffer?`${bastardLoopDMetadata?.fileName||bastardLoopDMetadata?.filename||'Imported loop'} · ${duration().toFixed(3)}s · ${repetitions()} repeat${repetitions()===1?'':'s'} · ${getPatternLengthSteps()} steps`:'No loop loaded.';
  editor?.refresh();
 }
-async function apply(buffer,label,metadata={}){
+async function apply(buffer,label,metadata={},report=null){
  if(!buffer)throw Error('Loop D has no audio frames.');
  const old=bastardLoopDBuffer;bastardLoopDBuffer=buffer;bastardLoopDMetadata={...metadata,fileName:metadata.fileName||metadata.filename||label||'loop.wav',durationSeconds:buffer.duration};cache=null;
- try{fitted();await saveAudioBufferToDB(buffer,BASTARD_LOOP_D_AUDIO_BUFFER_KEY)}catch(e){bastardLoopDBuffer=old;cache=null;throw e}update();return buffer;
+ try{report?.('Fitting loop to the pattern…');fitted();report?.('Saving sample…');await saveAudioBufferToDB(buffer,BASTARD_LOOP_D_AUDIO_BUFFER_KEY)}catch(e){bastardLoopDBuffer=old;cache=null;throw e}update();return buffer;
 }
 async function load({path,file}={},options={}){
  if(busy)throw Error('Wait for Loop D to finish loading.');
- if(!await ensureAudioReadyForKeyInteraction())throw Error('Start MYGRAIN before loading Loop D.');
+ if(!await ensureAudioReadyForKeyInteraction()){loadStatus('Load failed: Start MYGRAIN before loading Loop D.','error');throw Error('Start MYGRAIN before loading Loop D.');}
  busy=true;const token=++revision,ctx=audioContext,account=root.mygrainAccounts?.user?.username;
  const abort=controller=new AbortController();const guard=()=>{if(token!==revision||ctx!==audioContext||!root.mygrainAccounts?.authenticated||account!==root.mygrainAccounts.user?.username||abort.signal.aborted)throw Error('Loop D load cancelled because the sound or account changed.');};
  const timeout=setTimeout(()=>abort.abort(),120000);sync();
+ const report=message=>{if(token===revision)loadStatus(message);};
+ report(file?`Reading ${file.name}…`:path?`Downloading ${path.split('/').pop()}…`:'Finding and downloading a random loop…');
  const old={buffer:bastardLoopDBuffer,metadata:bastardLoopDMetadata,state:clone(state)};
  try{
   guard();let data,meta;
@@ -122,12 +128,12 @@ async function load({path,file}={},options={}){
    const relativePath=decodeRepositoryHeader(r.headers.get('X-Mygrain-Source-Path'))||path||'';
    meta={sourceKey:'samples_loops',sourceLabel:'SAMPLES_LOOPS',relativePath,fileName:relativePath.split('/').pop()||'loop.wav'};
   }
-  guard();const buffer=await ctx.decodeAudioData(data);guard();
+  guard();report(`Decoding ${meta.fileName}…`);const buffer=await ctx.decodeAudioData(data);guard();
   if(!buffer.length||buffer.duration>300)throw Error('Choose a loop no longer than five minutes.');
-  state.cut=MygrainVocalCut.normalize();await apply(buffer,meta.fileName,meta);guard();state.enabled=true;sourceMutationSerial++;
+  state.cut=MygrainVocalCut.normalize();await apply(buffer,meta.fileName,meta,report);guard();state.enabled=true;sourceMutationSerial++;
   if(bastardLoopPlaying)transportWanted=true;
-  if(options.batch)randomGaps({skipSave:true,skipRestart:true});update();saveState();return settings();
- }catch(e){if(token===revision&&ctx===audioContext&&account===root.mygrainAccounts?.user?.username){bastardLoopDBuffer=old.buffer;bastardLoopDMetadata=old.metadata;state=old.state;cache=null;if(old.buffer)await saveAudioBufferToDB(old.buffer,BASTARD_LOOP_D_AUDIO_BUFFER_KEY);else await clearAudioBufferFromDB(BASTARD_LOOP_D_AUDIO_BUFFER_KEY);update();}throw e;}
+  if(options.batch)randomGaps({skipSave:true,skipRestart:true});update();saveState();loadStatus(`Loaded ${meta.fileName} · ready.`, 'success');return settings();
+ }catch(e){if(token===revision)loadStatus(`Load failed: ${e.message}`, 'error');if(token===revision&&ctx===audioContext&&account===root.mygrainAccounts?.user?.username){bastardLoopDBuffer=old.buffer;bastardLoopDMetadata=old.metadata;state=old.state;cache=null;if(old.buffer)await saveAudioBufferToDB(old.buffer,BASTARD_LOOP_D_AUDIO_BUFFER_KEY);else await clearAudioBufferFromDB(BASTARD_LOOP_D_AUDIO_BUFFER_KEY);update();}throw e;}
  finally{clearTimeout(timeout);if(controller===abort)controller=null;busy=false;sync();}
 }
 function edit(label,action){if(root.mygrainCardHistory?.busy)throw Error('Wait for the current sound change.');return root.mygrainCardHistory?root.mygrainCardHistory.runDraftEdit(label,action):action();}
