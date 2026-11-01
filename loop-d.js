@@ -115,7 +115,7 @@ async function load({path,file}={},options={}){
 function edit(label,action){if(root.mygrainCardHistory?.busy)throw Error('Wait for the current sound change.');return root.mygrainCardHistory?root.mygrainCardHistory.runDraftEdit(label,action):action();}
 function random(options={}){return options.batch?load({},options):edit('D random loop',()=>load({},options));}
 let editor=null;
-root.mygrainD={settings,restore,playback,fitted,repetitions,duration,apply,start,stop,stopAll(){stop();stopBrowserPreview()},enable,level,cut,randomGaps,gapSettings,sync,random,load,get busy(){return busy},get previewing(){return !!(browserPreviewPending||browserPreview||browserAbort)},get source(){return voice?.source},get gain(){return voice?.gain},get state(){return state},invalidate(){cache=null},playable:()=>state.enabled&&!!bastardLoopDBuffer&&state.level>0};
+root.mygrainD={settings,restore,playback,fitted,repetitions,duration,apply,start,stop,stopAll(){stop();stopBrowserPreview()},enable,level,cut,randomGaps,gapSettings,sync,random,load,get busy(){return busy},get previewContext(){return browserPreviewContext},get previewGain(){return browserPreviewGain},get previewing(){return !!(browserPreviewPending||browserPreview||browserAbort)},get source(){return voice?.source},get gain(){return voice?.gain},get state(){return state},invalidate(){cache=null},playable:()=>state.enabled&&!!bastardLoopDBuffer&&state.level>0};
 restore(readStoredStateSnapshot()?.modes?.loopD);
 editor=new MygrainVocalCut.Editor({prefix:'bastardLoopDCut',settings:()=>state.cut,set:cut,randomize:()=>randomGaps(),edit,buffer:()=>playback({uncut:true}),timing:()=>({duration:duration(),cycle:duration(),bar:getLoopBarDurationSeconds(),frames:Math.round(duration()*(bastardLoopDBuffer?.sampleRate||48000))}),audition,stop:stopAudition,phase:()=>voice?((audioContext.currentTime-voice.origin)%duration())/duration():null});
 const handle=(id,action)=>el(id).addEventListener('click',()=>Promise.resolve().then(action).catch(e=>setStatus(e.message,'error')));
@@ -126,30 +126,35 @@ for(const [id,dir]of [['loopDShiftLeft',-1],['loopDShiftRight',1]])handle(id,()=
 handle('loopDCut',()=>editor.open());handle('loopDGaps',()=>edit('D random gaps',()=>randomGaps()));
 el('loopDFile').addEventListener('change',e=>{const file=e.target.files[0];if(file)edit('D import loop',()=>load({file})).catch(e=>setStatus(e.message,'error'));e.target.value=''});
 for(const [id,event,field,convert]of [['loopDFill','change','fill',v=>v],['performanceBastardLoopDLevel','input','level',v=>Number(v)/100],['performanceBastardLoopDCardLevel','input','level',v=>Number(v)/100],['loopDPitch','input','pitch',Number]])el(id).addEventListener(event,e=>{state[field]=convert(e.target.value);if(field!=='level')cache=null;update({gainOnly:field==='level'});saveState()});
-let browserPath='',browserPreview=null,browserPreviewGain=null,browserPreviewSerial=0,browserAbort=null,browserPreviewPending=false;
+let browserPath='',browserPreview=null,browserPreviewGain=null,browserPreviewSerial=0,browserAbort=null,browserPreviewPending=false,browserPreviewContext=null,browserKeepalive=null;
 const browserDialog=el('loopDBrowser');document.body.append(browserDialog);
-function stopBrowserPreview(){browserPreviewPending=false;browserPreviewSerial++;browserAbort?.abort();browserAbort=null;if(browserPreview){try{browserPreview.stop()}catch{}browserPreview.disconnect();browserPreview=null;}browserPreviewGain?.disconnect();browserPreviewGain=null;}
+function stopBrowserPreview(){
+ browserPreviewPending=false;browserPreviewSerial++;browserAbort?.abort();browserAbort=null;
+ for(const node of [browserPreview,browserKeepalive])if(node){try{node.stop()}catch{}node.disconnect();}
+ browserPreview=null;browserKeepalive=null;browserPreviewGain?.disconnect();browserPreviewGain=null;
+ const ctx=browserPreviewContext;browserPreviewContext=null;if(ctx&&ctx.state!=='closed')ctx.close().catch(()=>{});
+}
 async function previewChoice(path){
  stopBrowserPreview();browserPath=path;el('loopDLoad').disabled=false;for(const row of el('loopDChoices').children)row.setAttribute('aria-selected',String(row.dataset.path===path));
  const token=browserPreviewSerial,account=root.mygrainAccounts?.user?.username;browserPreviewPending=true;
- // Unlock iOS output in the tap itself, before wake/fetch/decode can consume activation.
- let tappedResume;
- try{if(audioContext&&audioContext.state!=='closed'){const ctx=audioContext;tappedResume=ctx.resume();const unlock=ctx.createBufferSource();unlock.buffer=ctx.createBuffer(1,1,ctx.sampleRate);unlock.connect(ctx.destination);unlock.onended=()=>unlock.disconnect();unlock.start();}}catch{}
- el('loopDBrowserStatus').textContent='Previewing '+path.split('/').pop()+'…';
+ el('loopDBrowserStatus').textContent='Loading preview: '+path.split('/').pop()+'…';
  try{
-  await tappedResume;
-  if(!await ensureAudioReadyForKeyInteraction())throw Error('Start MYGRAIN to preview loops.');
-  if(token!==browserPreviewSerial||!browserDialog.open)return;
-  const ctx=audioContext,abort=browserAbort=new AbortController(),url=new URL(DROPBOX_SAMPLE_SOURCE_API_URL,document.baseURI);url.searchParams.set('source','samples_loops');url.searchParams.set('path',path);
+  // A preview owns its own output and clock. Main transport may remain suspended.
+  // Create, resume and prime this context synchronously inside the row tap.
+  const Context=root.AudioContext||root.webkitAudioContext,ctx=browserPreviewContext=new Context({latencyHint:'interactive'});
+  const resumed=ctx.resume(),keepalive=browserKeepalive=ctx.createBufferSource();keepalive.buffer=ctx.createBuffer(1,128,ctx.sampleRate);keepalive.loop=true;keepalive.connect(ctx.destination);keepalive.start();
+  await resumed;if(token!==browserPreviewSerial||!browserDialog.open)return;
+  const abort=browserAbort=new AbortController(),url=new URL(DROPBOX_SAMPLE_SOURCE_API_URL,document.baseURI);url.searchParams.set('source','samples_loops');url.searchParams.set('path',path);
   const r=await fetch(url,{cache:'no-store',signal:abort.signal});if(!r.ok)throw Error('Preview unavailable ('+r.status+').');const bytes=await r.arrayBuffer();if(bytes.byteLength>32*1024*1024)throw Error('Preview is too large.');const buffer=await ctx.decodeAudioData(bytes);
-  if(token!==browserPreviewSerial||!browserDialog.open||ctx!==audioContext||ctx.state==='closed'||account!==root.mygrainAccounts?.user?.username||!root.mygrainAccounts?.authenticated)return;
-  await ctx.resume();if(token!==browserPreviewSerial||!browserDialog.open)return;
+  if(token!==browserPreviewSerial)return;
+  if(!browserDialog.open||ctx.state==='closed'||account!==root.mygrainAccounts?.user?.username||!root.mygrainAccounts?.authenticated){stopBrowserPreview();return;}
   const source=ctx.createBufferSource(),gain=ctx.createGain();source.buffer=buffer;gain.gain.setValueAtTime(0,ctx.currentTime);gain.gain.linearRampToValueAtTime(.5,ctx.currentTime+.008);source.connect(gain);gain.connect(ctx.destination);browserPreview=source;browserPreviewGain=gain;browserAbort=null;browserPreviewPending=false;
-  source.onended=()=>{if(browserPreview===source){source.disconnect();gain.disconnect();browserPreview=null;browserPreviewGain=null;el('loopDBrowserStatus').textContent='Selected: '+path.split('/').pop();}};source.start();
- }catch(e){if(token===browserPreviewSerial){browserAbort=null;browserPreviewPending=false;if(e.name!=='AbortError')el('loopDBrowserStatus').textContent=e.message;}}
+  source.onended=()=>{if(browserPreview===source){stopBrowserPreview();el('loopDBrowserStatus').textContent='Selected: '+path.split('/').pop();}};source.start();keepalive.stop();keepalive.disconnect();browserKeepalive=null;el('loopDBrowserStatus').textContent='Previewing '+path.split('/').pop();
+ }catch(e){if(token===browserPreviewSerial){stopBrowserPreview();if(e.name!=='AbortError')el('loopDBrowserStatus').textContent=e.message;}}
 }
 function filter(){const q=el('loopDSearch').value.toLocaleLowerCase();el('loopDChoices').replaceChildren(...catalog.filter(f=>f.relativePath.toLocaleLowerCase().includes(q)).map(f=>{const row=document.createElement('button');row.type='button';row.className='loop-d-choice';row.dataset.path=f.relativePath;row.setAttribute('role','option');row.setAttribute('aria-selected',String(browserPath===f.relativePath));row.textContent=f.relativePath;row.addEventListener('click',()=>previewChoice(f.relativePath));return row;}));}
 handle('loopDBrowse',async()=>{stopBrowserPreview();browserPath='';el('loopDLoad').disabled=true;el('loopDSearch').value='';el('loopDChoices').replaceChildren();browserDialog.showModal();el('loopDBrowserStatus').textContent='Loading all loop folders…';const r=await fetch(new URL('/mygrain-bastardloops/api/source-files?source=samples_loops&refresh=1',document.baseURI),{cache:'no-store'}),p=await r.json();if(!r.ok||!p.ok)throw Error(p.error||'Loop directory unavailable.');if(!browserDialog.open)return;catalog=p.files||[];filter();el('loopDBrowserStatus').textContent=catalog.length+' loops · Tap to preview';});
+root.addEventListener('mygrain-account-lock',stopBrowserPreview);root.addEventListener('pagehide',stopBrowserPreview);
 el('loopDSearch').addEventListener('input',filter);browserDialog.addEventListener('close',stopBrowserPreview);browserDialog.addEventListener('cancel',stopBrowserPreview);handle('loopDBrowserClose',()=>{stopBrowserPreview();browserDialog.close()});handle('loopDLoad',async()=>{const path=browserPath;if(!path)throw Error('Choose a loop.');stopBrowserPreview();await edit('D choose loop',()=>load({path}));browserDialog.close()});
 // Shared parameter changes refit from the original, never stretch a stretched copy.
 for(const name of ['applyGlobalBpm','syncPatternLengthControls']){const raw=root[name];root[name]=function(...args){const was=!!voice,result=raw(...args);cache=null;if(was)update();else sync();return result};}
