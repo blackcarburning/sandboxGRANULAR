@@ -4,9 +4,16 @@
 #bastardLoopDCard .performance-btn.primary{background:#0067ed}
 #bastardLoopDCard .performance-chip{color:#8edaff;border-color:#168bff}
 #bastardLoopDCard input[type=range]{accent-color:#008cff}
-#loopDBrowser{color:#eaf7ff;background:#061c42;border:2px solid #168bff;border-radius:16px;width:min(620px,calc(100vw - 32px));max-width:calc(100vw - 32px);max-height:85dvh;box-sizing:border-box;padding:16px;overflow:auto;z-index:20000}
+#loopDBrowser{position:fixed;inset:0;margin:auto;color:#eaf7ff;background:#061c42;border:2px solid #168bff;border-radius:16px;width:min(580px,calc(100vw - 32px));height:min(720px,calc(100dvh - 48px));max-width:calc(100vw - 32px);max-height:calc(100dvh - 48px);box-sizing:border-box;padding:16px;overflow:hidden;z-index:20000;}
+#loopDBrowser[open]{display:flex;flex-direction:column;gap:10px}
 #loopDBrowser::backdrop{background:#000b}
-#loopDBrowser input,#loopDBrowser select{box-sizing:border-box;width:100%;min-width:0;max-width:100%;background:#092b58;color:#eef9ff;margin:8px 0}
-#loopDChoices{height:45dvh}#loopDChoices option{white-space:normal;overflow-wrap:anywhere;padding:8px}
+#loopDBrowser h3,#loopDBrowser p{margin:0;flex-shrink:0}
+#loopDBrowser input{box-sizing:border-box;width:100%;min-width:0;background:#092b58;color:#eef9ff;font-size:16px;padding:10px;border:1px solid #458bc7;border-radius:8px;flex-shrink:0}
+#loopDChoices{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;gap:6px;padding:2px}
+#loopDBrowser .loop-d-choice{display:block;flex-shrink:0;width:100%;min-height:52px;padding:12px;text-align:left;white-space:normal;overflow-wrap:anywhere;box-sizing:border-box;border:1px solid #39729d;border-radius:8px;background:#102f50!important;color:#eef9ff!important;font:inherit;font-size:14px;cursor:pointer}
+#loopDBrowser .loop-d-choice[aria-selected="true"]{background:#0067cf!important;border:2px solid #77ccff;box-shadow:inset 0 0 0 1px #b8e6ff}
+#loopDBrowserStatus{font-size:12px;overflow-wrap:anywhere;max-height:3em;overflow:auto}
+#loopDBrowser .loop-d-browser-actions{display:flex;gap:10px;flex-shrink:0}
+#loopDBrowser .loop-d-browser-actions button{flex:1;min-width:0;min-height:46px;background:#0753a1;color:white;border:1px solid #68b6ff;border-radius:8px;font-weight:700}
 #bastardLoopDCutOverlay .weird-cut-shell{border-color:#168bff}
 @media(max-width:480px){#bastardLoopDCard .performance-actions{display:flex;flex-wrap:wrap}#bastardLoopDCard .performance-actions>*{min-width:0;max-width:100%}}
