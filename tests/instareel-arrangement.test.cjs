@@ -271,3 +271,15 @@ test('No variation bypasses cuts, additions, notes, drums and filter automation'
  assert.equal(JSON.stringify([c.bastardLoopLSequence,c.bastardLoopXSequence,c.drumMachineRoll,c.drumMachineBaseAccents,c.bastardLoopVCut,c.bastardLoopWEnabled]),before);
  assert.equal(f.elements.get('lpfCutoff').value,'12000');
 });
+
+test('all reel intensities keep V generated cuts on half/quarter/eighth musical divisions without cumulative shrinking',()=>{
+ for(const variation of ['subtle','moderate','extreme'])for(const bpm of [60,120,180,240]){
+  const f=fixture(),c=f.ctx; c.getBastardLoopVCycleDuration=()=>8;
+  const p=require('../scripts/instareel-plan.cjs').plan({bpm,patternSteps:64},60,variation,123,{recutV:true});
+  f.apply.prepare(p);let n=0;
+  for(const event of f.apply.cutEvents().filter(e=>e.key==='V'&&!e.restore)){
+   const next=f.apply.cut(event),fraction=(next.end-next.start)*8/(240/bpm);
+   assert([.5,.25,.125].some(x=>Math.abs(x-fraction)<1e-8));assert(next.repeat);assert(!next.stretch);n++;
+  }assert(n>0);
+ }
+});

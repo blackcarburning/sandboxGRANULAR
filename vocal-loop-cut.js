@@ -76,6 +76,43 @@
         return normalize({ ...normalize(settings), fromStart: fromStart === true });
     }
 
+    const V_RANDOM_DIVISIONS = Object.freeze(['1/2', '1/4', '1/8']);
+    function randomVDivisions(values) {
+        const mapped = (Array.isArray(values) ? values : []).map(value => {
+            if (V_RANDOM_DIVISIONS.includes(value)) return value;
+            const parts = String(value).split('/').map(Number), size = parts[0] / (parts[1] || 1);
+            return size >= .5 || value === 'uncut' ? '1/2' : size >= .25 ? '1/4' : '1/8';
+        });
+        return [...new Set(mapped.length ? mapped : ['1/8'])];
+    }
+
+    // V random choices are musical half/quarter/eighth notes, never finer.
+    // Playback/normalization stay unrestricted for saved and manually edited cuts.
+    function randomizeV(settings, timing = {}, random = Math.random, options = {}) {
+        const current = normalize(settings);
+        const cycle = Number(timing.cycle) > 0 ? Number(timing.cycle) : 1;
+        const bar = Number(timing.bar) > 0 ? Number(timing.bar) : cycle;
+        const begin = options.withinRegion && current.enabled ? current.start : 0;
+        const end = options.withinRegion && current.enabled ? current.end : 1;
+        const choices = [.5, .25, .125].map(grid => {
+            const width = grid * bar / cycle;
+            const first = Math.ceil(begin / width - 1e-9), last = Math.floor((end - width) / width + 1e-9);
+            return {grid, width, first, last};
+        }).filter(c => c.width <= end - begin + 1e-9 && c.last >= c.first);
+        if (!choices.length) return options.withinRegion ? current : normalize({...current, enabled:false, repeat:false, stretch:false, start:0, end:1, targetStart:null, targetDuration:null});
+        const pick = list => list[Math.min(list.length - 1, Math.floor(random() * list.length))];
+        const fresh = choices.filter(c => Math.abs(c.width - Number(options.previousWidth)) > 1e-9);
+        const choice = pick(fresh.length ? fresh : choices);
+        const start = (choice.first + Math.floor(random() * (choice.last - choice.first + 1))) * choice.width;
+        const stretch = options.stretch === false ? false : random() < .5;
+        const fromStart = options.fromStart === true || random() < .5;
+        const target = pick(choices), slots = Math.max(0, Math.floor((1 - target.width) / target.width + 1e-9));
+        const targetStart = fromStart ? 0 : Math.floor(random() * (slots + 1)) * target.width;
+        return normalize({...current, enabled:true, snap:true, grid:choice.grid,
+            start:Math.max(0, start), end:Math.min(1, start + choice.width), stretch, fromStart,
+            targetStart:stretch ? targetStart : null, targetDuration:stretch ? target.width : null});
+    }
+
     function randomize(settings, timing = {}, random = Math.random) {
         const current = normalize(settings);
         const cycle = Number(timing.cycle) > 0 ? Number(timing.cycle) : 1;
@@ -710,7 +747,7 @@
         }
     }
 
-    const api = { stretchChannels, normalizeGaps, toggleGap, copyGapSection, pasteGapSection, normalize, region, setStretch, setFromStart, randomize, moveBoundary, moveSection, gate, sourcePhase, peaks, timelinePeaks, grids, Editor };
+    const api = { randomVDivisions, V_RANDOM_DIVISIONS, randomizeV, stretchChannels, normalizeGaps, toggleGap, copyGapSection, pasteGapSection, normalize, region, setStretch, setFromStart, randomize, moveBoundary, moveSection, gate, sourcePhase, peaks, timelinePeaks, grids, Editor };
     root.MygrainVocalCut = api;
     if (typeof module === 'object' && module.exports) module.exports = api;
 })(typeof window === 'object' ? window : globalThis);
