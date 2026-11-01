@@ -72,10 +72,10 @@ function gapSettings(base=state.cut,random=Math.random,amount=3){
 function randomGaps(options={}){if(!bastardLoopDBuffer)throw Error('Load a loop in D first.');return cut(gapSettings(),options);}
 function sync(){
  if(!card)return;
- el('loopDFill').value=state.fill;el('performanceBastardLoopDLevel').value=String(state.level*100);el('loopDPitch').value=state.pitch;
+ el('loopDFill').value=state.fill;for(const id of ['performanceBastardLoopDLevel','performanceBastardLoopDCardLevel'])el(id).value=String(state.level*100);el('performanceBastardLoopDLevelValue').textContent=Math.round(state.level*100)+'%';const layerToggle=el('performanceBastardLoopDToggleBtn');layerToggle.textContent=state.enabled?'Loop D On':'Loop D Off';layerToggle.setAttribute('aria-pressed',String(state.enabled));const layerSolo=el('performanceBastardLoopDLayerSoloBtn');layerSolo.textContent=hasLoopLayerSolo('bastardd')?'Solo On':'Solo Off';layerSolo.setAttribute('aria-pressed',String(hasLoopLayerSolo('bastardd')));el('loopDPitch').value=state.pitch;
  el('loopDPitchValue').textContent=state.pitch+' st';el('loopDLevelValue').textContent=Math.round(state.level*100)+'%';el('loopDShiftValue').textContent=state.shift;
  for(const [id,on,label]of[['loopDToggle',state.enabled,'D'],['loopDReverse',state.reverse,'Reverse']]){el(id).textContent=label+(on?' On':' Off');el(id).setAttribute('aria-pressed',String(on));}
- const solo=loopLayerSolo==='bastardd';el('loopDSolo').textContent=solo?'Solo On':'Solo Off';el('loopDSolo').setAttribute('aria-pressed',String(solo));
+ const solo=hasLoopLayerSolo('bastardd');el('loopDSolo').textContent=solo?'Solo On':'Solo Off';el('loopDSolo').setAttribute('aria-pressed',String(solo));
  for(const id of ['loopDCut','loopDGaps'])el(id).disabled=!bastardLoopDBuffer||busy;
  for(const id of ['loopDRandom','loopDBrowse','loopDFile'])el(id).disabled=busy;
  el('loopDMeta').textContent=busy?'Loading and stretching loop…':bastardLoopDBuffer?`${bastardLoopDMetadata?.fileName||bastardLoopDMetadata?.filename||'Imported loop'} · ${duration().toFixed(3)}s · ${repetitions()} repeat${repetitions()===1?'':'s'} · ${getPatternLengthSteps()} steps`:'No loop loaded.';
@@ -119,12 +119,13 @@ root.mygrainD={settings,restore,playback,fitted,repetitions,duration,apply,start
 restore(readStoredStateSnapshot()?.modes?.loopD);
 editor=new MygrainVocalCut.Editor({prefix:'bastardLoopDCut',settings:()=>state.cut,set:cut,randomize:()=>randomGaps(),edit,buffer:()=>playback({uncut:true}),timing:()=>({duration:duration(),cycle:duration(),bar:getLoopBarDurationSeconds(),frames:Math.round(duration()*(bastardLoopDBuffer?.sampleRate||48000))}),audition,stop:stopAudition,phase:()=>voice?((audioContext.currentTime-voice.origin)%duration())/duration():null});
 const handle=(id,action)=>el(id).addEventListener('click',()=>Promise.resolve().then(action).catch(e=>setStatus(e.message,'error')));
+handle('performanceBastardLoopDToggleBtn',()=>edit('D on/off',()=>enable(!state.enabled)));handle('performanceBastardLoopDLayerSoloBtn',()=>setLoopLayerSolo('bastardd',{toggle:true}));
 handle('loopDRandom',()=>random());handle('loopDToggle',()=>edit('D on/off',()=>enable(!state.enabled)));handle('loopDSolo',()=>{setLoopLayerSolo('bastardd',{toggle:true});update()});
 handle('loopDReverse',()=>edit('D reverse',()=>{state.reverse=!state.reverse;cache=null;update();saveState()}));
 for(const [id,dir]of [['loopDShiftLeft',-1],['loopDShiftRight',1]])handle(id,()=>edit('D shift',()=>{state.shift+=dir;update();saveState()}));
 handle('loopDCut',()=>editor.open());handle('loopDGaps',()=>edit('D random gaps',()=>randomGaps()));
 el('loopDFile').addEventListener('change',e=>{const file=e.target.files[0];if(file)edit('D import loop',()=>load({file})).catch(e=>setStatus(e.message,'error'));e.target.value=''});
-for(const [id,event,field,convert]of [['loopDFill','change','fill',v=>v],['performanceBastardLoopDLevel','input','level',v=>Number(v)/100],['loopDPitch','input','pitch',Number]])el(id).addEventListener(event,e=>{state[field]=convert(e.target.value);if(field!=='level')cache=null;update({gainOnly:field==='level'});saveState()});
+for(const [id,event,field,convert]of [['loopDFill','change','fill',v=>v],['performanceBastardLoopDLevel','input','level',v=>Number(v)/100],['performanceBastardLoopDCardLevel','input','level',v=>Number(v)/100],['loopDPitch','input','pitch',Number]])el(id).addEventListener(event,e=>{state[field]=convert(e.target.value);if(field!=='level')cache=null;update({gainOnly:field==='level'});saveState()});
 function filter(){const q=el('loopDSearch').value.toLocaleLowerCase();el('loopDChoices').replaceChildren(...catalog.filter(f=>f.relativePath.toLocaleLowerCase().includes(q)).map(f=>{const o=document.createElement('option');o.value=f.relativePath;o.textContent=f.relativePath;return o}));}
 handle('loopDBrowse',async()=>{el('loopDBrowser').showModal();el('loopDBrowserStatus').textContent='Loading all loop folders…';const r=await fetch(new URL('/mygrain-bastardloops/api/source-files?source=samples_loops&refresh=1',document.baseURI),{cache:'no-store'}),p=await r.json();if(!r.ok||!p.ok)throw Error(p.error||'Loop directory unavailable.');catalog=p.files||[];filter();el('loopDBrowserStatus').textContent=catalog.length+' loops';});
 el('loopDSearch').addEventListener('input',filter);handle('loopDBrowserClose',()=>el('loopDBrowser').close());handle('loopDLoad',async()=>{const path=el('loopDChoices').value;if(!path)throw Error('Choose a loop.');await edit('D choose loop',()=>load({path}));el('loopDBrowser').close()});
