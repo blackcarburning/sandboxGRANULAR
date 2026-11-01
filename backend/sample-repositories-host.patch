@@ -1,0 +1,31 @@
+--- a/fs7300-documenter/server.py
++++ b/fs7300-documenter/server.py
+@@ -240,6 +240,8 @@
+         "filename_prefix": "drum-clap",
+         "local_dir": "SAMPLES_CLAP",
+     },
++    "samples_loops": {"remote": "dropbox:SAMPLES_LOOPS", "label": "SAMPLES_LOOPS", "filename_prefix": "bastardloop-loops", "local_dir": "SAMPLES_LOOPS"},
++    "samples_perc": {"remote": "dropbox:SAMPLES_PERC", "label": "SAMPLES_PERC", "filename_prefix": "drum-perc", "local_dir": "SAMPLES_PERC"},
+     "samples_crash": {
+         "remote": "dropbox:SAMPLES_CRASH",
+         "label": "SAMPLES_CRASH",
+--- a/scripts/sync_mygrain_source_mirrors.sh
++++ b/scripts/sync_mygrain_source_mirrors.sh
+@@ -13,6 +13,9 @@
+   "SAMPLES_HATS"
+   "SAMPLES_CLAP"
+   "SAMPLES_CRASH"
++  "SAMPLES_PERC"
++  "SAMPLES_TOMS"
++  "SAMPLEDROP_RICH"
+   "SAMPLES_BASS"
+   "SAMPLES_LEADS"
+   "SAMPLES_PIANO"
+@@ -86,4 +89,7 @@
+ sync_one "dropbox:SAMPLES_SEAN" "$ROOT/SAMPLES_SEAN" copy
+ sync_one "dropbox:SAMPLES_SPECIAL" "$ROOT/SAMPLES_SPECIAL" copy
+ sync_one "dropbox:SAMPLES_SPLICE" "$ROOT/SAMPLES_SPLICE" copy
++sync_one "dropbox:SAMPLES_PERC" "$ROOT/SAMPLES_PERC" copy
++sync_one "dropbox:SAMPLES_TOMS" "$ROOT/SAMPLES_TOMS" copy
++sync_one "dropbox:SAMPLEDROP_RICH" "$ROOT/SAMPLEDROP_RICH" copy
+ log "mygrain source mirror run finished"

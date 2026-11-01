@@ -6576,7 +6576,7 @@
     <!-- Start Overlay -->
     <div id="start-overlay" class="overlay">
         <h1 class="mygrain-start-brand"><img class="mygrain-start-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="144" height="144" alt=""><span>MYGRAIN</span></h1>
-        <div class="build-badge">Build <strong>v2026.10.31.CLOSE-INSET.1</strong></div>
+        <div class="build-badge">Build <strong>v2026.11.01.SAMPLES.1</strong></div>
         <p class="browser-compatibility-note" style="max-width:32rem;padding:0 20px;text-align:center;line-height:1.5">This app works best in Chrome. There may be audio issues in Safari.</p>
         <div id="mygrain-load-notes-slot" aria-live="polite"></div>
         <button id="start-btn" disabled>START MYGRAIN</button>
@@ -6676,7 +6676,7 @@
             <div class="performance-toolbar">
                 <div class="mygrain-app-brand">
                     <h2 class="performance-title mygrain-brand"><img class="mygrain-brand-logo" src="assets/brand/mygrain-rainbow-brain.webp?v=20261020-brand-1" width="160" height="160" alt=""><span>MYGRAIN</span></h2>
-                    <div class="build-badge">Build <strong>v2026.10.31.CLOSE-INSET.1</strong></div>
+                    <div class="build-badge">Build <strong>v2026.11.01.SAMPLES.1</strong></div>
                 </div>
                 <div class="performance-copy">
                     <p class="performance-subtitle" aria-label="About MYGRAIN">
@@ -6737,9 +6737,12 @@
                     <div class="performance-feature-copy">
                         <div class="performance-chip">New Layer</div>
                         <h3 class="performance-feature-title">Bastardloop A</h3>
-                        <p class="performance-feature-note">Build a one-bar loop from random `SAMPLEDROP` hits, choose which note lengths can appear, and use the generated audio in your current patch without automatically archiving it.</p>
+                        <p class="performance-feature-note">Build a one-bar loop from random hits in the selected sample folder, choose which note lengths can appear, and use the generated audio in your current patch without automatically archiving it.</p>
                     </div>
                     <div class="performance-feature-actions">
+                        <label class="performance-feature-note" for="loopARepository">Sample folder
+                            <select id="loopARepository" aria-label="Loop A sample folder"><option value="sampledrop">SAMPLEDROP</option><option value="samples_loops">SAMPLES_LOOPS</option></select>
+                        </label>
                         <button class="performance-btn primary" id="performanceGenerateBastardLoopBtn">Generate Bastardloop A</button>
                         <button class="performance-btn" id="performanceBastardLoopRecutBtn" title="Chop the loaded audio using this lane’s cut resolutions; original files stay unchanged" disabled>Re-cut Loaded Sample</button>
                         <button class="performance-btn" id="performanceBastardLoopCutBtn" disabled>Loop Cut</button>
@@ -6845,9 +6848,12 @@
                     <div class="performance-feature-copy">
                         <div class="performance-chip">Alt Layer</div>
                         <h3 class="performance-feature-title">Bastardloop B</h3>
-                        <p class="performance-feature-note">Generate a second Bastardloop layer from `SAMPLEDROP_2`, with its own resolutions, octave pitch, level, mute state, and optional reverse playback while sharing the Bastardloop transport.</p>
+                        <p class="performance-feature-note">Generate a second Bastardloop layer from SAMPLEDROP_2 or SAMPLES_LOOPS, with its own resolutions, octave pitch, level, mute state, and optional reverse playback while sharing the Bastardloop transport.</p>
                     </div>
                     <div class="performance-feature-actions">
+                        <label class="performance-feature-note" for="loopBRepository">Sample folder
+                            <select id="loopBRepository" aria-label="Loop B sample folder"><option value="sampledrop2">SAMPLEDROP_2</option><option value="samples_loops">SAMPLES_LOOPS</option></select>
+                        </label>
                         <button class="performance-btn primary" id="performanceGenerateBastardLoop2Btn">Generate Bastardloop B</button>
                         <button class="performance-btn" id="performanceBastardLoop2RecutBtn" title="Chop the loaded audio using this lane’s cut resolutions; original files stay unchanged" disabled>Re-cut Loaded Sample</button>
                         <button class="performance-btn" id="performanceBastardLoop2CutBtn" disabled>Loop Cut</button>
@@ -6955,9 +6961,12 @@
                     <div class="performance-feature-copy">
                         <div class="performance-chip">Splice Layer</div>
                         <h3 class="performance-feature-title">Bastardloop C</h3>
-                        <p class="performance-feature-note">Generate a third Bastardloop layer from `SPLICE_CLAW`, with its own resolutions, octave pitch, level, mute state, and optional reverse playback while sharing the Bastardloop transport.</p>
+                        <p class="performance-feature-note">Generate a third Bastardloop layer from SPLICE_CLAW or SAMPLES_LOOPS, with its own resolutions, octave pitch, level, mute state, and optional reverse playback while sharing the Bastardloop transport.</p>
                     </div>
                     <div class="performance-feature-actions">
+                        <label class="performance-feature-note" for="loopCRepository">Sample folder
+                            <select id="loopCRepository" aria-label="Loop C sample folder"><option value="splice_claw">SPLICE_CLAW</option><option value="samples_loops">SAMPLES_LOOPS</option></select>
+                        </label>
                         <button class="performance-btn primary" id="performanceGenerateBastardLoop3Btn">Generate Bastardloop C</button>
                         <button class="performance-btn" id="performanceBastardLoop3RecutBtn" title="Chop the loaded audio using this lane’s cut resolutions; original files stay unchanged" disabled>Re-cut Loaded Sample</button>
                         <button class="performance-btn" id="performanceBastardLoop3CutBtn" disabled>Loop Cut</button>
@@ -7297,9 +7306,12 @@
                     <div class="performance-feature-copy">
                         <div class="performance-chip">Weird Layer</div>
                         <h3 class="performance-feature-title">Bastardloop W · Weird</h3>
-                        <p class="performance-feature-note">Generate chopped loops from SAMPLES_MODULAR. Re-cut the same samples, choose cut resolutions, or use Loop Cut to trim, repeat and stretch a section. W has its own stereo hall reverb and tempo delay.</p>
+                        <p class="performance-feature-note">Generate chopped loops from SAMPLES_MODULAR or SAMPLES_LOOPS. Re-cut the same samples, choose cut resolutions, or use Loop Cut to trim, repeat and stretch a section. W has its own stereo hall reverb and tempo delay.</p>
                     </div>
                     <div class="performance-feature-actions">
+                        <label class="performance-feature-note" for="loopWRepository">Sample folder
+                            <select id="loopWRepository" aria-label="Loop W sample folder"><option value="samples_modular">SAMPLES_MODULAR</option><option value="samples_loops">SAMPLES_LOOPS</option></select>
+                        </label>
                         <button class="performance-btn primary" id="performanceGenerateBastardLoopWBtn">Generate Bastardloop W · Weird</button>
                         <button class="performance-btn" id="performanceBastardLoopWRecutBtn" aria-describedby="performanceBastardLoopWRecutHelp">Re-cut Same Samples</button>
                         <button class="performance-btn" id="performanceBastardLoopWSamplesBtn">Used Samples</button>
@@ -7308,7 +7320,7 @@
                         <button class="performance-btn" id="performanceBastardLoopWSoloBtn" aria-pressed="false">Solo Off</button>
                     </div>
                 </div>
-                <p class="performance-feature-note" id="performanceBastardLoopWRecutHelp">Choose cut resolutions below, then Re-cut. Generated modular audio stays in the current patch; source files remain unchanged.</p>
+                <p class="performance-feature-note" id="performanceBastardLoopWRecutHelp">Choose cut resolutions below, then Re-cut. Generated audio stays in the current patch; source files remain unchanged.</p>
                 <div class="performance-sound-card">
                     <label>
                         <span>Bastardloop W · Weird Resolutions</span>
@@ -14068,7 +14080,9 @@ if (normalized === 'W') {
             samples_snares: 'SAMPLES_SNARES',
             samples_hats: 'SAMPLES_HATS',
             samples_clap: 'SAMPLES_CLAP',
-            samples_crash: 'SAMPLES_CRASH'
+            samples_crash: 'SAMPLES_CRASH',
+            samples_loops: 'SAMPLES_LOOPS',
+            samples_perc: 'SAMPLES_PERC'
         };
         const GRAIN_SAMPLE_BROWSER_SOURCE_LABELS = {
             samples_radiolab: 'SAMPLES_RADIOLAB',
@@ -23295,6 +23309,25 @@ if (layer === 'W') return bastardLoopWShiftSteps;
             return options.uncut || !buffer ? buffer : MygrainVocalCut.gate(audioContext, buffer, bastardLoopOCut, getResolvedBastardLoopODuration(buffer));
         }
 
+        const LOOP_SAMPLE_REPOSITORY_DEFAULTS = { A: 'sampledrop', B: 'sampledrop2', C: 'splice_claw', W: 'samples_modular' };
+        function getLoopSampleRepository(layer) {
+            const fallback = LOOP_SAMPLE_REPOSITORY_DEFAULTS[layer];
+            const value = document.getElementById(`loop${layer}Repository`)?.value;
+            return value === 'samples_loops' ? value : fallback;
+        }
+        function captureLoopSampleRepositories() {
+            return Object.fromEntries(Object.keys(LOOP_SAMPLE_REPOSITORY_DEFAULTS).map(layer => [layer, getLoopSampleRepository(layer)]));
+        }
+        function restoreLoopSampleRepositories(value) {
+            for (const [layer, fallback] of Object.entries(LOOP_SAMPLE_REPOSITORY_DEFAULTS)) {
+                const select = document.getElementById(`loop${layer}Repository`);
+                if (select) select.value = value?.[layer] === 'samples_loops' ? 'samples_loops' : fallback;
+            }
+        }
+        function getExtraDrumBrowserSourceKey(track) {
+            return normalizeDrumMachineManualSourceKey(track.browserSourceKey || track.metadata?.sourceKey, DRUM_MACHINE_SOURCE_KEYS[track.kind]);
+        }
+
         function getDropboxSampleLayerSourceKey() {
             const select = document.getElementById('performanceDropboxSampleSource');
             const value = String(select?.value || 'sampledrop').trim().toLowerCase();
@@ -23525,7 +23558,7 @@ if (layer === 'W') return bastardLoopWShiftSteps;
                 const sourceKey = getDrumMachinePercBrowserSourceKey();
                 return BASTARD_LOOP_SOURCE_LABELS[sourceKey] || 'SAMPLEDROP';
             }
-            const sourceKey = DRUM_MACHINE_SOURCE_KEYS[kind];
+            const sourceKey = drumMachineExtraTracks[kind] ? getExtraDrumBrowserSourceKey(drumMachineExtraTracks[kind]) : DRUM_MACHINE_SOURCE_KEYS[kind];
             if (BASTARD_LOOP_SOURCE_LABELS[sourceKey]) {
                 return BASTARD_LOOP_SOURCE_LABELS[sourceKey];
             }
@@ -23583,7 +23616,8 @@ if (layer === 'W') return bastardLoopWShiftSteps;
                     drumKind: extraTrack.kind,
                     title: `${extraTrack.label} Browser`,
                     subtitle: `Preview and load ${extraTrack.label.toLowerCase()} from the local sample repository.`,
-                    sourceKey: DRUM_MACHINE_SOURCE_KEYS[extraTrack.kind],
+                    sourceKey: getExtraDrumBrowserSourceKey(extraTrack),
+                    ...(extraTrack.kind === 'etc' ? { sourceOptions: ['samples_crash', 'samples_perc'].map(value => ({ value, label: BASTARD_LOOP_SOURCE_LABELS[value] })) } : {}),
                     sourceLabel: getDrumMachineSourceLabel(extraTrack.kind),
                     loadButtonLabel: `Load ${extraTrack.label}`,
                     loadingLabel: `Loading ${extraTrack.label.toLowerCase()} samples...`
@@ -31580,7 +31614,7 @@ if (layer === 'W') {
         function captureExtraDrumMachineTracks() {
             return Object.fromEntries(Object.values(drumMachineExtraTracks).map(track => {
                 readExtraDrumMachineControls(track);
-                return [track.kind, { pattern: track.pattern.slice(), ratchets: track.ratchets.slice(), accents: track.accents?.slice() || [], accentAmount: Number(track.accentAmount ?? .35), pitch: track.pitch, level: track.level, decay: track.decay, length: track.length, metadata: track.metadata ? { ...track.metadata } : null }];
+                return [track.kind, { browserSourceKey: getExtraDrumBrowserSourceKey(track), pattern: track.pattern.slice(), ratchets: track.ratchets.slice(), accents: track.accents?.slice() || [], accentAmount: Number(track.accentAmount ?? .35), pitch: track.pitch, level: track.level, decay: track.decay, length: track.length, metadata: track.metadata ? { ...track.metadata } : null }];
             }));
         }
 
@@ -31593,6 +31627,7 @@ if (layer === 'W') {
                 track.accentAmount = Math.max(0, Math.min(1, Number(saved?.accentAmount ?? .35)));
                 setSliderValue(`${track.id}AccentAmount`, track.accentAmount * 100, { dispatch: false });
                 track.metadata = saved?.metadata ? { ...saved.metadata } : null;
+                track.browserSourceKey = normalizeDrumMachineManualSourceKey(saved?.browserSourceKey || saved?.metadata?.sourceKey, DRUM_MACHINE_SOURCE_KEYS[track.kind]);
                 for (const property of ['pitch', 'level', 'decay', 'length']) {
                     const raw = Number(saved?.[property] ?? (property === 'pitch' ? 0 : 1));
                     track[property] = property === 'pitch' ? clampDrumMachinePitchSemitones(raw) : Math.max(property === 'level' ? 0 : .05, Math.min(1, Number.isFinite(raw) ? raw : 1));
@@ -34114,6 +34149,7 @@ if (layer === 'W') {
                 const track = drumMachineExtraTracks[kind];
                 track.buffer = buffer;
                 track.metadata = resolvedMetadata;
+                track.browserSourceKey = resolvedMetadata.sourceKey;
                 await saveAudioBufferToDB(buffer, `${track.id}Buffer`);
             } else if (kind === 'snare') {
                 drumMachineSnareBuffer = buffer;
@@ -34149,7 +34185,7 @@ if (layer === 'W') {
                 throw new Error('Start MYGRAIN before loading drum samples.');
             }
 
-            const sourceKey = DRUM_MACHINE_SOURCE_KEYS[kind];
+            const sourceKey = kind === 'perc' ? getDrumMachinePercBrowserSourceKey() : DRUM_MACHINE_SOURCE_KEYS[kind];
             const currentMetadata = getDrumMachineTrackMetadata(kind);
             const requireDifferentSample = options.requireDifferentSample === true
                 && Boolean(currentMetadata?.fileName || currentMetadata?.relativePath);
@@ -49798,11 +49834,12 @@ if (layer === 'W' && bastardLoopWBuffer) {
                     traceLayer: 'A',
                     soloLayer: 'bastarda',
                     errorLabel: 'Bastardloop build',
-                    fallbackSourceKey: 'sampledrop',
+                    fallbackSourceKey: getLoopSampleRepository('A'),
                     getRequestPayload: () => ({
                         bpm,
                         seed: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
                         divisions: getSelectedBastardLoopDivisions(),
+                        source: getLoopSampleRepository('A'),
                         patternLength
                     }),
                     readState: () => ({
@@ -49829,12 +49866,12 @@ if (layer === 'W' && bastardLoopWBuffer) {
                     traceLayer: 'B',
                     soloLayer: 'bastardb',
                     errorLabel: 'Bastardloop B build',
-                    fallbackSourceKey: 'sampledrop2',
+                    fallbackSourceKey: getLoopSampleRepository('B'),
                     getRequestPayload: () => ({
                         bpm,
                         seed: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-b`,
                         divisions: getSelectedBastardLoop2Divisions(),
-                        source: 'sampledrop2',
+                        source: getLoopSampleRepository('B'),
                         patternLength
                     }),
                     readState: () => ({
@@ -49861,12 +49898,12 @@ if (layer === 'W' && bastardLoopWBuffer) {
                     traceLayer: 'C',
                     soloLayer: 'bastardc',
                     errorLabel: 'Bastardloop C build',
-                    fallbackSourceKey: 'splice_claw',
+                    fallbackSourceKey: getLoopSampleRepository('C'),
                     getRequestPayload: () => ({
                         bpm,
                         seed: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-c`,
                         divisions: getSelectedBastardLoop3Divisions(),
-                        source: 'splice_claw',
+                        source: getLoopSampleRepository('C'),
                         patternLength
                     }),
                     readState: () => ({
@@ -49924,12 +49961,12 @@ if (layer === 'W' && bastardLoopWBuffer) {
                     traceLayer: 'W',
                     soloLayer: 'bastardw',
                     errorLabel: 'Bastardloop W · Weird build',
-                    fallbackSourceKey: 'samples_modular',
+                    fallbackSourceKey: getLoopSampleRepository('W'),
                     getRequestPayload: () => ({
                         bpm,
                         seed: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-v`,
                         divisions: getSelectedBastardLoopWDivisions(),
-                        source: 'samples_modular',
+                        source: getLoopSampleRepository('W'),
                         patternLength
                     }),
                     readState: () => ({
@@ -50879,6 +50916,7 @@ performanceBastardLoopWLevel: 50,
                 keyboardInstrumentEnabled: { ...keyboardInstrumentEnabled },
                 keyboardSampleSourceKey,
                 q: window.mygrainQ?.getState() || null,
+                loopSampleRepositories: captureLoopSampleRepositories(),
                 bastardLoopLRepository,
                 bastardLoopXRepository,
                 bpmOnlyLfos: true,
@@ -51154,6 +51192,7 @@ hasBastardLoopW: Boolean(bastardLoopWBuffer),
 
         // Helper function to apply preset
         function applyPreset(preset) {
+            restoreLoopSampleRepositories(preset?.loopSampleRepositories);
             if (preset?.keyboardSampleSourceKey !== undefined) keyboardSampleSourceKey = normalizeKeyboardSampleSourceKey(preset.keyboardSampleSourceKey);
             keyboardInstrumentEnabled = { piano: preset?.keyboardInstrumentEnabled?.piano !== false, strings: preset?.keyboardInstrumentEnabled?.strings !== false };
             syncKeyboardSampleMixControls();
@@ -52304,6 +52343,7 @@ bastardLoopPCut: { ...bastardLoopPCut },
                     bastardLoopXDelayPingPongEnabled: bastardLoopXDelayPingPongEnabled,
                     bastardLoopXTimingIndex: bastardLoopXTimingIndex,
                     bastardLoopXRootNote: bastardLoopXRootNote,
+                    loopSampleRepositories: captureLoopSampleRepositories(),
                     bastardLoopLRepository,
                     bastardLoopXRepository,
                     bastardLoopXSourceKey: bastardLoopXSampleMetadata?.sourceKey || 'samples_bass',
@@ -52541,6 +52581,7 @@ W: snapshotBastardLoopMetadata(bastardLoopWMetadata, 'SAMPLES_MODULAR'),
                 setKeyboardDecay(state.sliders?.performanceKeyboardDecay ?? 0, { skipSave: true });
                 setGrainSustainEnabled(state.modes?.grainSustainEnabled !== false, { skipSave: true, skipRestart: true });
                 restoreOsc3SequencerSources(state.modes);
+                restoreLoopSampleRepositories(state.modes?.loopSampleRepositories);
                 setBastardLoopMPlusPanPercent(state.sliders?.performanceBastardLoopMPlusPan ?? ((Number(state.modes?.bastardLoopMPlusPan) || 0) * 100), { skipSave: true });
                 restoreDrumMachineToneDefaults(state.sliders);
                 restoreBastardLoopLReverbDefaults(state.sliders);
@@ -57190,6 +57231,7 @@ W: {
             }
 
             const bpm = clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || 120);
+            const source = getLoopSampleRepository('A');
             const divisions = getSelectedBastardLoopDivisions();
             const shouldRestartSequencer = sequencerPlaying;
             const shouldRestartBastardLoop = bastardLoopPlaying;
@@ -57200,9 +57242,9 @@ W: {
             const previousTransportStartTime = bastardLoopTransportStartTime;
             bastardLoopGenerationInFlight = true;
             syncBastardLoopUi();
-            setStatus(`Building bastardloop from SAMPLEDROP at ${bpm} BPM using ${divisions.join(', ')}…`);
+            setStatus(`Building bastardloop from ${BASTARD_LOOP_SOURCE_LABELS[source]} at ${bpm} BPM using ${divisions.join(', ')}…`);
             clearLoopLayerSoloForBastardLoop('bastarda');
-            appendBastardLoopTrace('A', 'build-request', { bpm, divisions, source: 'sampledrop' });
+            appendBastardLoopTrace('A', 'build-request', { bpm, divisions, source });
 
             try {
                 if (shouldRestartSequencer) {
@@ -57221,11 +57263,12 @@ W: {
                     bpm,
                     seed: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
                     divisions,
+                    source,
                     patternLength: getBastardLoopPatternLengthPayload()
                 }, {
                     traceLayer: 'A',
                     errorLabel: 'Bastardloop build',
-                    fallbackSourceKey: 'sampledrop'
+                    fallbackSourceKey: source
                 });
                 await applyLoadedBastardLoopBuffer(await audioContext.decodeAudioData(arrayBuffer.slice(0)), `Bastardloop ${bpm} BPM`, payload);
                 ensureBastardLoopLayerReady('A');
@@ -57272,6 +57315,7 @@ W: {
             }
 
             const bpm = clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || 120);
+            const source = getLoopSampleRepository('B');
             const divisions = getSelectedBastardLoop2Divisions();
             const shouldRestartSequencer = sequencerPlaying;
             const shouldRestartBastardLoop = bastardLoopPlaying;
@@ -57282,9 +57326,9 @@ W: {
             bastardLoop2GenerationInFlight = true;
             syncBastardLoopUi();
             syncBastardLoop2Ui();
-            setStatus(`Building Bastardloop B from SAMPLEDROP_2 at ${bpm} BPM using ${divisions.join(', ')}…`);
+            setStatus(`Building Bastardloop B from ${BASTARD_LOOP_SOURCE_LABELS[source]} at ${bpm} BPM using ${divisions.join(', ')}…`);
             clearLoopLayerSoloForBastardLoop('bastardb');
-            appendBastardLoopTrace('B', 'build-request', { bpm, divisions, source: 'sampledrop2' });
+            appendBastardLoopTrace('B', 'build-request', { bpm, divisions, source });
 
             try {
                 if (shouldRestartSequencer) {
@@ -57303,12 +57347,12 @@ W: {
                     bpm,
                     seed: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-b`,
                     divisions,
-                    source: 'sampledrop2',
+                    source,
                     patternLength: getBastardLoopPatternLengthPayload()
                 }, {
                     traceLayer: 'B',
                     errorLabel: 'Bastardloop B build',
-                    fallbackSourceKey: 'sampledrop2'
+                    fallbackSourceKey: source
                 });
                 await applyLoadedBastardLoop2Buffer(await audioContext.decodeAudioData(arrayBuffer.slice(0)), `Bastardloop B ${bpm} BPM`, payload);
                 ensureBastardLoopLayerReady('B');
@@ -57354,6 +57398,7 @@ W: {
             }
 
             const bpm = clampBpmValue(document.getElementById('globalBpmSlider')?.value || sequencerBPM || 120);
+            const source = getLoopSampleRepository('C');
             const divisions = getSelectedBastardLoop3Divisions();
             const shouldRestartSequencer = sequencerPlaying;
             const shouldRestartBastardLoop = bastardLoopPlaying;
@@ -57365,9 +57410,9 @@ W: {
             syncBastardLoopUi();
             syncBastardLoop2Ui();
             syncBastardLoop3Ui();
-            setStatus(`Building Bastardloop C from SPLICE_CLAW at ${bpm} BPM using ${divisions.join(', ')}…`);
+            setStatus(`Building Bastardloop C from ${BASTARD_LOOP_SOURCE_LABELS[source]} at ${bpm} BPM using ${divisions.join(', ')}…`);
             clearLoopLayerSoloForBastardLoop('bastardc');
-            appendBastardLoopTrace('C', 'build-request', { bpm, divisions, source: 'splice_claw' });
+            appendBastardLoopTrace('C', 'build-request', { bpm, divisions, source });
 
             try {
                 if (shouldRestartSequencer) {
@@ -57386,12 +57431,12 @@ W: {
                     bpm,
                     seed: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-c`,
                     divisions,
-                    source: 'splice_claw',
+                    source,
                     patternLength: getBastardLoopPatternLengthPayload()
                 }, {
                     traceLayer: 'C',
                     errorLabel: 'Bastardloop C build',
-                    fallbackSourceKey: 'splice_claw'
+                    fallbackSourceKey: source
                 });
                 await applyLoadedBastardLoop3Buffer(await audioContext.decodeAudioData(arrayBuffer.slice(0)), `Bastardloop C ${bpm} BPM`, payload);
                 ensureBastardLoopLayerReady('C');
@@ -57458,8 +57503,8 @@ W: {
         function getBastardLoopWBuildPlan(options = {}) {
             const reuseSamples = options.reuseSamples === true;
             const privateRecut = reuseSamples && ['samples_radiolab', 'samples_videolab'].includes(bastardLoopWMetadata?.sourceKey);
-            const source = privateRecut ? bastardLoopWMetadata.sourceKey : 'samples_modular';
-            const sourceLabel = privateRecut ? source.toUpperCase() : 'SAMPLES_MODULAR';
+            const source = reuseSamples ? (bastardLoopWMetadata?.sourceKey || 'samples_modular') : getLoopSampleRepository('W');
+            const sourceLabel = BASTARD_LOOP_SOURCE_LABELS[source] || source.toUpperCase();
             const sourceFiles = reuseSamples ? [...new Set(getBastardLoopSampleRefs('W').filter(value => typeof value === 'string' && value.trim()).map(value => value.trim()))] : [];
             if (reuseSamples && (!bastardLoopWBuffer || !sourceFiles.length)) {
                 throw new Error('Build Bastardloop W · Weird first so MYGRAIN knows which modular samples to re-cut.');
@@ -66386,6 +66431,8 @@ if (performanceBastardLoopWToggleBtn) {
                 setBastardLoopLRepository(dropboxSampleBrowserSourceSelect.value);
             } else if (dropboxSampleBrowserTarget === SAMPLE_BROWSER_TARGETS.bastardLoopX) {
                 setBastardLoopXRepository(dropboxSampleBrowserSourceSelect.value);
+            } else if (dropboxSampleBrowserTarget === SAMPLE_BROWSER_TARGETS.drumMachineEtc) {
+                drumMachineExtraTracks.etc.browserSourceKey = dropboxSampleBrowserSourceSelect.value === 'samples_perc' ? 'samples_perc' : 'samples_crash';
             } else if (dropboxSampleBrowserTarget === SAMPLE_BROWSER_TARGETS.drumMachinePerc) {
                 setDrumMachinePercBrowserSourceKey(dropboxSampleBrowserSourceSelect.value);
             } else {
@@ -67445,10 +67492,10 @@ if (performanceBastardLoopWToggleBtn) {
             Object.assign(allowed, {"performanceBastardLoopWLevel": {"label": "Loop W level", "min": 0, "max": 70, "step": 1, "unit": "%"}, "performanceBastardLoopWSemitone": {"label": "Loop W transpose", "min": -12, "max": 12, "step": 1, "unit": "semitones"}, "performanceBastardLoopWFilterCutoff": {"label": "Loop W cutoff", "min": 300, "max": 12000, "step": 10, "unit": "Hz"}});
             const quiet = { silent: true, skipSave: true, skipRestart: true };
             const loops = {
-                "A": {enabled: () => bastardLoopEnabled, enable: value => setBastardLoopEnabled(value, quiet), buffer: () => bastardLoopBuffer, metadata: () => bastardLoopMetadata, source: "sampledrop", divisions: () => getSelectedBastardLoopDivisions({ ensureDefault: false }), setDivisions: value => applyBastardLoopDivisionSelection(value, { save: false }), apply: (buffer, metadata) => applyLoadedBastardLoopBuffer(buffer, "AI Loop A", metadata)},
-                "B": {enabled: () => bastardLoop2Enabled, enable: value => setBastardLoop2Enabled(value, quiet), buffer: () => bastardLoop2Buffer, metadata: () => bastardLoop2Metadata, source: "sampledrop2", divisions: () => getSelectedBastardLoop2Divisions({ ensureDefault: false }), setDivisions: value => applyBastardLoop2DivisionSelection(value, { save: false }), apply: (buffer, metadata) => applyLoadedBastardLoop2Buffer(buffer, "AI Loop B", metadata)},
-                "C": {enabled: () => bastardLoop3Enabled, enable: value => setBastardLoop3Enabled(value, quiet), buffer: () => bastardLoop3Buffer, metadata: () => bastardLoop3Metadata, source: "splice_claw", divisions: () => getSelectedBastardLoop3Divisions({ ensureDefault: false }), setDivisions: value => applyBastardLoop3DivisionSelection(value, { save: false }), apply: (buffer, metadata) => applyLoadedBastardLoop3Buffer(buffer, "AI Loop C", metadata)},
-                "W": {enabled: () => bastardLoopWEnabled, enable: value => setBastardLoopWEnabled(value, quiet), buffer: () => bastardLoopWBuffer, metadata: () => bastardLoopWMetadata, source: "samples_modular", divisions: () => getSelectedBastardLoopWDivisions({ ensureDefault: false }), setDivisions: value => applyBastardLoopWDivisionSelection(value, { save: false }), apply: (buffer, metadata) => applyLoadedBastardLoopWBuffer(buffer, "GENREator W", metadata)},
+                "A": {enabled: () => bastardLoopEnabled, enable: value => setBastardLoopEnabled(value, quiet), buffer: () => bastardLoopBuffer, metadata: () => bastardLoopMetadata, get source() { return getLoopSampleRepository("A"); }, divisions: () => getSelectedBastardLoopDivisions({ ensureDefault: false }), setDivisions: value => applyBastardLoopDivisionSelection(value, { save: false }), apply: (buffer, metadata) => applyLoadedBastardLoopBuffer(buffer, "AI Loop A", metadata)},
+                "B": {enabled: () => bastardLoop2Enabled, enable: value => setBastardLoop2Enabled(value, quiet), buffer: () => bastardLoop2Buffer, metadata: () => bastardLoop2Metadata, get source() { return getLoopSampleRepository("B"); }, divisions: () => getSelectedBastardLoop2Divisions({ ensureDefault: false }), setDivisions: value => applyBastardLoop2DivisionSelection(value, { save: false }), apply: (buffer, metadata) => applyLoadedBastardLoop2Buffer(buffer, "AI Loop B", metadata)},
+                "C": {enabled: () => bastardLoop3Enabled, enable: value => setBastardLoop3Enabled(value, quiet), buffer: () => bastardLoop3Buffer, metadata: () => bastardLoop3Metadata, get source() { return getLoopSampleRepository("C"); }, divisions: () => getSelectedBastardLoop3Divisions({ ensureDefault: false }), setDivisions: value => applyBastardLoop3DivisionSelection(value, { save: false }), apply: (buffer, metadata) => applyLoadedBastardLoop3Buffer(buffer, "AI Loop C", metadata)},
+                "W": {enabled: () => bastardLoopWEnabled, enable: value => setBastardLoopWEnabled(value, quiet), buffer: () => bastardLoopWBuffer, metadata: () => bastardLoopWMetadata, get source() { return getLoopSampleRepository("W"); }, divisions: () => getSelectedBastardLoopWDivisions({ ensureDefault: false }), setDivisions: value => applyBastardLoopWDivisionSelection(value, { save: false }), apply: (buffer, metadata) => applyLoadedBastardLoopWBuffer(buffer, "GENREator W", metadata)},
                 "V": {enabled: () => bastardLoopVEnabled, enable: value => setBastardLoopVEnabled(value, quiet), buffer: () => bastardLoopVBuffer, metadata: () => bastardLoopVMetadata, source: "samples_vocal", divisions: () => getSelectedBastardLoopVDivisions({ ensureDefault: false }), setDivisions: value => applyBastardLoopVDivisionSelection(value, { save: false }), apply: (buffer, metadata) => applyLoadedBastardLoopVBuffer(buffer, "AI Loop V", metadata)},
                 "P": {enabled: () => bastardLoopPEnabled, enable: value => setBastardLoopPEnabled(value, quiet), buffer: () => bastardLoopPBuffer, metadata: () => bastardLoopPMetadata, source: "samples_piano", divisions: () => getSelectedBastardLoopPDivisions({ ensureDefault: false }), setDivisions: value => applyBastardLoopPDivisionSelection(value, { save: false }), apply: (buffer, metadata) => applyLoadedBastardLoopPBuffer(buffer, "AI Loop P", metadata)},
                 "O": {enabled: () => bastardLoopOEnabled, enable: value => setBastardLoopOEnabled(value, quiet), buffer: () => bastardLoopOBuffer, metadata: () => bastardLoopOMetadata, source: "samples_orch", divisions: () => getSelectedBastardLoopODivisions({ ensureDefault: false }), setDivisions: value => applyBastardLoopODivisionSelection(value, { save: false }), apply: (buffer, metadata) => applyLoadedBastardLoopOBuffer(buffer, "AI Loop O", metadata)},

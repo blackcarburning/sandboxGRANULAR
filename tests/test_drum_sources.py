@@ -13,7 +13,7 @@ SPEC.loader.exec_module(SERVER)
 
 class DrumSourcesTests(unittest.TestCase):
     def test_clap_and_cymbal_sources_resolve_to_the_requested_local_mirrors(self):
-        for source, folder in [('samples_clap', 'SAMPLES_CLAP'), ('samples_crash', 'SAMPLES_CRASH')]:
+        for source, folder in [('samples_clap', 'SAMPLES_CLAP'), ('samples_crash', 'SAMPLES_CRASH'), ('samples_loops', 'SAMPLES_LOOPS'), ('samples_perc', 'SAMPLES_PERC')]:
             with self.subTest(source=source):
                 self.assertEqual(SERVER.get_bastardloop_local_source_root(source), SERVER.MYGRAIN_BASTARDLOOP_LOCAL_SOURCE_ROOT / folder)
                 self.assertEqual(SERVER.MYGRAIN_BASTARDLOOP_SOURCE_CONFIG[source]['label'], folder)
@@ -21,7 +21,7 @@ class DrumSourcesTests(unittest.TestCase):
     def test_existing_mirrors_are_listed_and_loaded_without_dropbox_or_rclone(self):
         with tempfile.TemporaryDirectory() as folder:
             root = pathlib.Path(folder)
-            for source, name in [('samples_clap', 'SAMPLES_CLAP'), ('samples_crash', 'SAMPLES_CRASH')]:
+            for source, name in [('samples_clap', 'SAMPLES_CLAP'), ('samples_crash', 'SAMPLES_CRASH'), ('samples_loops', 'SAMPLES_LOOPS'), ('samples_perc', 'SAMPLES_PERC')]:
                 sample = root / name / 'nested' / 'sample.wav'
                 sample.parent.mkdir(parents=True)
                 sample.write_bytes(b'fixture-audio')
