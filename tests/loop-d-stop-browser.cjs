@@ -1,0 +1,16 @@
+'use strict';
+const {chromium,webkit}=require('playwright-core'),assert=require('node:assert/strict');
+(async()=>{for(const [name,type]of Object.entries({chromium,webkit})){
+ if(process.env.D_ENGINE&&process.env.D_ENGINE!==name)continue;const browser=await type.launch(name==='chromium'?{executablePath:'/snap/bin/chromium',args:['--no-sandbox','--autoplay-policy=no-user-gesture-required']}:{});
+ try{const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});await context.request.post('http://127.0.0.1:18983/mygrain/api/auth/login',{data:{username:'admin',password:'isolated-d-loop'}});const page=await context.newPage(),errors=[];page.setDefaultTimeout(20000);page.on('pageerror',e=>errors.push(e.message));if(name==='webkit')await page.addInitScript(()=>{const N=window.AudioContext||window.webkitAudioContext;window.AudioContext=class extends N{constructor(o){super({...o,sampleRate:48000})}}});await page.goto('http://127.0.0.1:18983/mygrain/');await page.waitForFunction(()=>window.mygrainD&&document.documentElement.dataset.mygrainStartup==='ready');await page.locator('#start-btn').tap();await page.waitForFunction(()=>isAudioGraphReady()&&!engineStarting&&!stateSaveSuspended);
+ await page.evaluate(async()=>{stopAllPerformancePlayback({silent:true});const b=audioContext.createBuffer(1,audioContext.sampleRate*4,audioContext.sampleRate),a=b.getChannelData(0);for(let i=0;i<a.length;i++)a[i]=.3*Math.sin(i*2*Math.PI*220/b.sampleRate);await mygrainD.apply(b,'Stop fixture');mygrainD.enable(true,{skipSave:true});setLoopLayerSolo('bastardd',{skipSave:true});window.dStopMeter=audioContext.createAnalyser();dStopMeter.fftSize=2048;});
+ for(let repeat=0;repeat<3;repeat++){
+  await page.evaluate(()=>{startAllBastardLoopLayers();mygrainD.gain.connect(dStopMeter)});
+  await page.waitForFunction(()=>{const a=new Float32Array(2048);dStopMeter.getFloatTimeDomainData(a);return a.some(x=>Math.abs(x)>.001)});
+  await page.locator('#performanceMainStopAllBtn').scrollIntoViewIfNeeded();if(name==='webkit')await page.locator('#performanceMainStopAllBtn').evaluate(button=>button.click());else await page.locator('#performanceMainStopAllBtn').tap();
+  await page.waitForTimeout(100);assert(await page.evaluate(()=>!mygrainD.source&&!bastardLoopPlaying));assert(await page.evaluate(()=>{const a=new Float32Array(2048);dStopMeter.getFloatTimeDomainData(a);return a.every(x=>Math.abs(x)<.00001)}));
+  await page.evaluate(()=>{syncPerformanceControlState();syncLoopLayerSoloButtons()});assert(await page.evaluate(()=>!mygrainD.source));
+ }
+ await page.locator('#loopDBrowse').scrollIntoViewIfNeeded();await page.locator('#loopDBrowse').tap();await page.locator('#loopDChoices button').first().tap();await page.waitForFunction(()=>mygrainD.previewing&&document.getElementById('loopDBrowserStatus').textContent.startsWith('Previewing'));await page.evaluate(()=>stopAllPerformancePlayback({silent:true}));assert(await page.evaluate(()=>!mygrainD.previewing&&!mygrainD.source));await page.waitForTimeout(300);assert(await page.evaluate(()=>!mygrainD.previewing&&!mygrainD.source));assert.deepEqual(errors,[]);console.log('PASS',name,'3 immediate transport stops, silent PCM, no UI restart, audition cancellation');
+ }finally{await browser.close()}
+}})().catch(e=>{console.error(e);process.exitCode=1});

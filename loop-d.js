@@ -115,7 +115,7 @@ async function load({path,file}={},options={}){
 function edit(label,action){if(root.mygrainCardHistory?.busy)throw Error('Wait for the current sound change.');return root.mygrainCardHistory?root.mygrainCardHistory.runDraftEdit(label,action):action();}
 function random(options={}){return options.batch?load({},options):edit('D random loop',()=>load({},options));}
 let editor=null;
-root.mygrainD={settings,restore,playback,fitted,repetitions,duration,apply,start,stop,enable,level,cut,randomGaps,gapSettings,sync,random,load,get busy(){return busy},get previewing(){return !!(browserPreviewPending||browserPreview||browserAbort)},get source(){return voice?.source},get gain(){return voice?.gain},get state(){return state},invalidate(){cache=null},playable:()=>state.enabled&&!!bastardLoopDBuffer&&state.level>0};
+root.mygrainD={settings,restore,playback,fitted,repetitions,duration,apply,start,stop,stopAll(){stop();stopBrowserPreview()},enable,level,cut,randomGaps,gapSettings,sync,random,load,get busy(){return busy},get previewing(){return !!(browserPreviewPending||browserPreview||browserAbort)},get source(){return voice?.source},get gain(){return voice?.gain},get state(){return state},invalidate(){cache=null},playable:()=>state.enabled&&!!bastardLoopDBuffer&&state.level>0};
 restore(readStoredStateSnapshot()?.modes?.loopD);
 editor=new MygrainVocalCut.Editor({prefix:'bastardLoopDCut',settings:()=>state.cut,set:cut,randomize:()=>randomGaps(),edit,buffer:()=>playback({uncut:true}),timing:()=>({duration:duration(),cycle:duration(),bar:getLoopBarDurationSeconds(),frames:Math.round(duration()*(bastardLoopDBuffer?.sampleRate||48000))}),audition,stop:stopAudition,phase:()=>voice?((audioContext.currentTime-voice.origin)%duration())/duration():null});
 const handle=(id,action)=>el(id).addEventListener('click',()=>Promise.resolve().then(action).catch(e=>setStatus(e.message,'error')));
@@ -153,6 +153,6 @@ handle('loopDBrowse',async()=>{stopBrowserPreview();browserPath='';el('loopDLoad
 el('loopDSearch').addEventListener('input',filter);browserDialog.addEventListener('close',stopBrowserPreview);browserDialog.addEventListener('cancel',stopBrowserPreview);handle('loopDBrowserClose',()=>{stopBrowserPreview();browserDialog.close()});handle('loopDLoad',async()=>{const path=browserPath;if(!path)throw Error('Choose a loop.');stopBrowserPreview();await edit('D choose loop',()=>load({path}));browserDialog.close()});
 // Shared parameter changes refit from the original, never stretch a stretched copy.
 for(const name of ['applyGlobalBpm','syncPatternLengthControls']){const raw=root[name];root[name]=function(...args){const was=!!voice,result=raw(...args);cache=null;if(was)update();else sync();return result};}
-const soloSync=syncLoopLayerSoloButtons;syncLoopLayerSoloButtons=function(...a){const r=soloSync(...a);if(root.mygrainD)update();return r};
+const soloSync=syncLoopLayerSoloButtons;syncLoopLayerSoloButtons=function(...a){const r=soloSync(...a);if(root.mygrainD){if(voice)update();else sync();}return r};
 sync();
 })(window);
