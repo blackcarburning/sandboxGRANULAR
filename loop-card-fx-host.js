@@ -66,7 +66,7 @@ function mount(key,card){if(!card)return;
  card.append(panel);panels.push(panel);
 }
 mount('N',document.getElementById('noiseCard'));
-for(const key of ['A','B','C','V','W','P','O','L','X','M','M+','K','Q']){
+for(const key of ['A','B','C','D','V','W','P','O','L','X','M','M+','K','Q']){
  const id={A:'bastardLoopCard',B:'bastardLoop2Card',C:'bastardLoop3Card','M+':'bastardLoopMPlusCard'}[key]||`bastardLoop${key}Card`;mount(key,document.getElementById(id)||document.querySelector(`[aria-label="Bastardloop${key==='A'?'':' '+key} controls"]`));
 }
 root.mygrainLoopFx={prepareEditing,settings:()=>JSON.parse(JSON.stringify(state)),channel:key=>state.channels[key],restore,update,sync,syncClock,connect,groups,randomise(){state=FX.subtle(state);setSliderValue('grainSynthAPan',0);setSliderValue('grainSynthBPan',0);setBastardLoopMPlusPanPercent(0,{skipSave:true});root.mygrainKMultitrack?.centrePans();if(root.mygrainQ){root.mygrainQ.state.pan=0;root.mygrainQ.updateEffects()}update()},stop(){for(const g of groups)rebuild(g)}};

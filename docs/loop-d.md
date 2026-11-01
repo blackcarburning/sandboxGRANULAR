@@ -23,4 +23,6 @@ an isolated `MYGRAIN_TEST_ROOT`, an admin test account, and two synthetic non-si
 WAV fixtures under `admin/source_mirrors/SAMPLES_LOOPS/Drums/Bass`. It checks
 Chromium/WebKit mobile layouts, 18 timing combinations per engine, real library
 selection/import, history, Mega/Sparse, reel gaps, new and pre-D server Song renders,
-warm-cache reuse and original source hashes. Never run it against production data.
+warm-cache reuse and original source hashes. `D_FORCE_SERVER=1` explicitly exercises dedicated server-arm worker jobs;
+`D_ENGINE=chromium` or `webkit` limits the browser pass. Never run it against
+production data.
