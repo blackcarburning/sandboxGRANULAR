@@ -76,8 +76,8 @@
 }
 
 /* Independent W/P/O editors, same gestures/layout as V. */
-:is(#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay)[hidden] { display: none; }
-:is(#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) {
+:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay)[hidden] { display: none; }
+:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) {
     position: fixed;
     inset: 0;
     z-index: 2147483300;
@@ -87,7 +87,7 @@
     padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
     background: #03070be6;
 }
-:is(#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-shell {
+:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-shell {
     width: min(900px, 100%);
     max-height: 92dvh;
     overflow-y: auto;
@@ -98,27 +98,27 @@
     background: #0b1521;
     color: #dcecff;
 }
-:is(#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) h3 { margin: 0; color: #dcecff; }
-:is(#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-head,
-:is(#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 14px; }
-:is(#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-head { justify-content: space-between; }
-:is(#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) label { display: flex; gap: 8px; align-items: center; font-size: 13px; color: #dcecff; }
-:is(#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) select,
-:is(#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) input[type="number"] { width: auto; min-height: 38px; padding: 6px 9px; background: #132238; color: #dcecff; border: 1px solid #536884; border-radius: 8px; }
-:is(#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) input[type="number"] { width: 100px; }
-:is(#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) input[type="checkbox"] { width: 18px; height: 18px; }
-:is(#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .performance-btn { min-height: 40px; color: #dcecff; }
-:is(#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) :is(#bastardLoopWCutFromStart,#bastardLoopPCutFromStart,#bastardLoopOCutFromStart),
-:is(#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) :is(#bastardLoopWCutStretch,#bastardLoopPCutStretch,#bastardLoopOCutStretch) { background: linear-gradient(145deg, #263e54, #132238); border: 1px solid #536884; }
-:is(#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) :is(#bastardLoopWCutFromStart,#bastardLoopPCutFromStart,#bastardLoopOCutFromStart).active,
-:is(#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) :is(#bastardLoopWCutStretch,#bastardLoopPCutStretch,#bastardLoopOCutStretch).active { background: linear-gradient(145deg, #214b3a, #123125); border-color: #36ef69; color: #b8ffcd; }
-:is(#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) :is(#bastardLoopWCutFromStart,#bastardLoopPCutFromStart,#bastardLoopOCutFromStart):focus-visible,
-:is(#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) :is(#bastardLoopWCutStretch,#bastardLoopPCutStretch,#bastardLoopOCutStretch):focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
-:is(#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-timeline { position: relative; margin: 26px 18px 28px; touch-action: none; }
-:is(#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-timeline.stretch-active { cursor: grab; }
-:is(#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-timeline.stretch-active:active { cursor: grabbing; }
-:is(#bastardLoopWCutWaveform,#bastardLoopPCutWaveform,#bastardLoopOCutWaveform) { display: block; width: 100%; height: 220px; border-radius: 8px; }
-:is(#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-handle {
+:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) h3 { margin: 0; color: #dcecff; }
+:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-head,
+:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 14px; }
+:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-head { justify-content: space-between; }
+:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) label { display: flex; gap: 8px; align-items: center; font-size: 13px; color: #dcecff; }
+:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) select,
+:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) input[type="number"] { width: auto; min-height: 38px; padding: 6px 9px; background: #132238; color: #dcecff; border: 1px solid #536884; border-radius: 8px; }
+:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) input[type="number"] { width: 100px; }
+:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) input[type="checkbox"] { width: 18px; height: 18px; }
+:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .performance-btn { min-height: 40px; color: #dcecff; }
+:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) :is(#bastardLoopDCutFromStart,#bastardLoopWCutFromStart,#bastardLoopPCutFromStart,#bastardLoopOCutFromStart),
+:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) :is(#bastardLoopDCutStretch,#bastardLoopWCutStretch,#bastardLoopPCutStretch,#bastardLoopOCutStretch) { background: linear-gradient(145deg, #263e54, #132238); border: 1px solid #536884; }
+:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) :is(#bastardLoopDCutFromStart,#bastardLoopWCutFromStart,#bastardLoopPCutFromStart,#bastardLoopOCutFromStart).active,
+:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) :is(#bastardLoopDCutStretch,#bastardLoopWCutStretch,#bastardLoopPCutStretch,#bastardLoopOCutStretch).active { background: linear-gradient(145deg, #214b3a, #123125); border-color: #36ef69; color: #b8ffcd; }
+:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) :is(#bastardLoopDCutFromStart,#bastardLoopWCutFromStart,#bastardLoopPCutFromStart,#bastardLoopOCutFromStart):focus-visible,
+:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) :is(#bastardLoopDCutStretch,#bastardLoopWCutStretch,#bastardLoopPCutStretch,#bastardLoopOCutStretch):focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-timeline { position: relative; margin: 26px 18px 28px; touch-action: none; }
+:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-timeline.stretch-active { cursor: grab; }
+:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-timeline.stretch-active:active { cursor: grabbing; }
+:is(#bastardLoopDCutWaveform,#bastardLoopWCutWaveform,#bastardLoopPCutWaveform,#bastardLoopOCutWaveform) { display: block; width: 100%; height: 220px; border-radius: 8px; }
+:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-handle {
     position: absolute;
     top: -10px;
     height: calc(100% + 20px);
@@ -135,22 +135,22 @@
     color: #36ef69;
     box-shadow: none;
 }
-:is(#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-handle::before { content: ''; position: absolute; inset: 8px 14px; background: currentColor; }
-:is(#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-handle span { position: absolute; top: -10px; left: 0; width: 30px; padding: 4px 0; font-size: 11px; background: #133222; border: 1px solid currentColor; border-radius: 5px; }
-:is(#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) :is(#bastardLoopWCutEnd,#bastardLoopPCutEnd,#bastardLoopOCutEnd) { color: #ff6666; }
-:is(#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) :is(#bastardLoopWCutEnd,#bastardLoopPCutEnd,#bastardLoopOCutEnd) span { background: #391e25; }
-:is(#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-handle:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
-:is(#bastardLoopWCutPlayhead,#bastardLoopPCutPlayhead,#bastardLoopOCutPlayhead) { position: absolute; top: 0; height: 100%; width: 2px; background: #ffe675; pointer-events: none; z-index: 2; }
-:is(#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) p { color: #b4c7dd; font-size: 13px; line-height: 1.45; }
-:is(#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-handle::before { content: ''; position: absolute; inset: 8px 14px; background: currentColor; }
+:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-handle span { position: absolute; top: -10px; left: 0; width: 30px; padding: 4px 0; font-size: 11px; background: #133222; border: 1px solid currentColor; border-radius: 5px; }
+:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) :is(#bastardLoopDCutEnd,#bastardLoopWCutEnd,#bastardLoopPCutEnd,#bastardLoopOCutEnd) { color: #ff6666; }
+:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) :is(#bastardLoopDCutEnd,#bastardLoopWCutEnd,#bastardLoopPCutEnd,#bastardLoopOCutEnd) span { background: #391e25; }
+:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-handle:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+:is(#bastardLoopDCutPlayhead,#bastardLoopWCutPlayhead,#bastardLoopPCutPlayhead,#bastardLoopOCutPlayhead) { position: absolute; top: 0; height: 100%; width: 2px; background: #ffe675; pointer-events: none; z-index: 2; }
+:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) p { color: #b4c7dd; font-size: 13px; line-height: 1.45; }
+:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 @media (max-width: 600px) {
-    :is(#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) { padding-inline: 8px; }
-    :is(#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-shell { padding: 14px 12px; max-height: 96dvh; }
-    :is(#bastardLoopWCutWaveform,#bastardLoopPCutWaveform,#bastardLoopOCutWaveform) { height: 160px; }
-    :is(#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-row { gap: 10px; }
-    :is(#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-row label { flex-wrap: wrap; }
-    :is(#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-row > .performance-btn { flex: 1 1 140px; }
-    :is(#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-actions .performance-btn { flex: 1 1 150px; }
+    :is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) { padding-inline: 8px; }
+    :is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-shell { padding: 14px 12px; max-height: 96dvh; }
+    :is(#bastardLoopDCutWaveform,#bastardLoopWCutWaveform,#bastardLoopPCutWaveform,#bastardLoopOCutWaveform) { height: 160px; }
+    :is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-row { gap: 10px; }
+    :is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-row label { flex-wrap: wrap; }
+    :is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-row > .performance-btn { flex: 1 1 140px; }
+    :is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-actions .performance-btn { flex: 1 1 150px; }
 }
 
 #bastardLoopCutOverlay[hidden] { display: none; }

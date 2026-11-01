@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),Eq=require('../channel-eq.js');
-test('all 26 legacy channels default to completely bypassed four-band EQ',()=>{
- const state=Eq.normalize();assert.equal(Eq.KEYS.length,26);assert.deepEqual(Object.keys(state.channels),Eq.KEYS);
+test('all legacy channels plus D default to completely bypassed four-band EQ',()=>{
+ const state=Eq.normalize();assert.equal(Eq.KEYS.length,28);assert.ok(Eq.KEYS.includes('D'));assert.deepEqual(Object.keys(state.channels),Eq.KEYS);
  for(const channel of Object.values(state.channels)){assert.equal(channel.enabled,false);assert.equal(channel.bands.length,4);assert.deepEqual(Eq.response(channel,[20,100,1000,10000,20000]),[0,0,0,0,0]);}
  assert.deepEqual(Eq.normalize(state),state);
 });

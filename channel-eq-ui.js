@@ -30,7 +30,7 @@
         row.querySelector('button').addEventListener('click', event => open(channelKey, event.currentTarget));
         row.querySelector('input').addEventListener('change', event => { const enabled = event.currentTarget.checked; edit(channelKey, value => { value.enabled = enabled; }); });
     }
-    for (const channelKey of ['A', 'B', 'C', 'V', 'W', 'P', 'O', 'L', 'X', 'Q', 'M', 'M+']) {
+    for (const channelKey of ['A', 'B', 'C', 'D', 'V', 'W', 'P', 'O', 'L', 'X', 'Q', 'M', 'M+']) {
         const selector = channelKey === 'Q' ? '#bastardLoopQCard' : `[aria-label="Bastardloop${channelKey === 'A' ? '' : ' ' + channelKey} controls"]`;
         const card = document.querySelector(selector);
         mount(card?.querySelector('.performance-feature-head, .q-header') || card, channelKey);

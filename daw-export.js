@@ -82,6 +82,7 @@ function components(decoded){
  add('generatedLayer','Generated Sample',m.generatedSampleLayerEnabled&&b.has('generated'));
  add('dryLoop','Generated Loop',m.generatedDryLoopEnabled&&b.has('generated'));
  add('dropboxSample','Atmosphere',m.dropboxSampleLayerEnabled&&b.has('dropboxSample'));
+ add('loopD','Loop D',m.loopD?.enabled);
  for(const [letter,mode] of Object.entries({A:'bastardLoopEnabled',B:'bastardLoop2Enabled',C:'bastardLoop3Enabled',V:'bastardLoopVEnabled',W:'bastardLoopWEnabled',P:'bastardLoopPEnabled',O:'bastardLoopOEnabled',L:'bastardLoopLEnabled',X:'bastardLoopXEnabled',M:'bastardLoopMEnabled','M+':'bastardLoopMPlusEnabled'}))add('loop'+letter,'Loop '+letter,m[mode]);
  add('loopQ','Q Chords',decoded.snapshot.state.q?.enabled);
  for(let i=0;i<5;i++)add('K'+(i+1),'K Track '+(i+1),m.bastardLoopKEnabled&&m.kMultitrack?.tracks?.[i]?.enabled!==false&&!m.kMultitrack?.tracks?.[i]?.mute&&b.has(i?'bastardKTrack'+(i+1):'bastardK'));

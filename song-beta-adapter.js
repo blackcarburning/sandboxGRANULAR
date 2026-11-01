@@ -96,13 +96,15 @@
         ['keyboardSample', () => keyboardSampleBuffer, buffer => setKeyboardSampleBuffer(buffer), KEYBOARD_SAMPLE_AUDIO_BUFFER_KEY],
         ...(window.mygrainKMultitrack ? [1, 2, 3, 4].map(index => [window.MygrainKMultitrack.rawKey(index), () => window.mygrainKMultitrack.getBuffer(index), buffer => window.mygrainKMultitrack.setBuffer(index, buffer), window.MygrainKMultitrack.dbKey(index)]) : []),
         ['qSourceSample', () => qSourceSampleBuffer, buffer => { qSourceSampleBuffer = buffer; window.mygrainQSoundSources?.sync(); }, 'qSourceSampleBuffer'],
-        ['bastardW', () => bastardLoopWBuffer, buffer => { bastardLoopWBuffer = buffer; }, BASTARD_LOOP_W_AUDIO_BUFFER_KEY]
+        ['bastardW', () => bastardLoopWBuffer, buffer => { bastardLoopWBuffer = buffer; }, BASTARD_LOOP_W_AUDIO_BUFFER_KEY],
+        ['bastardD', () => bastardLoopDBuffer, buffer => { bastardLoopDBuffer = buffer; window.mygrainD?.invalidate(); }, BASTARD_LOOP_D_AUDIO_BUFFER_KEY]
     ];
     const metadataBindings = [
         ['bastardA', () => bastardLoopMetadata, metadata => { bastardLoopMetadata = metadata; }],
         ['bastardB', () => bastardLoop2Metadata, metadata => { bastardLoop2Metadata = metadata; }],
         ['bastardC', () => bastardLoop3Metadata, metadata => { bastardLoop3Metadata = metadata; }],
         ['bastardV', () => bastardLoopVMetadata, metadata => { bastardLoopVMetadata = metadata; }],
+        ['bastardD', () => bastardLoopDMetadata, metadata => { bastardLoopDMetadata = metadata; }],
         ['bastardW', () => bastardLoopWMetadata, metadata => { bastardLoopWMetadata = metadata; }],
         ['bastardP', () => bastardLoopPMetadata, metadata => { bastardLoopPMetadata = metadata; }],
         ['bastardO', () => bastardLoopOMetadata, metadata => { bastardLoopOMetadata = metadata; }],
@@ -130,6 +132,7 @@
     }
 
     const additiveSongLanes = [
+        { name: 'D loop', slots: ['bastardD'], settings: /^(?:loopD|bastard(?:Loop)?D|performanceBastardLoopD)/i, references: /^(?:d|bastard(?:loop)?d)$/i },
         { name:'Q sample', slots:['qSourceSample'], settings:/^qSourceSample/, references:/^qsourcesample$/i, qSample:true },
         { name: 'Keyboard Sample', slots: ['keyboardSample'], settings: /^(?:keyboardSample|performanceKeyboardSample)/, references: /^keyboardsample$/i, keyboardSource: 'sample' },
         { name: 'ETC', slots: ['drumEtc'], settings: /^(?:etc|drumEtc|drumMachineEtc.*)$/i, references: /^etc$/i },
@@ -493,7 +496,7 @@
                     performanceSourceLayerSolo: cloneJson(performanceSourceLayerSolo),
                     performanceSourceLayerSoloSnapshot: cloneJson(performanceSourceLayerSoloSnapshot),
                     controls: Array.from(document.querySelectorAll('input[type="checkbox"], input[type="number"], input[type="radio"]'))
-                        .filter(input => input.id && !input.closest('#songBetaCard, #aiPatchCard, #bastardLoopCutOverlay, #bastardLoop2CutOverlay, #bastardLoop3CutOverlay, #bastardLoopVCutOverlay, #bastardLoopWCutOverlay, #bastardLoopPCutOverlay, #bastardLoopOCutOverlay, #qArpOverlay, #qChordEditorOverlay, #drumMachineLane-roll, #kTrackControlSection, #channelEqDialog, .loop-fx, #waspCard'))
+                        .filter(input => input.id && !input.closest('#songBetaCard, #aiPatchCard, #bastardLoopCutOverlay, #bastardLoop2CutOverlay, #bastardLoop3CutOverlay, #bastardLoopVCutOverlay, #bastardLoopWCutOverlay, #bastardLoopDCutOverlay, #bastardLoopPCutOverlay, #bastardLoopOCutOverlay, #qArpOverlay, #qChordEditorOverlay, #drumMachineLane-roll, #kTrackControlSection, #channelEqDialog, .loop-fx, #waspCard'))
                         .map(input => ({ id: input.id, type: input.type, value: input.value, checked: input.checked })),
                     metadata: Object.fromEntries(metadataBindings.map(([key, getMetadata]) => [key, cloneJson(getMetadata())]))
                 },
@@ -540,7 +543,7 @@
             // Empty-lane K/W conversion is optional persistence, not an audio/playback
             // repair. Arm can use this normalized snapshot and existing renders
             // without copying an entire source ZIP just to add empty audio slots.
-            const explicitOnly = lanes.length > 0 && lanes.every(lane => ['K five-track recorder', 'W loop', 'Loop filters / space'].includes(lane));
+            const explicitOnly = lanes.length > 0 && lanes.every(lane => ['D loop', 'K five-track recorder', 'W loop', 'Loop filters / space'].includes(lane));
             const fxBytes = (window.MygrainLoopFx?.estimatedBytes(snapshot.state.modes.loopFx, audioContext.sampleRate) || 0) + (window.MygrainNoise?.estimatedBytes(audioContext.sampleRate) || 0);
             return { snapshot, decodedBytes, fxBytes, upgrade: lanes.length ? { lanes, explicitOnly } : null };
         },
@@ -815,7 +818,7 @@
                 syncPatternLengthControls(snapshot.state.patternLength, { skipSave: true });
                 for (const control of snapshot.extra.controls || []) {
                     const input = document.getElementById(control.id);
-                    if (!input || input.closest('#songBetaCard, #aiPatchCard, #bastardLoopCutOverlay, #bastardLoop2CutOverlay, #bastardLoop3CutOverlay, #bastardLoopVCutOverlay, #bastardLoopWCutOverlay, #bastardLoopPCutOverlay, #bastardLoopOCutOverlay, #qArpOverlay, #qChordEditorOverlay, #drumMachineLane-roll, #kTrackControlSection, #channelEqDialog, .loop-fx, #waspCard') || input.type !== control.type) continue;
+                    if (!input || input.closest('#songBetaCard, #aiPatchCard, #bastardLoopCutOverlay, #bastardLoop2CutOverlay, #bastardLoop3CutOverlay, #bastardLoopVCutOverlay, #bastardLoopWCutOverlay, #bastardLoopDCutOverlay, #bastardLoopPCutOverlay, #bastardLoopOCutOverlay, #qArpOverlay, #qChordEditorOverlay, #drumMachineLane-roll, #kTrackControlSection, #channelEqDialog, .loop-fx, #waspCard') || input.type !== control.type) continue;
                     if (input.type === 'checkbox' || input.type === 'radio') input.checked = Boolean(control.checked);
                     else input.value = control.value;
                     input.dispatchEvent(new Event('change', { bubbles: true }));
@@ -1043,7 +1046,7 @@
             if (isRecording || isOutputRecording || isOutputRecordingArmed || bastardLoopMRecordingState !== 'idle' || bastardLoopMPlusRecordingState !== 'idle' || !kReady
                 || window.mygrainSongBeta?.busy || window.mygrainSongBeta?.playing || (window.mygrainSongBeta?.editing && !completedKRecording && !draftEdit) || (window.mygrainAiPatch?.busy && !aiPatch) || megaRandomizeInFlight) throw new Error('Finish recording, randomisation or Song operations first.');
             if (draftEdit && window.mygrainSongBeta?.editing && !window.mygrainSongBeta.canEditSong()) throw new Error(window.mygrainSongBeta.lease.message || 'Song editing access is no longer verified. Reconnect before changing this amendment.');
-            if (drumMachineLoadInFlight || bastardLoopGenerationInFlight || bastardLoop2GenerationInFlight || bastardLoop3GenerationInFlight || bastardLoopVGenerationInFlight || bastardLoopWGenerationInFlight || bastardLoopPGenerationInFlight || bastardLoopOGenerationInFlight || dropboxSampleLayerLoadInFlight) throw new Error('Wait for the current sound load to finish.');
+            if (window.mygrainD?.busy || drumMachineLoadInFlight || bastardLoopGenerationInFlight || bastardLoop2GenerationInFlight || bastardLoop3GenerationInFlight || bastardLoopVGenerationInFlight || bastardLoopWGenerationInFlight || bastardLoopPGenerationInFlight || bastardLoopOGenerationInFlight || dropboxSampleLayerLoadInFlight) throw new Error('Wait for the current sound load to finish.');
         }
         function run(label, action, completedKRecording = false, aiPatch = false, draftEdit = false) {
             if (restoring || window.__mygrainSongRenderDeck) return action();

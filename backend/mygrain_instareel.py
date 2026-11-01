@@ -39,7 +39,7 @@ def reel_root(accounts, user):
     return folder
 
 
-PROTECTED_LAYERS = ('A','B','C','V','W','P','O','L','X','M','M+','K','Q','N','DRUMS','GLOBAL')
+PROTECTED_LAYERS = ('A','B','C','D','V','W','P','O','L','X','M','M+','K','Q','N','DRUMS','GLOBAL')
 
 def plan(meta, seconds, variation, seed, options=None):
     protected = (options or {}).get('protectedLayers', [])

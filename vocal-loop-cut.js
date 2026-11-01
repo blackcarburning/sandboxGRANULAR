@@ -332,7 +332,7 @@
     class Editor {
         constructor(adapter) {
             this.adapter = adapter;
-            this.label=({bastardLoopCut:'A',bastardLoop2Cut:'B',bastardLoop3Cut:'C',bastardLoopWCut:'W',bastardLoopPCut:'P',bastardLoopOCut:'O'})[adapter.prefix]||'V';
+            this.label=({bastardLoopCut:'A',bastardLoop2Cut:'B',bastardLoop3Cut:'C',bastardLoopWCut:'W',bastardLoopDCut:'D',bastardLoopPCut:'P',bastardLoopOCut:'O'})[adapter.prefix]||'V';
             this.document = root.document;
             this.overlay = this.element('bastardLoopVCutOverlay');
             if(this.document.body && this.overlay.parentElement!==this.document.body)this.document.body.append(this.overlay);
@@ -380,7 +380,7 @@
             this.gapCells.addEventListener('click',event=>{const b=event.target.closest('[data-gap-cell]');if(b)this.toggleGapCell(Number(b.dataset.gapCell));});
             this.timeline.addEventListener('click',event=>{if(!this.adapter.settings().gapEnabled||event.target.closest('button'))return;const box=this.timeline.getBoundingClientRect();const step=this.gapStep();this.toggleGapCell(Math.min(Math.ceil(1/step)-1,Math.max(0,Math.floor((event.clientX-box.left)/box.width/step))));});
             this.bindDrag(this.timeline, 'start', true);
-            if (['V','W'].includes(this.label)) {
+            if (['D','V','W'].includes(this.label)) {
                 this.sectionDrag = this.document.createElement('button');
                 this.sectionDrag.type = 'button';
                 this.sectionDrag.id = (adapter.prefix || 'bastardLoopVCut') + 'DragSection';
@@ -502,7 +502,7 @@
                 const rect = this.timeline.getBoundingClientRect();
                 const position = (event.clientX - rect.left) / rect.width;
                 const selected = region(settings);
-                if (body && ((!settings.stretch && !['V','W'].includes(this.label)) || position < selected.start || position > selected.end)) return;
+                if (body && ((!settings.stretch && !['D','V','W'].includes(this.label)) || position < selected.start || position > selected.end)) return;
                 const dragBoundary = body && !settings.stretch ? 'section' : boundary;
                 event.preventDefault();
                 event.stopPropagation();
@@ -558,7 +558,7 @@
             this.overlay.hidden = false;
             this.overlay.setAttribute('aria-hidden', 'false');
             this.refresh();
-            this.message(`${['V','W'].includes(this.label) ? 'Stretch Off: drag the highlighted source section to move it without changing its length; use Start/End to trim.' : 'Stretch Off edits the source.'} Stretch On captures that source: drag its highlighted body or Start to move it, End to stretch without changing pitch. Loop timing and the original sample stay unchanged.`);
+            this.message(`${['D','V','W'].includes(this.label) ? 'Stretch Off: drag the highlighted source section to move it without changing its length; use Start/End to trim.' : 'Stretch Off edits the source.'} Stretch On captures that source: drag its highlighted body or Start to move it, End to stretch without changing pitch. Loop timing and the original sample stay unchanged.`);
             this.element('bastardLoopVCutClose').focus();
             const tick = () => {
                 if (this.overlay.hidden) return;
@@ -710,7 +710,7 @@
         }
     }
 
-    const api = { normalizeGaps, toggleGap, copyGapSection, pasteGapSection, normalize, region, setStretch, setFromStart, randomize, moveBoundary, moveSection, gate, sourcePhase, peaks, timelinePeaks, grids, Editor };
+    const api = { stretchChannels, normalizeGaps, toggleGap, copyGapSection, pasteGapSection, normalize, region, setStretch, setFromStart, randomize, moveBoundary, moveSection, gate, sourcePhase, peaks, timelinePeaks, grids, Editor };
     root.MygrainVocalCut = api;
     if (typeof module === 'object' && module.exports) module.exports = api;
 })(typeof window === 'object' ? window : globalThis);

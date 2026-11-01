@@ -1,6 +1,6 @@
 (function (root) {
     'use strict';
-    const KEYS = Object.freeze(['A', 'B', 'C', 'V', 'W', 'P', 'O', 'L', 'X', 'Q', 'M', 'M+', 'generated', 'sample',
+    const KEYS = Object.freeze(['A', 'B', 'C', 'D', 'V', 'W', 'P', 'O', 'L', 'X', 'Q', 'M', 'M+', 'generated', 'sample',
         'K1', 'K2', 'K3', 'K4', 'K5', 'drumKick', 'drumSnare', 'drumHat', 'drumPerc', 'drumClap', 'drumCymbals', 'drumEtc', 'drumRoll']);
     const TYPES = Object.freeze(['bell', 'lowshelf', 'highshelf', 'highpass', 'lowpass']);
     const SLOPES = Object.freeze([12, 24, 36, 48, 72, 96]);

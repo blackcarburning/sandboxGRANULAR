@@ -739,7 +739,7 @@ def validate_loop_fx(value):
     if value is None:
         return
     keys = {'A', 'B', 'C', 'V', 'W', 'P', 'O', 'L', 'X', 'M', 'M+', 'Q', 'K1', 'K2', 'K3', 'K4', 'K5'}
-    if not isinstance(value, dict) or value.get('version') != 1 or not isinstance(value.get('channels'), dict) or set(value['channels']) not in (keys, keys | {'N'}):
+    if not isinstance(value, dict) or value.get('version') != 1 or not isinstance(value.get('channels'), dict) or set(value['channels']) not in (keys, keys | {'N'}, keys | {'D'}, keys | {'N', 'D'}):
         raise ValueError('Unsupported or incomplete standard loop FX settings.')
     ranges = {'cutoff': (20, 20000), 'resonance': (.1, 4), 'lfoBeats': (1/16, 64), 'lfoDepth': (0, 1), 'room': (0, 1), 'reverbDecay': (.5, 12), 'reverbSize': (0, 1), 'reverbPredelay': (0, 200), 'reverbDamping': (1000, 18000), 'reverbLowcut': (20, 1500), 'reverbWidth': (0, 1), 'delay': (0, 1), 'delayBeats': (1/12, 6), 'feedback': (0, .7), 'delayCutoff': (200, 18000)}
     for channel in value['channels'].values():
@@ -761,7 +761,7 @@ def validate_part_zip(body):
     with zipfile.ZipFile(BytesIO(body)) as archive:
         entries = archive.infolist()
         names = [entry.filename for entry in entries]
-        if len(entries) > 41 or len(set(names)) != len(names):
+        if len(entries) > 42 or len(set(names)) != len(names):
             raise ValueError('Invalid part archive entries.')
         if sum(entry.file_size for entry in entries) > MAX_UPLOAD:
             raise ValueError('Part archive is too large.')
@@ -795,7 +795,7 @@ def validate_part_zip(body):
             raise ValueError('Part is missing its sequencer pattern.')
         assets = snapshot.get('assets')
         # Five K recorder takes add four raw WAVs to a fully loaded part.
-        if not isinstance(assets, list) or len(assets) > 40:
+        if not isinstance(assets, list) or len(assets) > 41:
             raise ValueError('Invalid part audio manifest.')
         keys = set()
         paths = set()
@@ -852,7 +852,7 @@ def validate_part_zip(body):
         return {'bpm': bpm, 'patternSteps': steps, 'patternCycleMultiplier': cycle, 'audioAssets': len(assets), 'contentSha256': digest, **({'loopFxVersion': 1} if state.get('modes', {}).get('loopFx', {}).get('version') == 1 else {}), **({'eqVersion': 1} if eq_active else {}), **({'qVersion': q_render_version(state['q'])} if piano_active else {})}
 
 
-LOOP_LAYERS = ('A', 'B', 'C', 'V', 'W', 'P', 'O', 'L', 'X', 'Q', 'M', 'M+')
+LOOP_LAYERS = ('A', 'B', 'C', 'D', 'V', 'W', 'P', 'O', 'L', 'X', 'Q', 'M', 'M+')
 LOOP_ASSETS = {layer: {f'bastard{layer}'} for layer in LOOP_LAYERS}
 LOOP_ASSETS['Q'].add('qSourceSample')
 LOOP_ASSETS['M'] = {'bastardM', 'bastardMRender'}
@@ -910,6 +910,8 @@ def merged_pattern_cycle(snapshot):
 
 
 def setting_loop_layer(key):
+    if key in ('loopD', 'loopDFill', 'loopDPitch'):
+        return 'D'
     match = re.match(r'^(?:performance)?[bB]astard(?:Loop)?(.*)$', key)
     if not match:
         return None
@@ -917,7 +919,7 @@ def setting_loop_layer(key):
     # K's shared master/legacy controls are not part of loop A or a K track.
     if suffix.startswith('K') and (len(suffix) == 1 or not suffix[1].islower()):
         return None
-    for prefix, layer in [('MPlus', 'M+'), ('2', 'B'), ('3', 'C'), *[(layer, layer) for layer in ('V', 'W', 'P', 'O', 'L', 'X', 'Q', 'M')]]:
+    for prefix, layer in [('MPlus', 'M+'), ('2', 'B'), ('3', 'C'), *[(layer, layer) for layer in ('D', 'V', 'W', 'P', 'O', 'L', 'X', 'Q', 'M')]]:
         if suffix.startswith(prefix) and (len(suffix) == len(prefix) or not suffix[len(prefix)].islower()):
             return layer
     return 'A'
@@ -989,6 +991,8 @@ def paste_loop_archive(destination_body, source_body, layer, eq_map=None):
                 if track in layers:
                     destination['state']['modes']['kMultitrack']['tracks'][index] = copy.deepcopy(
                         source['state']['modes']['kMultitrack']['tracks'][index])
+        if 'D' in layers:
+            destination['state']['modes']['loopD'] = copy.deepcopy(source['state']['modes'].get('loopD'))
         for section in ('modes', 'sliders', 'selects'):
             destination['state'][section] = replace_selected(destination['state'].get(section, {}), source['state'].get(section, {}))
         fx_layers = [key for key in layers if key in LOOP_LAYERS or key in K_TRACKS]

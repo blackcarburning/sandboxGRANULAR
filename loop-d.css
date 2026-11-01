@@ -1,0 +1,12 @@
+#bastardLoopDCard{--d-blue:#168bff;border:2px solid var(--d-blue);background:linear-gradient(145deg,#061b44,#082e64 65%,#061a3b);box-shadow:0 0 22px #008cff25;min-width:0}
+#bastardLoopDCard .instrument-splash{background:linear-gradient(120deg,#0038bc,#007bff 65%,#12aaff);border-color:#37b4ff;color:#f4fcff}
+#bastardLoopDCard .performance-btn{border-color:#168bff;color:#e7f6ff;background:#07346b}
+#bastardLoopDCard .performance-btn.primary{background:#0067ed}
+#bastardLoopDCard .performance-chip{color:#8edaff;border-color:#168bff}
+#bastardLoopDCard input[type=range]{accent-color:#008cff}
+#loopDBrowser{color:#eaf7ff;background:#061c42;border:2px solid #168bff;border-radius:16px;width:min(620px,calc(100vw - 32px));max-width:calc(100vw - 32px);max-height:85dvh;box-sizing:border-box;padding:16px;overflow:auto;z-index:20000}
+#loopDBrowser::backdrop{background:#000b}
+#loopDBrowser input,#loopDBrowser select{box-sizing:border-box;width:100%;min-width:0;max-width:100%;background:#092b58;color:#eef9ff;margin:8px 0}
+#loopDChoices{height:45dvh}#loopDChoices option{white-space:normal;overflow-wrap:anywhere;padding:8px}
+#bastardLoopDCutOverlay .weird-cut-shell{border-color:#168bff}
+@media(max-width:480px){#bastardLoopDCard .performance-actions{display:flex;flex-wrap:wrap}#bastardLoopDCard .performance-actions>*{min-width:0;max-width:100%}}

@@ -1,7 +1,7 @@
 /* One versioned, portable filter / stereo hall / tempo delay for every loop lane. */
 (function(root){
 'use strict';
-const KEYS=['A','B','C','V','W','P','O','L','X','M','M+','K1','K2','K3','K4','K5','Q','N'];
+const KEYS=['A','B','C','D','V','W','P','O','L','X','M','M+','K1','K2','K3','K4','K5','Q','N'];
 const SLOPES=[12,24,36,48,96];
 const clamp=(v,min,max,fallback)=>Number.isFinite(Number(v))?Math.max(min,Math.min(max,Number(v))):fallback;
 const defaults=()=>({pan:0,filterEnabled:true,filterType:'lowpass',filterSlope:48,cutoff:18000,resonance:.707,lfoWave:'sine',lfoBeats:4,lfoDepth:0,lfoInvert:false,room:0,reverbDecay:4.5,reverbSize:.85,reverbPredelay:28,reverbDamping:6500,reverbLowcut:180,reverbWidth:1,delay:0,delayBeats:1,feedback:.25,delayCutoff:9000,pingPong:false});
@@ -11,7 +11,7 @@ function channel(value={}){
  s.reverbEnabled=value.reverbEnabled!==false;s.delayEnabled=value.delayEnabled!==false;s.filterEnabled=value.filterEnabled!==false;s.filterType=value.filterType==='highpass'?'highpass':'lowpass';s.filterSlope=SLOPES.includes(Number(value.filterSlope))?Number(value.filterSlope):d.filterSlope;
  s.lfoWave=['sine','triangle','sawtooth','ramp','square'].includes(value.lfoWave)?value.lfoWave:'sine';s.lfoInvert=value.lfoInvert===true;s.pingPong=value.pingPong===true;return s;
 }
-const prefix={A:'',B:'2',C:'3',V:'V',W:'W',P:'P',O:'O',L:'L',X:'X',M:'M','M+':'MPlus'};
+const prefix={A:'',B:'2',C:'3',D:'D',V:'V',W:'W',P:'P',O:'O',L:'L',X:'X',M:'M','M+':'MPlus'};
 function legacy(state,key){
  if(key==='N')return channel({filterEnabled:false});
  const m=state.modes||state,sl=state.sliders||{},sel=state.selects||{},s=defaults();

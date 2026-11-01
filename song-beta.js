@@ -66,7 +66,7 @@
         return part.sourcePartId || part.id;
     }
 
-    const loopLayers = ['A', 'B', 'C', 'V', 'W', 'P', 'O', 'L', 'X', 'Q', 'M', 'M+'];
+    const loopLayers = ['A', 'B', 'C', 'D', 'V', 'W', 'P', 'O', 'L', 'X', 'Q', 'M', 'M+'];
     const kCopyTracks = ['K1', 'K2', 'K3', 'K4', 'K5'];
     const drumCopyLanes = [
         ['drumKick', 'Kick'], ['drumSnare', 'Snare'], ['drumHat', 'Hat'], ['drumPerc', 'Perc'],

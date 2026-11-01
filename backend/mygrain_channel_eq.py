@@ -1,7 +1,7 @@
 """Additive EQ metadata defaults. No source audio is decoded or rewritten."""
 import math
 
-KEYS = ('A', 'B', 'C', 'V', 'W', 'P', 'O', 'L', 'X', 'Q', 'M', 'M+', 'generated', 'sample',
+KEYS = ('A', 'B', 'C', 'D', 'V', 'W', 'P', 'O', 'L', 'X', 'Q', 'M', 'M+', 'generated', 'sample',
         'K1', 'K2', 'K3', 'K4', 'K5', 'drumKick', 'drumSnare', 'drumHat', 'drumPerc', 'drumClap', 'drumCymbals', 'drumEtc', 'drumRoll')
 TYPES = ('bell', 'lowshelf', 'highshelf', 'highpass', 'lowpass')
 SLOPES = (12, 24, 36, 48, 72, 96)
