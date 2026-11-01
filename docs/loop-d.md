@@ -43,3 +43,9 @@ The separate D picker and its preview AudioContext are no longer used.
 favourite persistence, stopped-engine media preview, real D/V loading, and D
 restore, Undo/Redo, solo/mute, timing, source replacement and audible PCM.
 `tests/loop-d-stop-browser.cjs` checks that Stop silences D and shared previews.
+
+V, D and X now use native audio controls directly, without a separate Preview
+button. Source URLs are session/account pinned; playback is lazy and independent
+of the main transport. Global Stop pauses these widgets without disposing their
+rows; Close and row replacement release them. `tests/v-d-x-native-preview.cjs`
+checks touch Play, advancing media time, Stop/replay and Close in both engines.
