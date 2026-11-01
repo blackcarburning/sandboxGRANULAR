@@ -58,3 +58,16 @@
 .ceq-auto-status { font-size:11px; color:#b7c5ce; }
 #channelEqAutomation { margin-bottom:10px; }
 .channel-eq-entry { flex-wrap:wrap; }
+
+/* Separate the title from the touch actions; never place them under the island. */
+@media (hover: none) and (pointer: coarse) {
+    #channelEqDialog .ceq-head { display:grid; grid-template-columns:minmax(0,1fr) auto auto; padding:12px; gap:10px; }
+    #channelEqDialog h2 { grid-column:1 / -1; min-width:0; overflow-wrap:anywhere; }
+    #channelEqDialog .ceq-head .channel-eq-switch { min-height:44px; font-size:16px; }
+    #channelEqDialog .ceq-action { min-height:44px; }
+    html body #channelEqClose { margin-right:0 !important; max-inline-size:100% !important; }
+    #channelEqDialog .ceq-band input, #channelEqDialog .ceq-band select { font-size:16px; }
+}
+@media (max-width:360px) {
+    #channelEqDialog .ceq-bands { grid-template-columns:minmax(0,1fr); }
+}

@@ -177,3 +177,23 @@ processor transitions. Native IIR crossfades remain the unsupported-worklet fall
 `node tests/eq-live-sweep-browser.cjs` checks manual sweeps on A/X/L in Chromium
 and WebKit, zero graph transitions after preparation, bypass/re-enable and cleanup.
 This is a deterministic PCM/routing check, not a physical phone listening test.
+
+## Popup safe boundaries — v2026.11.01.SAFE.1
+
+All native dialogs and shared popup/browser shells use the `popup-safe-boundaries`
+style in index.html. Touch layouts reserve at least 60px above, 28px below, and
+24px on each side, with larger device safe areas taking precedence. The top
+floor also protects fullscreen iOS Chrome when safe-area env values are zero.
+Native dialogs are positioned within that rectangle; overlay padding and shell
+height limits use the same rectangle, including dynamically mounted editors.
+EQ touch headers use a title row and a separate On / Reset / Close action row.
+At 320px, EQ bands stack; numeric fields use 16px to avoid iOS focus zoom.
+No DSP, saved-part format or server render compatibility changes.
+
+Regression: `node tests/popup-safe-boundaries-browser.cjs` against the isolated
+18967 server with test admin password `isolated-page-scroll`. Covers Chromium
+and WebKit touch layouts at 320/390/430px portrait, 844px landscape and rotation
+back, sticky EQ actions after scrolling, real taps and editor/browser dismissal.
+Private sample mirrors are absent in the fixture: any resulting sample failure
+dialog is checked for safe containment and dismissed before browser tap checks.
+Physical iPhone fullscreen verification remains separate from engine emulation.
