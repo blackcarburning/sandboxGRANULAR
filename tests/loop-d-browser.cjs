@@ -18,6 +18,18 @@ const fit=await p.evaluate(async()=>{
  return {results,original,source,after:await dHash(raw),zeros,cut,sourceKey:bastardLoopDMetadata.sourceKey};
 });assert(fit.results.every(x=>x.frames===x.expected&&x.energy>0));assert(fit.results.filter(x=>x.fill==='single').every(x=>x.repeats===1));assert(fit.results.some(x=>x.repeats>1));assert.equal(fit.original,fit.after);assert(fit.zeros>100);assert.equal(fit.sourceKey,'samples_loops');
 console.log('PASS',engine,'18 exact-frame fit modes and source-preserving gaps');
+// Every speed refits original channel data, including repeated changes back to ×1.
+const speeds=await p.evaluate(async()=>{
+ const d=mygrainD,raw=bastardLoopDBuffer,settings=d.settings(),original=await dHash(raw),stretch=MygrainVocalCut.stretchChannels,calls=[];
+ MygrainVocalCut.stretchChannels=function(input,output,...args){calls.push(input.every((channel,i)=>channel===raw.getChannelData(i)));return stretch.call(this,input,output,...args)};
+ try{const results=[];for(const fill of ['single','repeat']){
+  d.restore({...settings,fill,speed:1,cut:MygrainVocalCut.normalize()});const base=d.repetitions(),normal=await dHash(d.fitted());
+  for(const speed of [2,4,.5,.25,.125,1,4,.125,1]){d.restore({...d.settings(),speed});const b=d.fitted();results.push({speed,fill,repeats:d.repetitions(),expected:base*speed,frames:b.length,exact:Math.round(d.duration()*b.sampleRate),same:speed!==1||normal===await dHash(b),energy:b.getChannelData(0).reduce((n,x)=>n+x*x,0)});}
+ }d.restore({...settings,speed:0});const legacy=d.settings().speed;d.restore({...settings,speed:.5});return{results,calls,legacy,original,after:await dHash(raw),sameSource:raw===bastardLoopDBuffer};}finally{MygrainVocalCut.stretchChannels=stretch}
+});assert(speeds.results.every(x=>x.repeats===x.expected&&x.frames===x.exact&&x.same&&x.energy>0));assert(speeds.calls.length>=18&&speeds.calls.every(Boolean));assert(speeds.sameSource);assert.equal(speeds.original,speeds.after);assert.equal(speeds.legacy,1);
+await p.locator('#loopDSpeed').selectOption('4');assert.equal(await p.evaluate(()=>mygrainD.settings().speed),4);await p.locator('#loopDSpeed').selectOption('1');
+console.log('PASS',engine,'speed multipliers refit original PCM, exact frames, deterministic ×1 and legacy defaults');
+
 // Real browser source selection, history, and local file import share one fitter.
 await p.locator('#loopDBrowse').tap();await p.waitForFunction(()=>document.querySelectorAll('#dropboxSampleBrowserList .sample-browser-card').length===2);const previousPath=await p.evaluate(()=>bastardLoopDMetadata.relativePath),chosen=previousPath.endsWith('Other_120bpm.wav')?'Drums/Bass/Loop_120bpm.wav':'Drums/Bass/Other_120bpm.wav';await p.locator('#dropboxSampleBrowserList .sample-browser-card').filter({hasText:chosen}).getByRole('button',{name:'Load Loop D',exact:true}).tap();await p.waitForFunction(path=>!mygrainD.busy&&!mygrainCardHistory.busy&&bastardLoopDMetadata?.relativePath===path,chosen);
 const beforeUndo=await p.evaluate(()=>dHash(bastardLoopDBuffer));await p.evaluate(()=>mygrainCardHistory.undo());assert.equal(await p.evaluate(()=>bastardLoopDMetadata?.relativePath),previousPath);await p.evaluate(()=>mygrainCardHistory.redo());assert.equal(await p.evaluate(()=>dHash(bastardLoopDBuffer)),beforeUndo);
@@ -43,7 +55,7 @@ const reel=await p.evaluate(async source=>{
 // New D and legacy pre-D parts through real private server render jobs.
 await p.evaluate(force=>window.dForceServer=force,process.env.D_FORCE_SERVER==='1');
 const songs=await p.evaluate(async()=>{
- stopAllPerformancePlayback({silent:true});applyGlobalBpm(240);syncPatternLengthControls(8,{skipSave:true});setFxMuted(true,{silent:true});setLoopLayerSolo('bastardd',{silent:true,skipSave:true});mygrainD.enable(true,{skipSave:true});mygrainD.randomGaps({skipSave:true});
+ stopAllPerformancePlayback({silent:true});applyGlobalBpm(240);syncPatternLengthControls(8,{skipSave:true});setFxMuted(true,{silent:true});setLoopLayerSolo('bastardd',{silent:true,skipSave:true});mygrainD.enable(true,{skipSave:true});mygrainD.restore({...mygrainD.settings(),speed:.5});mygrainD.randomGaps({skipSave:true});
  const c=mygrainSongBeta;document.getElementById('songBetaName').value='Loop D regression';await c.newSong();await c.newPart({name:'D loop',repeats:1});
  // Legacy part uses W PCM and no D settings/audio. No synthetic silence fixture.
  const old=mygrainD.settings();await applyLoadedBastardLoopWBuffer(bastardLoopDBuffer,'Legacy W fixture',{sourceKey:'samples_modular',bpm:240,durationSeconds:bastardLoopDBuffer.duration});mygrainD.restore(null);bastardLoopDBuffer=null;setBastardLoopWEnabled(true,{skipSave:true,silent:true});setLoopLayerSolo('bastardw',{skipSave:true,silent:true});await c.newPart({name:'Pre-D part',repeats:1});await c.finishEditing();
@@ -53,8 +65,8 @@ const songs=await p.evaluate(async()=>{
  await c.recall(c.song.parts[1],{start:false});const legacyOff=!mygrainD.settings().enabled&&!bastardLoopDBuffer;
  await c.recall(c.song.parts[0],{start:false});const restored=!!bastardLoopDBuffer&&mygrainD.settings().enabled;const hashes=c.song.parts.map(x=>x.sha256);
  if(window.dForceServer){c.serverPreparation=true;c.phonePreparation=true;}await c.arm();if(!c.armed)throw Error(document.getElementById('songBetaStatus').textContent);const rms=[];for(const x of c.song.parts){const b=await c.loadRender(x),a=b.getChannelData(0);rms.push(Math.sqrt(a.reduce((n,v)=>n+v*v,0)/a.length))}const renders=c.song.parts.map(x=>x.render.sha256);await c.arm();const warm=c.song.parts.map(x=>x.render.sha256);await c.playSong();const playing=c.playing;c.stop();await c.recall(c.song.parts[0],{start:false});saveState({force:true});await mygrainSongBetaAdapter.whenPersisted();return{legacyOff,restored,hashes,after:c.song.parts.map(x=>x.sha256),rms,renders,warm,playing,settings:mygrainD.settings()};
-});assert(songs.legacyOff&&songs.restored&&songs.playing);assert(songs.rms.every(x=>x>1e-6));assert.deepEqual(songs.hashes,songs.after);assert.deepEqual(songs.renders,songs.warm);
-await p.reload();await start();assert(await p.evaluate(()=>!!bastardLoopDBuffer&&mygrainD.settings().enabled));
+});assert(songs.legacyOff&&songs.restored&&songs.playing);assert.equal(songs.settings.speed,.5);assert(songs.rms.every(x=>x>1e-6));assert.deepEqual(songs.hashes,songs.after);assert.deepEqual(songs.renders,songs.warm);
+await p.reload();await start();assert(await p.evaluate(()=>!!bastardLoopDBuffer&&mygrainD.settings().enabled&&mygrainD.settings().speed===.5));
 for(const size of [{width:390,height:844},{width:844,height:390}]){await p.setViewportSize(size);await p.locator('#loopDCut').scrollIntoViewIfNeeded();await p.locator('#loopDCut').tap();assert(await p.locator('#bastardLoopDCutClose').isVisible());assert(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await p.locator('#bastardLoopDCutClose').tap();}
 console.log('PAGE_ERRORS',engine,JSON.stringify(errors));await p.locator('#bastardLoopDCard').scrollIntoViewIfNeeded();await p.locator('#bastardLoopDCard').screenshot({path:'/tmp/mygrain-d-'+engine+'.png'});assert.deepEqual(errors,[]);console.log('PASS',engine,JSON.stringify({fit,batches,reel,songs}));await ctx.close();
 }finally{await browser.close()}

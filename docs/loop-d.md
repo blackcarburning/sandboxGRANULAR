@@ -49,3 +49,18 @@ button. Source URLs are session/account pinned; playback is lazy and independent
 of the main transport. Global Stop pauses these widgets without disposing their
 rows; Close and row replacement release them. `tests/v-d-x-native-preview.cjs`
 checks touch Play, advancing media time, Stop/replay and Close in both engines.
+
+## Loop-speed correction
+
+Loop speed offers ×1 (default), ×2, ×4, ÷2, ÷4 and ÷8. It multiplies the
+normal source cycle count after Repeat/Single fitting, without changing pitch.
+Fractional cycles are allowed: slow settings may play only the first portion of
+the fitted source before the pattern repeats. Pattern output remains exact-length.
+The fitter always passes original source channels to WSOLA; changing speed back
+to ×1 produces the same PCM as the initial ×1 fit. No derived buffer is persisted
+as source. The speed is in D settings for patches, history and Song rendering;
+legacy settings without it use ×1. Loop-copy routing includes loopDSpeed.
+
+The D browser regression covers all six speeds in both fill modes, repeated
+changes and source hashes, original WSOLA inputs, exact pattern frames, saved
+half-speed server rendering, legacy renders and warm-cache reuse.

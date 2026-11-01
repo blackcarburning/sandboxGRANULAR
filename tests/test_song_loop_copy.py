@@ -243,7 +243,7 @@ class LoopMergeTests(unittest.TestCase):
         self.assertEqual(unpack(target_body)[0], target)
 
     def test_a_prefix_does_not_capture_p_pitch_l_level_or_other_loops(self):
-        examples = {'bastardLoopPitchSemitones': 'A', 'performanceBastardLoopLevel': 'A',
+        examples = {'loopDSpeed': 'D', 'bastardLoopPitchSemitones': 'A', 'performanceBastardLoopLevel': 'A',
                     'performanceBastardDivisionQuarter': 'A', 'bastardLoopMPlusLevel': 'M+',
                     'bastardLoopMLevel': 'M', 'performanceBastardLoop2Level': 'B',
                     'performanceBastard3DivisionHalf': 'C', 'finalVolume': None}

@@ -910,7 +910,7 @@ def merged_pattern_cycle(snapshot):
 
 
 def setting_loop_layer(key):
-    if key in ('loopD', 'loopDFill', 'loopDPitch'):
+    if key in ('loopD', 'loopDFill', 'loopDPitch', 'loopDSpeed'):
         return 'D'
     match = re.match(r'^(?:performance)?[bB]astard(?:Loop)?(.*)$', key)
     if not match:

@@ -3,7 +3,8 @@
 (function(root){
 'use strict';
 const card=document.getElementById('bastardLoopDCard'),el=id=>document.getElementById(id);
-const defaults=()=>({version:1,enabled:false,fill:'repeat',level:.5,pitch:0,reverse:false,shift:0,cut:MygrainVocalCut.normalize(),metadata:null});
+const speedValues=[.125,.25,.5,1,2,4],normalizeSpeed=value=>speedValues.includes(Number(value))?Number(value):1;
+const defaults=()=>({version:1,enabled:false,fill:'repeat',speed:1,level:.5,pitch:0,reverse:false,shift:0,cut:MygrainVocalCut.normalize(),metadata:null});
 let state=defaults(),cache=null,voice=null,revision=0,busy=false,controller=null,preview=false,auditionSerial=0,metroTimer=null,auditionLoops=false,transportWanted=false;
 const metroNodes=new Set();
 const clone=v=>JSON.parse(JSON.stringify(v));
@@ -11,16 +12,17 @@ const duration=()=>getPatternLengthSteps()*60/getTransportClockBpm()/4;
 function settings(){return {...clone(state),metadata:bastardLoopDMetadata?clone(bastardLoopDMetadata):null};}
 function restore(value){
  revision++;controller?.abort();stop({preserveIntent:true});const v=value||{},base=defaults();
- state={...base,enabled:v.enabled===true,fill:v.fill==='single'?'single':'repeat',level:Math.max(0,Math.min(1,Number.isFinite(v.level)?v.level:.5)),pitch:Math.max(-24,Math.min(24,Number(v.pitch)||0)),reverse:v.reverse===true,shift:Math.round(Number(v.shift)||0),cut:MygrainVocalCut.normalize(v.cut)};
+ state={...base,enabled:v.enabled===true,fill:v.fill==='single'?'single':'repeat',speed:normalizeSpeed(v.speed),level:Math.max(0,Math.min(1,Number.isFinite(v.level)?v.level:.5)),pitch:Math.max(-24,Math.min(24,Number(v.pitch)||0)),reverse:v.reverse===true,shift:Math.round(Number(v.shift)||0),cut:MygrainVocalCut.normalize(v.cut)};
  bastardLoopDMetadata=v.metadata||null;cache=null;if(transportWanted&&bastardLoopPlaying)update();else sync();
 }
 function repetitions(buffer=bastardLoopDBuffer){
- if(!buffer||state.fill==='single')return 1;
+ if(!buffer)return 1;
+ if(state.fill==='single')return state.speed;
  const name=bastardLoopDMetadata?.fileName||bastardLoopDMetadata?.filename||'';
  const match=name.match(/(?:^|[^0-9])(\d{2,3})(?:[ _-]*bpm)(?:\b|_)/i);
  const nativeBpm=Number(bastardLoopDMetadata?.sourceBpm||match?.[1])||getTransportClockBpm();
  const naturalSeconds=buffer.duration*nativeBpm/getTransportClockBpm();
- return Math.max(1,Math.min(getPatternLengthSteps()*2,Math.round(duration()/naturalSeconds)));
+ return Math.max(1,Math.min(getPatternLengthSteps()*2,Math.round(duration()/naturalSeconds)))*state.speed;
 }
 function fitted(){
  const raw=bastardLoopDBuffer;if(!raw||!audioContext){cache=null;return null;}
@@ -74,7 +76,7 @@ function gapSettings(base=state.cut,random=Math.random,amount=3){
 function randomGaps(options={}){if(!bastardLoopDBuffer)throw Error('Load a loop in D first.');return cut(gapSettings(),options);}
 function sync(){
  if(!card)return;
- el('loopDFill').value=state.fill;for(const id of ['performanceBastardLoopDLevel','performanceBastardLoopDCardLevel'])el(id).value=String(state.level*100);el('performanceBastardLoopDLevelValue').textContent=Math.round(state.level*100)+'%';const layerToggle=el('performanceBastardLoopDToggleBtn');layerToggle.classList.toggle('layer-muted',!state.enabled);layerToggle.textContent=state.enabled?'Loop D On':'Loop D Off';layerToggle.setAttribute('aria-pressed',String(state.enabled));const layerSolo=el('performanceBastardLoopDLayerSoloBtn');layerSolo.textContent=hasLoopLayerSolo('bastardd')?'Solo On':'Solo Off';layerSolo.setAttribute('aria-pressed',String(hasLoopLayerSolo('bastardd')));el('loopDPitch').value=state.pitch;
+ el('loopDFill').value=state.fill;el('loopDSpeed').value=String(state.speed);for(const id of ['performanceBastardLoopDLevel','performanceBastardLoopDCardLevel'])el(id).value=String(state.level*100);el('performanceBastardLoopDLevelValue').textContent=Math.round(state.level*100)+'%';const layerToggle=el('performanceBastardLoopDToggleBtn');layerToggle.classList.toggle('layer-muted',!state.enabled);layerToggle.textContent=state.enabled?'Loop D On':'Loop D Off';layerToggle.setAttribute('aria-pressed',String(state.enabled));const layerSolo=el('performanceBastardLoopDLayerSoloBtn');layerSolo.textContent=hasLoopLayerSolo('bastardd')?'Solo On':'Solo Off';layerSolo.setAttribute('aria-pressed',String(hasLoopLayerSolo('bastardd')));el('loopDPitch').value=state.pitch;
  el('loopDPitchValue').textContent=state.pitch+' st';el('loopDLevelValue').textContent=Math.round(state.level*100)+'%';el('loopDShiftValue').textContent=state.shift;
  for(const [id,on,label]of[['loopDToggle',state.enabled,'D'],['loopDReverse',state.reverse,'Reverse']]){el(id).textContent=label+(on?' On':' Off');el(id).setAttribute('aria-pressed',String(on));}
  const solo=hasLoopLayerSolo('bastardd');el('loopDSolo').textContent=solo?'Solo On':'Solo Off';el('loopDSolo').setAttribute('aria-pressed',String(solo));
@@ -128,7 +130,7 @@ handle('loopDReverse',()=>edit('D reverse',()=>{state.reverse=!state.reverse;cac
 for(const [id,dir]of [['loopDShiftLeft',-1],['loopDShiftRight',1]])handle(id,()=>edit('D shift',()=>{state.shift+=dir;update();saveState()}));
 handle('loopDCut',()=>editor.open());handle('loopDGaps',()=>edit('D random gaps',()=>randomGaps()));
 el('loopDFile').addEventListener('change',e=>{const file=e.target.files[0];if(file)edit('D import loop',()=>load({file})).catch(e=>setStatus(e.message,'error'));e.target.value=''});
-for(const [id,event,field,convert]of [['loopDFill','change','fill',v=>v],['performanceBastardLoopDLevel','input','level',v=>Number(v)/100],['performanceBastardLoopDCardLevel','input','level',v=>Number(v)/100],['loopDPitch','input','pitch',Number]])el(id).addEventListener(event,e=>{state[field]=convert(e.target.value);if(field!=='level')cache=null;update({gainOnly:field==='level'});saveState()});
+for(const [id,event,field,convert]of [['loopDFill','change','fill',v=>v],['loopDSpeed','change','speed',normalizeSpeed],['performanceBastardLoopDLevel','input','level',v=>Number(v)/100],['performanceBastardLoopDCardLevel','input','level',v=>Number(v)/100],['loopDPitch','input','pitch',Number]])el(id).addEventListener(event,e=>{state[field]=convert(e.target.value);if(field!=='level')cache=null;update({gainOnly:field==='level'});saveState()});
 function stopBrowserPreview(){
  if([SAMPLE_BROWSER_TARGETS.bastardLoopD,SAMPLE_BROWSER_TARGETS.bastardLoopV,SAMPLE_BROWSER_TARGETS.bastardLoopX].includes(dropboxSampleBrowserTarget))document.querySelectorAll('#dropboxSampleBrowserList audio').forEach(audio=>{if(audio.__mygrainPreview?.stop)audio.__mygrainPreview.stop();else audio.pause()});
 }
