@@ -1,6 +1,8 @@
 # T · Turntable
 
 Sepia record-player card after Final Stage, before Wasp (flex order 98; Wasp 99).
+T · Turntable appears in the shared desktop/iPhone Jump menu after Pan Lab.
+There is deliberately no Turntable shortcut in the iPhone edge controls.
 
 ## Sound and routing
 

@@ -51,6 +51,7 @@
         'wave-a': '#c6dbb1',
         'wave-b': '#dec1e7',
         wasp: 'repeating-linear-gradient(125deg, #ffdc38 0px, #ffdc38 16px, #e23c30 16px, #e23c30 28px)',
+        turntable: '#c19a67',
         pan: '#efc4cf'
     });
     const foreground = '#f2f6ff';
@@ -98,6 +99,7 @@
         '[aria-label="Bastardloop M+ controls"]': 'loop-m-plus',
         '#bastardLoopKCard': 'loop-k',
         '#noiseCard': 'noise-n',
+        '#turntableCard': 'turntable',
         '[aria-label="Bastardloop K controls"]': 'loop-k',
         '[aria-label="Drum machine controls"]': 'drums',
         '[aria-label="Dropbox sample layer controls"]': 'sample',
