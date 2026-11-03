@@ -41,8 +41,8 @@ The current engine is used by both browser and server Song preparation. Module
 preload and the asynchronous restore barrier complete before capture. Render
 cleanup releases T independently of the shared parent context. Delay memory is
 included in preparation estimates. Backend validation rejects invalid ranges and
-needle identifiers. Active T settings add `turntableEngineRevision: 1` to the
-content hash. Bypassed T metadata is omitted, so unchanged pre-T renders remain
+needle identifiers. Active T settings add `turntableEngineRevision` to the content hash: revision 2
+when wow or flutter is nonzero, otherwise revision 1. Bypassed T metadata is omitted, so unchanged pre-T renders remain
 reusable. No source ZIP migration or production Song rewrite is required.
 
 ## Verification
@@ -60,3 +60,18 @@ reusable. No source ZIP migration or production Song rewrite is required.
   unchanged immutable sources, zero reservations and removed render frames.
 
 Browser emulation does not establish physical iPhone audio/thermal behavior.
+
+## Audible pitch range (PITCH.2)
+
+Wow delay excursion is 18 ms × amount, flutter is 1.2 ms × amount.
+The causal centre moves from 8 to 26 ms with the greater smoothed control;
+zero modulation retains the original 8 ms delay and identical PCM. The existing
+80 ms ring still bounds memory. Typical 440 Hz measurements at the unchanged
+default controls: wow 22% is about −30/+26 cents, flutter 14% about ±18 cents.
+Each control at full scale spans roughly 250 cents peak-to-peak.
+
+Native worklet PCM checks: `node tests/turntable-pitch-browser.cjs` (Chromium
+and WebKit). Real server current/legacy pitch fixtures: `node
+tests/turntable-pitch-song-browser.cjs`. Both use the isolated port-19083 store.
+Active pitch-modulated parts use content revision 2; disabled T and active T
+with both modulation controls at zero retain their existing cache identity.

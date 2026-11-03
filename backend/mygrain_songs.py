@@ -839,7 +839,7 @@ def validate_part_zip(body):
         if not state['modes'].get('turntable', {}).get('enabled'):
             content['state']['modes'].pop('turntable', None)
         else:
-            content['turntableEngineRevision'] = 1
+            content['turntableEngineRevision'] = 2 if any(state['modes']['turntable'].get(key, 0) > 0 for key in ('wow', 'flutter')) else 1
         # Bypassed EQ edits must not invalidate an otherwise identical legacy render.
         content['state']['modes'].pop('channelEq', None)
         if not state['modes'].get('wasp', {}).get('enabled'):

@@ -13,8 +13,10 @@ class Engine{
   for(const k of Object.keys(limits))this.current[k]+=(s[k]-this.current[k])*slew;
   const c=this.current,age=Math.max(0,Math.min(1,(TODAY-c.year)/(TODAY-1920))),old=s.needle==='old',cutoff=Math.min(rate*.42,18000*Math.pow(1500/18000,age)*(old?.67:1)),lp=1-Math.exp(-2*Math.PI*cutoff/rate),hp=1-Math.exp(-2*Math.PI*(18+age*110+(old?35:0))/rate);
   const t=this.phase/rate,drift=Math.sin(2*Math.PI*.556*t)+.22*Math.sin(2*Math.PI*.83*t),flutter=Math.sin(2*Math.PI*7.7*t)+.3*Math.sin(2*Math.PI*11.3*t);
-  // Fractional-delay speed variation: shared stereo trajectory preserves image.
-  const excursion=rate*(.0035*c.wow*drift+.00023*c.flutter*flutter),delay=rate*.008+excursion,n=this.buffers[0].length,read=(this.index-delay+n)%n,i=Math.floor(read),mix=read-i;
+  // Audible pitch drift, not a parallel chorus. At full scale each control
+  // spans roughly a semitone or more; an 8–26ms centre keeps both reads causal.
+  // Shared stereo trajectory preserves the image; the 80ms ring bounds memory.
+  const excursion=rate*(.018*c.wow*drift+.0012*c.flutter*flutter),delay=rate*(.008+.018*Math.max(c.wow,c.flutter))+excursion,n=this.buffers[0].length,read=(this.index-delay+n)%n,i=Math.floor(read),mix=read-i;
   if(this.random()<c.clicks*2.6/rate)this.pop+=(this.random()*2-1)*(.025+.12*c.clicks);
   if(this.random()<c.crackle*700/rate)this.dust+=(this.random()*2-1)*.014*c.crackle;
   this.pop*=Math.exp(-1/(rate*.0018));this.dust*=Math.exp(-1/(rate*.0003));

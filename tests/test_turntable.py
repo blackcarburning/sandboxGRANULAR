@@ -1,5 +1,6 @@
 import copy
 import json
+import inspect
 import subprocess
 import unittest
 from pathlib import Path
@@ -36,6 +37,19 @@ class TurntableTests(unittest.TestCase):
         self.assertNotEqual(active, legacy)
         settings['year'] = 1990
         self.assertNotEqual(active, digest(settings))
+
+    def test_pitch_revision_refreshes_only_pitch_modulated_parts(self):
+        namespace = dict(SONGS.__dict__)
+        original = inspect.getsource(SONGS.validate_part_zip).replace(
+            "2 if any(state['modes']['turntable'].get(key, 0) > 0 for key in ('wow', 'flutter')) else 1", "1")
+        exec(original, namespace)
+        value = self.settings()
+        value['enabled'] = True
+        body = rewrite_part(part_zip(), lambda p: p['state']['modes'].update(turntable=value))
+        self.assertNotEqual(SONGS.validate_part_zip(body)['contentSha256'], namespace['validate_part_zip'](body)['contentSha256'])
+        value['wow'] = value['flutter'] = 0
+        body = rewrite_part(part_zip(), lambda p: p['state']['modes'].update(turntable=value))
+        self.assertEqual(SONGS.validate_part_zip(body)['contentSha256'], namespace['validate_part_zip'](body)['contentSha256'])
 
 if __name__ == '__main__':
     unittest.main()
