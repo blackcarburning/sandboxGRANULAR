@@ -231,7 +231,7 @@
         frame.title = 'Isolated song audio renderer';
         frame.setAttribute('aria-hidden', 'true');
         frame.style.cssText = 'position:fixed;width:1200px;height:900px;opacity:0;pointer-events:none;z-index:-1;top:0;left:0;border:0';
-        frame.srcdoc = html.replace(/<script\b[^>]*\bsrc\s*=\s*["']https?:\/\/[^>]*>[\s\S]*?<\/script>/gi, '').replace('<head>', `<head><base href="${base.href}"><script src="song-beta-render-deck.js?v=20261025-wasp-1"><\/script>`);
+        frame.srcdoc = html.replace(/<script\b[^>]*\bsrc\s*=\s*["']https?:\/\/[^>]*>[\s\S]*?<\/script>/gi, '').replace('<head>', `<head><base href="${base.href}"><script src="song-beta-render-deck.js?v=20261103-turntable-1"><\/script>`);
         root.document.body.append(frame);
         let capture, cancelRecording;
         try {
@@ -253,11 +253,13 @@
             deck.saveAudioBufferToDB = async () => {};
             deck.clearAudioBufferFromDB = async () => {};
             await waitWithAbort(deck.mygrainWasp?.prepare(context, part.snapshot.state.modes.wasp), signal);
+            await waitWithAbort(deck.mygrainTurntable?.prepare(context, part.snapshot.state.modes.turntable), signal);
             deck.mygrainSongBetaAdapter.recall(part, { start: false });
             // Load the current persistent EQ DSP before scheduling the first
             // voice; asynchronous cold IIR-to-worklet swaps must not be baked in.
             if (deck.mygrainChannelEq) await waitWithAbort(deck.mygrainChannelEq.prepareAutomation('X', context), signal);
             await waitWithAbort(deck.mygrainWasp?.whenReady(), signal);
+            await waitWithAbort(deck.mygrainTurntable?.whenReady(), signal);
             if (deck.mygrainQ?.playable()) {
                 await waitWithAbort(deck.mygrainQ.preparePlayback(), signal);
                 deck.mygrainQ.ensureGraph();

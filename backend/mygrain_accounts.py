@@ -28,6 +28,7 @@ SEED_HASHES = {
 CURRENT_USER = contextvars.ContextVar('mygrain_account', default=None)
 USERNAME_PATTERN = re.compile(r'[a-z0-9][a-z0-9_-]{0,31}')
 PUBLIC_FILES = {
+    'turntable-dsp.js', 'turntable-worklet.js', 'turntable.js', 'turntable-ui.js', 'turntable.css',
     'loop-d.js', 'loop-d.css',
     'ftp.html', 'private-ftp.js', 'private-ftp.css', 'daw-export.js', 'daw-export.css',
     'index.html', 'manual.html', 'q-scales.json',

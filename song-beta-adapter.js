@@ -336,6 +336,7 @@
         const modes = prepared.modes;
         if (window.MygrainChannelEq) modes.channelEq = window.MygrainChannelEq.normalize(modes.channelEq);
         if (window.MygrainWasp) modes.wasp = window.MygrainWasp.normalize(modes.wasp);
+        if (window.MygrainTurntable) modes.turntable = window.MygrainTurntable.normalize(modes.turntable);
         prepared.sliders = {
             performanceKeyboardSampleVolume: '100',
             performanceBastardLoopLReverbMix: '0',
@@ -458,6 +459,7 @@
             }
             await ensurePatchZipAudioReady();
             await window.mygrainWasp?.whenReady();
+            await window.mygrainTurntable?.whenReady();
             while (engineStarting || stateSaveSuspended) {
                 if (Date.now() > deadline) throw new Error('Wait for MYGRAIN to finish restoring its current state, then try again.');
                 await new Promise(resolve => setTimeout(resolve, 25));
@@ -475,6 +477,7 @@
 
         async capture({ liveOnly = false } = {}) {
             await window.mygrainWasp?.whenReady();
+            await window.mygrainTurntable?.whenReady();
             if (!isAudioGraphReady() || engineStarting || stateSaveSuspended) throw new Error('Start MYGRAIN and let its current sounds finish loading before saving a part.');
             adapter.assertNotRecording();
             flushPendingSliderUpdates();
@@ -496,7 +499,7 @@
                     performanceSourceLayerSolo: cloneJson(performanceSourceLayerSolo),
                     performanceSourceLayerSoloSnapshot: cloneJson(performanceSourceLayerSoloSnapshot),
                     controls: Array.from(document.querySelectorAll('input[type="checkbox"], input[type="number"], input[type="radio"]'))
-                        .filter(input => input.id && !input.closest('#songBetaCard, #aiPatchCard, #bastardLoopCutOverlay, #bastardLoop2CutOverlay, #bastardLoop3CutOverlay, #bastardLoopVCutOverlay, #bastardLoopWCutOverlay, #bastardLoopDCutOverlay, #bastardLoopPCutOverlay, #bastardLoopOCutOverlay, #qArpOverlay, #qChordEditorOverlay, #drumMachineLane-roll, #kTrackControlSection, #channelEqDialog, .loop-fx, #waspCard'))
+                        .filter(input => input.id && !input.closest('#songBetaCard, #aiPatchCard, #bastardLoopCutOverlay, #bastardLoop2CutOverlay, #bastardLoop3CutOverlay, #bastardLoopVCutOverlay, #bastardLoopWCutOverlay, #bastardLoopDCutOverlay, #bastardLoopPCutOverlay, #bastardLoopOCutOverlay, #qArpOverlay, #qChordEditorOverlay, #drumMachineLane-roll, #kTrackControlSection, #channelEqDialog, .loop-fx, #waspCard, #turntableCard'))
                         .map(input => ({ id: input.id, type: input.type, value: input.value, checked: input.checked })),
                     metadata: Object.fromEntries(metadataBindings.map(([key, getMetadata]) => [key, cloneJson(getMetadata())]))
                 },
@@ -544,7 +547,7 @@
             // repair. Arm can use this normalized snapshot and existing renders
             // without copying an entire source ZIP just to add empty audio slots.
             const explicitOnly = lanes.length > 0 && lanes.every(lane => ['D loop', 'K five-track recorder', 'W loop', 'Loop filters / space'].includes(lane));
-            const fxBytes = (window.MygrainLoopFx?.estimatedBytes(snapshot.state.modes.loopFx, audioContext.sampleRate) || 0) + (window.MygrainNoise?.estimatedBytes(audioContext.sampleRate) || 0);
+            const fxBytes = (snapshot.state.modes.turntable?.enabled ? Math.ceil(audioContext.sampleRate * .08) * 2 * 4 : 0) + (window.MygrainLoopFx?.estimatedBytes(snapshot.state.modes.loopFx, audioContext.sampleRate) || 0) + (window.MygrainNoise?.estimatedBytes(audioContext.sampleRate) || 0);
             return { snapshot, decodedBytes, fxBytes, upgrade: lanes.length ? { lanes, explicitOnly } : null };
         },
 
@@ -556,6 +559,7 @@
         async decode(arrayBuffer, cache) {
             const { snapshot } = adapter.inspectPart(arrayBuffer);
             await window.mygrainWasp?.prepare(audioContext, snapshot.state.modes.wasp);
+            await window.mygrainTurntable?.prepare(audioContext, snapshot.state.modes.turntable);
             const entries = parseStoredZipEntries(arrayBuffer);
             const allowed = new Set(audioBindings.map(([key]) => key));
             const buffers = new Map();
@@ -818,7 +822,7 @@
                 syncPatternLengthControls(snapshot.state.patternLength, { skipSave: true });
                 for (const control of snapshot.extra.controls || []) {
                     const input = document.getElementById(control.id);
-                    if (!input || input.closest('#songBetaCard, #aiPatchCard, #bastardLoopCutOverlay, #bastardLoop2CutOverlay, #bastardLoop3CutOverlay, #bastardLoopVCutOverlay, #bastardLoopWCutOverlay, #bastardLoopDCutOverlay, #bastardLoopPCutOverlay, #bastardLoopOCutOverlay, #qArpOverlay, #qChordEditorOverlay, #drumMachineLane-roll, #kTrackControlSection, #channelEqDialog, .loop-fx, #waspCard') || input.type !== control.type) continue;
+                    if (!input || input.closest('#songBetaCard, #aiPatchCard, #bastardLoopCutOverlay, #bastardLoop2CutOverlay, #bastardLoop3CutOverlay, #bastardLoopVCutOverlay, #bastardLoopWCutOverlay, #bastardLoopDCutOverlay, #bastardLoopPCutOverlay, #bastardLoopOCutOverlay, #qArpOverlay, #qChordEditorOverlay, #drumMachineLane-roll, #kTrackControlSection, #channelEqDialog, .loop-fx, #waspCard, #turntableCard') || input.type !== control.type) continue;
                     if (input.type === 'checkbox' || input.type === 'radio') input.checked = Boolean(control.checked);
                     else input.value = control.value;
                     input.dispatchEvent(new Event('change', { bubbles: true }));
@@ -1067,6 +1071,8 @@
                 } finally { busy = false; update(); }
             }
             try {
+                // Reset inside the history transaction, never on a rejected UI click.
+                if (!aiPatch && /random|re-cut|^Loop [QOX] (pattern|cut)$|^(Clap|Cymbals|Etc|Roll) pattern$/i.test(label)) { window.mygrainTurntable?.off(); }
                 const result = action();
                 if (result?.then) return Promise.resolve(result).then(value => { finish(); return value; }, error => { finish(!aiPatch); throw error; });
                 finish(); return result;
@@ -1243,7 +1249,10 @@
         ]);
         for (const [name, label] of Object.entries(actions)) {
             const original = window[name];
-            if (typeof original === 'function') window[name] = function (...args) { return run(label, () => original.apply(this, args), false, false, draftActions.has(name)); };
+            if (typeof original === 'function') window[name] = function (...args) { return run(label, () => {
+                if (/random|generat|^loadBastardLoop[LX]SampleFromSource$|^loadDropboxSampleLayerFromSource$/i.test(name)) { window.mygrainTurntable?.off(); }
+                return original.apply(this, args);
+            }, false, false, draftActions.has(name)); };
         }
         update();
     }

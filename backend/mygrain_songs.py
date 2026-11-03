@@ -781,6 +781,7 @@ def validate_part_zip(body):
         if not isinstance(state, dict) or not isinstance(state.get('modes'), dict) or not isinstance(extra, dict):
             raise ValueError('Part is missing its complete settings snapshot.')
         validate_wasp(state['modes'].get('wasp'))
+        validate_turntable(state['modes'].get('turntable'))
         validate_loop_fx(state['modes'].get('loopFx'))
         eq = CHANNEL_EQ.normalize(state['modes'].get('channelEq'))
         eq_active = any(CHANNEL_EQ.audible(channel) for channel in eq['channels'].values())
@@ -835,6 +836,10 @@ def validate_part_zip(body):
         content = {key: value for key, value in snapshot.items() if key != 'createdAt'}
         content['state'] = {key: value for key, value in state.items() if key != 'timestamp'}
         content['state']['modes'] = dict(state['modes'])
+        if not state['modes'].get('turntable', {}).get('enabled'):
+            content['state']['modes'].pop('turntable', None)
+        else:
+            content['turntableEngineRevision'] = 1
         # Bypassed EQ edits must not invalidate an otherwise identical legacy render.
         content['state']['modes'].pop('channelEq', None)
         if not state['modes'].get('wasp', {}).get('enabled'):
@@ -1448,3 +1453,18 @@ def validate_wasp(value):
             raise ValueError('Invalid Wasp end filter.')
         for name, low, high in [('cutoff',30,18000),('resonance',.5,4),('highpass',20,18000),('lowpass',30,20000),('rate',.02,20),('sweep',0,5),('envelope',-4,4),('attack',.5,500),('release',5,2000)]:
             bounded(f,name,low,high)
+
+
+def validate_turntable(value):
+    if value is None:
+        return
+    if not isinstance(value, dict) or value.get('version') != 1 or type(value.get('enabled')) is not bool:
+        raise ValueError('Invalid Turntable settings.')
+    if value.get('needle') not in ('old', 'modern'):
+        raise ValueError('Invalid Turntable needle.')
+    from datetime import datetime, timezone
+    limits = {'year': (1920, datetime.now(timezone.utc).year), 'wow': (0, 1), 'flutter': (0, 1), 'hum': (0, 1), 'clicks': (0, 1), 'crackle': (0, 1), 'wear': (0, 1), 'output': (-18, 3)}
+    for key, (low, high) in limits.items():
+        number = value.get(key)
+        if type(number) not in (int, float) or not low <= number <= high:
+            raise ValueError('Invalid Turntable ' + key + '.')

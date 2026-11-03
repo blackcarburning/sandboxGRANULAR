@@ -1,0 +1,41 @@
+import copy
+import json
+import subprocess
+import unittest
+from pathlib import Path
+from test_song_backend import SONGS, part_zip, rewrite_part
+
+ROOT = Path(__file__).resolve().parents[1]
+
+class TurntableTests(unittest.TestCase):
+    def settings(self):
+        return json.loads(subprocess.check_output(['node', '-e', "console.log(JSON.stringify(require('./turntable-dsp.js').defaults()))"], cwd=ROOT))
+
+    def test_defaults_and_legacy(self):
+        SONGS.validate_turntable(None)
+        SONGS.validate_turntable(self.settings())
+
+    def test_invalid_settings(self):
+        for key, value in [('enabled', 1), ('year', 1900), ('year', 9999), ('needle', 'broken'), ('hum', float('nan')), ('wow', 2), ('output', -99)]:
+            settings = self.settings()
+            settings[key] = value
+            with self.subTest(key=key), self.assertRaises(ValueError):
+                SONGS.validate_turntable(settings)
+
+    def test_bypass_reuses_legacy_hash_and_active_edits_invalidate(self):
+        body = part_zip()
+        settings = self.settings()
+        def digest(value):
+            return SONGS.validate_part_zip(rewrite_part(body, lambda p: p['state']['modes'].update(turntable=value)))['contentSha256']
+        legacy = SONGS.validate_part_zip(body)['contentSha256']
+        self.assertEqual(digest(settings), legacy)
+        settings['year'] = 1920
+        self.assertEqual(digest(settings), legacy)
+        settings['enabled'] = True
+        active = digest(settings)
+        self.assertNotEqual(active, legacy)
+        settings['year'] = 1990
+        self.assertNotEqual(active, digest(settings))
+
+if __name__ == '__main__':
+    unittest.main()
