@@ -1,9 +1,9 @@
 (function(root){
 'use strict';
 const TODAY=new Date().getFullYear();
-const defaults=()=>({version:1,enabled:false,year:1975,needle:'modern',wow:.22,flutter:.14,hum:.12,clicks:.16,crackle:.18,wear:.35,output:0});
+const defaults=()=>({version:1,enabled:false,route:'mix',year:1975,needle:'modern',wow:.22,flutter:.14,hum:.12,clicks:.16,crackle:.18,wear:.35,output:0});
 const limits={year:[1920,TODAY],wow:[0,1],flutter:[0,1],hum:[0,1],clicks:[0,1],crackle:[0,1],wear:[0,1],output:[-18,3]};
-function normalize(value){const s=defaults();if(value&&typeof value==='object'){s.enabled=value.enabled===true;s.needle=value.needle==='old'?'old':'modern';for(const[k,[lo,hi]]of Object.entries(limits)){const v=value[k];if(typeof v==='number'&&Number.isFinite(v))s[k]=Math.max(lo,Math.min(hi,v));}}return s;}
+function normalize(value){const s=defaults();if(value&&typeof value==='object'){s.enabled=value.enabled===true;s.route=value.route==='drums'?'drums':'mix';s.needle=value.needle==='old'?'old':'modern';for(const[k,[lo,hi]]of Object.entries(limits)){const v=value[k];if(typeof v==='number'&&Number.isFinite(v))s[k]=Math.max(lo,Math.min(hi,v));}}return s;}
 class Engine{
  constructor(rate,settings,seed=1931){this.rate=rate;this.settings=normalize(settings);this.seed=seed>>>0;this.index=0;this.phase=0;this.pop=0;this.dust=0;this.alive=true;this.buffers=[new Float32Array(Math.ceil(rate*.08)),new Float32Array(Math.ceil(rate*.08))];this.filters=[new Float64Array(5),new Float64Array(5)];this.current={...this.settings};}
  random(){this.seed=(Math.imul(this.seed,1664525)+1013904223)>>>0;return this.seed/4294967296;}

@@ -17,7 +17,7 @@ class TurntableTests(unittest.TestCase):
         SONGS.validate_turntable(self.settings())
 
     def test_invalid_settings(self):
-        for key, value in [('enabled', 1), ('year', 1900), ('year', 9999), ('needle', 'broken'), ('hum', float('nan')), ('wow', 2), ('output', -99)]:
+        for key, value in [('enabled', 1), ('year', 1900), ('year', 9999), ('needle', 'broken'), ('route', 'vocals'), ('hum', float('nan')), ('wow', 2), ('output', -99)]:
             settings = self.settings()
             settings[key] = value
             with self.subTest(key=key), self.assertRaises(ValueError):
@@ -37,6 +37,19 @@ class TurntableTests(unittest.TestCase):
         self.assertNotEqual(active, legacy)
         settings['year'] = 1990
         self.assertNotEqual(active, digest(settings))
+
+    def test_route_hash_compatibility(self):
+        value = self.settings()
+        value['enabled'] = True
+        def digest(v):
+            return SONGS.validate_part_zip(rewrite_part(part_zip(), lambda p: p['state']['modes'].update(turntable=v)))['contentSha256']
+        legacy = dict(value)
+        legacy.pop('route')
+        self.assertEqual(digest(value), digest(legacy))
+        value['route'] = 'drums'
+        self.assertNotEqual(digest(value), digest(legacy))
+        value['enabled'] = legacy['enabled'] = False
+        self.assertEqual(digest(value), digest(legacy))
 
     def test_pitch_revision_refreshes_only_pitch_modulated_parts(self):
         namespace = dict(SONGS.__dict__)

@@ -839,7 +839,10 @@ def validate_part_zip(body):
         if not state['modes'].get('turntable', {}).get('enabled'):
             content['state']['modes'].pop('turntable', None)
         else:
-            content['turntableEngineRevision'] = 2 if any(state['modes']['turntable'].get(key, 0) > 0 for key in ('wow', 'flutter')) else 1
+            content['state']['modes']['turntable'] = dict(state['modes']['turntable'])
+            if state['modes']['turntable'].get('route', 'mix') == 'mix':
+                content['state']['modes']['turntable'].pop('route', None)
+            content['turntableEngineRevision'] = 3 if state['modes']['turntable'].get('route') == 'drums' else 2 if any(state['modes']['turntable'].get(key, 0) > 0 for key in ('wow', 'flutter')) else 1
         # Bypassed EQ edits must not invalidate an otherwise identical legacy render.
         content['state']['modes'].pop('channelEq', None)
         if not state['modes'].get('wasp', {}).get('enabled'):
@@ -1460,6 +1463,8 @@ def validate_turntable(value):
         return
     if not isinstance(value, dict) or value.get('version') != 1 or type(value.get('enabled')) is not bool:
         raise ValueError('Invalid Turntable settings.')
+    if value.get('route', 'mix') not in ('mix', 'drums'):
+        raise ValueError('Invalid Turntable route.')
     if value.get('needle') not in ('old', 'modern'):
         raise ValueError('Invalid Turntable needle.')
     from datetime import datetime, timezone

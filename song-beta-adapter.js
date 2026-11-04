@@ -547,7 +547,7 @@
             // repair. Arm can use this normalized snapshot and existing renders
             // without copying an entire source ZIP just to add empty audio slots.
             const explicitOnly = lanes.length > 0 && lanes.every(lane => ['D loop', 'K five-track recorder', 'W loop', 'Loop filters / space'].includes(lane));
-            const fxBytes = (snapshot.state.modes.turntable?.enabled ? Math.ceil(audioContext.sampleRate * .08) * 2 * 4 : 0) + (window.MygrainLoopFx?.estimatedBytes(snapshot.state.modes.loopFx, audioContext.sampleRate) || 0) + (window.MygrainNoise?.estimatedBytes(audioContext.sampleRate) || 0);
+            const fxBytes = (snapshot.state.modes.turntable?.enabled ? Math.ceil(audioContext.sampleRate * .08) * 2 * 4 * (snapshot.state.modes.turntable.route === 'drums' ? 3 : 1) : 0) + (window.MygrainLoopFx?.estimatedBytes(snapshot.state.modes.loopFx, audioContext.sampleRate) || 0) + (window.MygrainNoise?.estimatedBytes(audioContext.sampleRate) || 0);
             return { snapshot, decodedBytes, fxBytes, upgrade: lanes.length ? { lanes, explicitOnly } : null };
         },
 

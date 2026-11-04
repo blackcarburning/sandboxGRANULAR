@@ -6,11 +6,23 @@ There is deliberately no Turntable shortcut in the iPhone edge controls.
 
 ## Sound and routing
 
-The final compressor's stable output feeds a unity routing junction. When T is
-OFF it connects directly to that junction; no Turntable worklet or modulation
-sources are allocated. When explicitly enabled, one stereo AudioWorklet is
-inserted before the junction. Wasp's final master insert follows it. Layer-level
-Wasp cross modulation remains upstream in its existing locations.
+Route defaults to **Whole mix · includes drums**. The final compressor's stable
+output feeds a unity routing junction, followed by Wasp. Direct Out drums,
+sidechain-kick bypass audio and the separate drum effect returns already reach
+this master insert; Direct Out only bypasses earlier processing.
+
+**Drums only · dry + returns** bypasses the master T insert and instead inserts
+T on the main drum bus, the sidechain-kick bypass bus and drum FX return. Each
+branch is processed once, with clock-aligned wow/flutter. Surface noise is added
+only on the main bus, avoiding tripled hum/click/crackle. Non-drum layers do not
+pass through T. The drum return insert precedes latency/panning, so Pan Lab
+rewiring cannot bypass it. Direct Out changes detach old route links first.
+
+OFF directly connects all routing junctions; zero Turntable processors or
+modulation sources remain allocated. Selecting a route alone never enables T.
+Drums-only treatment occurs before shared final processing; Whole mix remains
+the after-Final-Stage / before-Wasp insert. Routing is saved with the patch,
+history and Song part. Missing legacy route defaults to Whole mix.
 
 `turntable-dsp.js` owns the DSP shared by the live engine and isolated Song deck:
 fractional-delay wow/flutter, 50 Hz hum with a quiet 100 Hz harmonic, stochastic
@@ -41,8 +53,10 @@ The current engine is used by both browser and server Song preparation. Module
 preload and the asynchronous restore barrier complete before capture. Render
 cleanup releases T independently of the shared parent context. Delay memory is
 included in preparation estimates. Backend validation rejects invalid ranges and
-needle identifiers. Active T settings add `turntableEngineRevision` to the content hash: revision 2
-when wow or flutter is nonzero, otherwise revision 1. Bypassed T metadata is omitted, so unchanged pre-T renders remain
+needle identifiers. Active T settings add `turntableEngineRevision` to the content hash: revision 3
+for Drums only; Whole mix retains revision 2 when wow or flutter is nonzero,
+otherwise revision 1. The default mix route is omitted from hashing, preserving
+existing active-T cache identities. Bypassed T metadata is omitted, so unchanged pre-T renders remain
 reusable. No source ZIP migration or production Song rewrite is required.
 
 ## Verification
@@ -75,3 +89,13 @@ and WebKit). Real server current/legacy pitch fixtures: `node
 tests/turntable-pitch-song-browser.cjs`. Both use the isolated port-19083 store.
 Active pitch-modulated parts use content revision 2; disabled T and active T
 with both modulation controls at zero retain their existing cache identity.
+
+## Drum-route verification
+
+- `node tests/turntable-drums-browser.cjs`: native Chromium/WebKit PCM through
+  real main, Direct Out, sidechain-kick and drum-return graph junctions;
+  non-drum isolation, exclusive route processors, route changes and cleanup.
+- `node tests/turntable-drums-song-browser.cjs`: actual kick sample scheduling
+  through real isolated server jobs, current Drums only versus legacy Whole mix
+  with no route metadata; pitch analysis, warm reuse, playback and archive/hash
+  preservation. No production Songs or accounts are changed.
