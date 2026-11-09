@@ -14,16 +14,16 @@ binary=args.bundle/'Contents/x86_64-win/MYGRAIN Bridge.vst3'
 assert binary.read_bytes()[:2]==b'MZ'
 metadata=json.loads((args.bundle/'Contents/Resources/moduleinfo.json').read_text())
 assert metadata['Classes'][0]['CID']=='5DF4D5FA7A0E4BC6B61AE9056DA13821'
-assert metadata['Version']=='0.5.0'
+assert metadata['Version']=='0.6.0'
 files={p.relative_to(args.bundle.parent).as_posix():p.read_bytes() for p in args.bundle.rglob('*') if p.is_file()}
 assert set(files)=={'MYGRAIN Bridge.vst3/Contents/x86_64-win/MYGRAIN Bridge.vst3','MYGRAIN Bridge.vst3/Contents/Resources/moduleinfo.json'}
 files['SETUP.html']=(args.setup or app/'vst3-setup.html').read_bytes()
-assert b'0.5.0' in files['SETUP.html'] and b'Playback mode' in files['SETUP.html']
+assert b'0.6.0' in files['SETUP.html'] and b'Playback mode' in files['SETUP.html']
 files['VERIFICATION.txt']=args.verification.read_bytes()
 files['LICENSES/Steinberg-VST3-SDK-MIT.txt']=(args.sdk/'LICENSE.txt').read_bytes()
 for filename,destination in [('/usr/share/common-licenses/GPL-3','GPL-3.txt'),('/usr/share/doc/gcc-mingw-w64-base/copyright','GCC-MinGW-copyright-and-runtime-exception.txt'),('/usr/share/doc/mingw-w64-common/copyright','MinGW-w64-copyright.txt')]:
     files['LICENSES/'+destination]=pathlib.Path(filename).read_bytes()
-files['README-FIRST.txt']=b'''MYGRAIN Bridge 0.5.0 - Windows x64 VST3 preview
+files['README-FIRST.txt']=b'''MYGRAIN Bridge 0.6.0 - Windows x64 VST3 preview
 
 1. Extract this ZIP.
 2. Copy the WHOLE "MYGRAIN Bridge.vst3" folder into:
@@ -53,12 +53,14 @@ Preview limits: real Windows DAW testing still pending; live patch output
 stream plus optional prepared DAW-loop snapshot. Preparation uses whole-number
 BPM 1-300. Offline output is supported only for a prepared loop, not live stream.
 No DAW automation.
-Save/load your MYGRAIN patch ZIP separately; DAW recall does not embed it.
+Press Store MYGRAIN in project in Chrome, wait for Ready for DAW save,
+then save your DAW project. Reopen it and connect Chrome to recall the patch.
+The snapshot embeds settings and required samples. Later edits need Store again.
 Keep Chrome connected. Live first start uses a future bar; edits have buffering
 delay. Loops/seeks do not reset Live, even without host cycle metadata.
 Tempo/meter changes, stop/restart or starvation can still cause a re-arm gap.
-Rendered mode has no live edits: refresh after changes. Rendered audio is RAM
-only and is NOT saved in the DAW project. See VERIFICATION.txt.
+Rendered mode has no live edits: refresh after changes. Store in Rendered mode
+also embeds the retained loop; native timeline/offline playback needs no Chrome. See VERIFICATION.txt.
 
 To remove: close the DAW and remove the copied .vst3 folder, then re-scan.
 '''

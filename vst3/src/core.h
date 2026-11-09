@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <vector>
 #include "prepared.h"
+#include "project.h"
 #include "fx.h"
 #include <memory>
 
@@ -58,6 +59,7 @@ public:
     explicit Engine(bool effect=false){if(effect)fx=std::make_unique<FxTransport>();}
     AudioRing ring;
     PreparedBank prepared;
+    ProjectStore project;
     std::atomic<bool> preparedMode{false};
     std::atomic<uint32_t> preparedRevision{0}, preparedFrames{0};
     std::atomic<double> preparedBeats{0}, preparedBpm{120};
@@ -103,7 +105,7 @@ public:
         const auto now=clock.load(std::memory_order_relaxed);
         const auto cmd=command.exchange(0);
         if(fx){
-            const bool available=connected.load()&&browserReady.load()&&armed.load()&&!h.offline&&active.load();
+            const bool available=connected.load()&&browserReady.load()&&!project.recallPending.load()&&armed.load()&&!h.offline&&active.load();
             running.store(fx->process(l,r,inputLeft,inputRight,frames,h.rate,now,available,cmd,generation));
             clock.store(now+std::max(0,frames),std::memory_order_release);return;
         }
@@ -134,8 +136,8 @@ public:
         if(cmd==4||cmd==6){holding=false;renderedRequested=cmd==6;preparedMode.store(renderedRequested&&prepared.valid());preparedAudition=false;reset();}
         if(preparedMode.load(std::memory_order_relaxed)) {
             if(cmd==1){preparedAudition=true;auditionBeat=0;}
-            if(cmd==2||cmd==3||cmd==5||cmd==6||cmd==7||stopped||!connected.load())preparedAudition=false;
-            const bool audible=!holding&&connected.load()&&armed.load()&&(h.playing||preparedAudition)&&h.musicalValid&&std::isfinite(h.ppq)&&h.tempo>=1&&h.tempo<=300;
+            if(cmd==2||cmd==3||cmd==5||cmd==6||cmd==7||stopped)preparedAudition=false;
+            const bool audible=!holding&&(connected.load()||project.rendered.load())&&armed.load()&&(h.playing||preparedAudition)&&h.musicalValid&&std::isfinite(h.ppq)&&h.tempo>=1&&h.tempo<=300;
             const double beatStep=h.tempo/(60.*std::max(1.,h.rate));
             double beat=h.playing?h.ppq:auditionBeat;
             for(int i=0;i<frames;++i){
@@ -158,7 +160,7 @@ public:
         // Live is a continuous performance, NOT a timeline reader. Preserve the
         // queue at every loop/seek, even when the host omits cycle metadata.
         // Explicit stop/start, tempo changes and real starvation still re-arm.
-        const bool available=connected.load()&&browserReady.load()&&!h.offline&&!renderedRequested&&!holding;
+        const bool available=connected.load()&&browserReady.load()&&!project.recallPending.load()&&!h.offline&&!renderedRequested&&!holding;
         const bool becameAvailable=available&&!wasLiveAvailable;wasLiveAvailable=available;
         if(cmd==5){reset();preparedAudition=false;}
         if(cmd==2 || (cmd==3&&!h.playing) || stopped || !available || !armed.load()) {

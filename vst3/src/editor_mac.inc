@@ -61,7 +61,7 @@
         detailLabel=[self label:@"" x:30 y:445 width:720 size:13];
         leftMeter=[self meterX:607 y:405];rightMeter=[self meterX:607 y:423];
         if(mygrain::isFx){inputLeft=[self meterX:607 y:38];inputRight=[self meterX:607 y:56];[self label:@"STEREO INPUT" x:608 y:77 width:145 size:10];}
-        [self label:mygrain::isFx?@"macOS UNIVERSAL VST3 FX · 0.1.0 PREVIEW · 1,000 ms aligned delay":@"macOS UNIVERSAL VST3 · 0.5.0 PREVIEW · Live / Rendered" x:30 y:510 width:590 size:10];
+        [self label:mygrain::isFx?@"macOS UNIVERSAL VST3 FX · 0.2.0 PREVIEW · 1,000 ms aligned delay":@"macOS UNIVERSAL VST3 · 0.6.0 PREVIEW · Live / Rendered" x:30 y:510 width:590 size:10];
         [self button:@"Disconnect" tag:105 x:626 y:490 width:128 color:[NSColor systemGrayColor]];
         timer=[[NSTimer alloc] initWithFireDate:[NSDate dateWithTimeIntervalSinceNow:.1] interval:.1 target:self selector:@selector(tick:) userInfo:nil repeats:YES];
         [[NSRunLoop mainRunLoop] addTimer:timer forMode:NSRunLoopCommonModes];[self tick:nil];
@@ -89,7 +89,7 @@
         case 101:if(!e.connected.load()){bridge->enable();pendingOpen=true;}break;
         case 102:bridge->enable();pendingCopy=true;break;
         case 106:e.requestArm();break;
-        case 103:if(e.connected.load()&&e.browserReady.load())e.requestStart();break;
+        case 103:if((e.connected.load()&&e.browserReady.load())||e.project.rendered.load())e.requestStart();break;
         case 104:e.requestStop();break;
         case 105:e.browserReady.store(false);e.connected.store(false);e.requestPause();break;
     }}catch(...){detailLabel.stringValue=@"The local bridge could not start. Try reopening the plugin.";}
@@ -103,6 +103,7 @@
     const bool connected=e.connected.load(),ready=e.browserReady.load(),armed=e.armed.load();
     NSString *title=@"Make the connection.",*detail=@"Open Chrome. Sign in normally, allow local-network access, and press Start MYGRAIN if asked.";
     if(bridge->server&&!bridge->server->port())title=@"Starting the local bridge…";
+    else if(!mygrain::isFx&&e.project.rendered.load()&&e.preparedMode.load()){title=armed?@"Saved Rendered loop · DAW ready":@"Saved Rendered loop · stopped";detail=@"Audio is stored in the project. Open Chrome to recall the editable patch.";}
     else if(bridge->server&&!connected)title=armed?@"Armed · waiting for Chrome":@"Waiting for Chrome";
     else if(connected&&!ready)title=@"Chrome connected · enabling audio";
     else if(connected){
@@ -122,7 +123,7 @@
     if(![openButton.title isEqualToString:openTitle])openButton.title=openTitle;
     NSString* armTitle=armed?@"Armed · follow DAW":@"Arm · follow DAW";
     if(![armButton.title isEqualToString:armTitle])armButton.title=armTitle;
-    const bool canPlay=connected&&ready,canStop=connected||armed;
+    const bool canPlay=(connected&&ready)||(!mygrain::isFx&&e.project.rendered.load()),canStop=connected||armed;
     if(playButton.enabled!=canPlay)playButton.enabled=canPlay;
     if(stopButton.enabled!=canStop)stopButton.enabled=canStop;
     auto update=[](NSLevelIndicator* meter,float peak){if(!meter)return;const double level=std::clamp((20.*std::log10(std::max(.00001f,peak))+60.)/60.,0.,1.);if(std::abs(meter.doubleValue-level)>.005)meter.doubleValue=level;};

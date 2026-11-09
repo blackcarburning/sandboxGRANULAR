@@ -96,21 +96,55 @@ public:
         return kResultOk;
     }
     tresult PLUGIN_API setActive(TBool state) override {if(!state)engine.requestPause();return kResultOk;}
+    static bool readBytes(IBStream* stream,void* target,size_t bytes){
+        auto* p=static_cast<char*>(target);while(bytes){int32 n=0;const auto want=int32(std::min<size_t>(bytes,65536));stream->read(p,want,&n);if(n<=0||n>want)return false;p+=n;bytes-=n;}return true;
+    }
+    static bool writeBytes(IBStream* stream,const void* source,size_t bytes){
+        auto* p=static_cast<const char*>(source);while(bytes){int32 n=0;const auto want=int32(std::min<size_t>(bytes,65536));if(stream->write(const_cast<char*>(p),want,&n)!=kResultOk||n<=0||n>want)return false;p+=n;bytes-=n;}return true;
+    }
     tresult PLUGIN_API setState(IBStream* stream) override {
         if(!stream)return kInvalidArgument;
-        if(isFx){uint32_t data[4]{};int32 read=0;if(stream->read(data,sizeof(data),&read)!=kResultOk||read!=sizeof(data)||data[0]!=0x3158474d||data[1]!=1||(data[2]&~3u)||data[3]>1000000)return kResultFalse;if(!engine.armExplicitlyChosen.load())engine.armed.store((data[2]&1u)!=0);engine.fx->bypass.store((data[2]&2u)!=0);setParamNormalized(100,(data[2]&2u)?1:0);engine.fx->mix.store(data[3]/1000000.);engine.requestPause();return kResultOk;}
-        uint32_t data[2]{};int32 read=0;if(stream->read(data,sizeof(data),&read)!=kResultOk||read!=sizeof(data)||data[0]!=0x3142474d||(data[1]!=1&&data[1]!=2))return kResultFalse;
-        if(data[1]==2){uint32_t flags=0;if(stream->read(&flags,sizeof(flags),&read)!=kResultOk||read!=sizeof(flags)||(flags&~1u))return kResultFalse;if(!engine.armExplicitlyChosen.load())engine.armed.store((flags&1u)!=0);}
-        // Host state/lifecycle refreshes are not an explicit user disarm.
-        engine.requestPause();return kResultOk;
+        try {
+            uint32_t first[2]{};if(!readBytes(stream,first,sizeof(first))||first[0]!=(isFx?0x3158474du:0x3142474du))return kResultFalse;
+            uint32_t flags=0,mix=1000000;bool modern=first[1]==(isFx?2u:3u);
+            if(!modern&&!(first[1]==1||(!isFx&&first[1]==2)))return kResultFalse;
+            if(isFx||first[1]>=2)if(!readBytes(stream,&flags,4)||(flags&~(modern?7u:isFx?3u:1u)))return kResultFalse;
+            if(isFx||modern)if(!readBytes(stream,&mix,4)||mix>1000000)return kResultFalse;
+            std::shared_ptr<SavedProject> value;
+            if(modern){
+                uint32_t header[4]{};double timing[2]{};
+                if(!readBytes(stream,header,sizeof(header))||!readBytes(stream,timing,sizeof(timing))||header[0]>maxProjectBytes||header[3]>maxPreparedFrames)return kResultFalse;
+                const bool rendered=(flags&4u)!=0;
+                if(header[0]){
+                    value=std::make_shared<SavedProject>();value->crc=header[1];value->rendered=rendered;value->document.resize(header[0]);
+                    if(!readBytes(stream,value->document.data(),value->document.size())||!validProjectDocument(value->document)||projectCrc(value->document.data(),value->document.size())!=value->crc)return kResultFalse;
+                    if(rendered){
+                        if(isFx)return kResultFalse;
+                        auto loop=std::make_shared<SavedLoop>();loop->rate=header[2];loop->beats=timing[0];loop->bpm=timing[1];loop->pcm.resize(size_t(header[3])*2);
+                        if(!readBytes(stream,loop->pcm.data(),loop->pcm.size()*4)||!validSavedLoop(*loop))return kResultFalse;
+                        value->loop=loop;
+                    }else if(header[2]||header[3]||timing[0]||timing[1])return kResultFalse;
+                }else if(rendered||header[1]||header[2]||header[3]||timing[0]||timing[1])return kResultFalse;
+                // Parsing completes before changing active state. Publication allocates
+                // here, never in process(), and safely replaces a not-yet-adopted slot.
+                if(value&&value->loop){auto pcm=value->loop->pcm;if(!engine.prepared.publish(std::move(pcm),value->loop->rate,value->loop->beats,value->loop->bpm,engine.project.revision.load()+1,true))return kResultFalse;}
+                engine.project.restore(value);engine.browserReady.store(false);
+                if(!isFx){if(value&&value->rendered)engine.requestRendered();else engine.requestLive();}
+            }
+            if(!engine.armExplicitlyChosen.load())engine.armed.store((flags&1u)!=0);
+            if(isFx){engine.fx->bypass.store((flags&2u)!=0);setParamNormalized(100,(flags&2u)?1:0);engine.fx->mix.store(mix/1000000.);}
+            if(!modern||isFx)engine.requestPause();return kResultOk;
+        }catch(const std::exception&){return kResultFalse;}
     }
     tresult PLUGIN_API getState(IBStream* stream) override {
         if(!stream)return kInvalidArgument;
-        if(isFx){uint32_t data[4]{0x3158474d,1,(engine.armed.load()?1u:0u)|(engine.fx->bypass.load()?2u:0u),uint32_t(std::llround(engine.fx->mix.load()*1000000))};int32 written=0;return stream->write(data,sizeof(data),&written)==kResultOk&&written==sizeof(data)?kResultOk:kResultFalse;}
-        uint32_t data[3]{0x3142474d,2,engine.armed.load()?1u:0u};int32 written=0;
-        return stream->write(data,sizeof(data),&written)==kResultOk&&written==sizeof(data)?kResultOk:kResultFalse;
+        const auto value=engine.project.get();const auto loop=value?value->loop:nullptr;
+        uint32_t first[8]{isFx?0x3158474du:0x3142474du,isFx?2u:3u,(engine.armed.load()?1u:0u)|(isFx&&engine.fx->bypass.load()?2u:0u)|(value&&value->rendered?4u:0u),isFx?uint32_t(std::llround(engine.fx->mix.load()*1000000)):1000000u,value?uint32_t(value->document.size()):0,value?value->crc:0,loop?loop->rate:0,loop?uint32_t(loop->pcm.size()/2):0};
+        double timing[2]{loop?loop->beats:0,loop?loop->bpm:0};
+        return writeBytes(stream,first,sizeof(first))&&writeBytes(stream,timing,sizeof(timing))&&(!value||writeBytes(stream,value->document.data(),value->document.size()))&&(!loop||writeBytes(stream,loop->pcm.data(),loop->pcm.size()*4))?kResultOk:kResultFalse;
     }
-    tresult PLUGIN_API setComponentState(IBStream* stream) override {return isFx?setState(stream):kResultOk;}
+    // Single-component plugin: controller state must not reapply processor state.
+    tresult PLUGIN_API setComponentState(IBStream*) override {return kResultOk;}
     // A scheduled source has no input-path latency. Its first sample is presented
     // at the chosen DAW bar; the 350 ms browser lookahead is NOT reported as PDC.
     uint32 PLUGIN_API getLatencySamples() override {return isFx?engine.fx->latency(engine.sampleRate.load()):0;}
@@ -169,8 +203,8 @@ public:
 #endif
 BEGIN_FACTORY_DEF("MYGRAIN","https://openclaw.blackcarburning.com/mygrain/","mailto:claw@blackcarburning.com")
 #ifdef MYGRAIN_FX
-DEF_CLASS2(INLINE_UID(0x80192c74,0x1fca4fa0,0xa638de42,0xf66c7d18),PClassInfo::kManyInstances,kVstAudioEffectClass,"MYGRAIN FX",0,"Fx|Filter","0.1.0",kVstVersionString,mygrain::Bridge::create)
+DEF_CLASS2(INLINE_UID(0x80192c74,0x1fca4fa0,0xa638de42,0xf66c7d18),PClassInfo::kManyInstances,kVstAudioEffectClass,"MYGRAIN FX",0,"Fx|Filter","0.2.0",kVstVersionString,mygrain::Bridge::create)
 #else
-DEF_CLASS2(INLINE_UID(0x5df4d5fa,0x7a0e4bc6,0xb61ae905,0x6da13821),PClassInfo::kManyInstances,kVstAudioEffectClass,"MYGRAIN Bridge",0,"Instrument|Synth","0.5.0",kVstVersionString,mygrain::Bridge::create)
+DEF_CLASS2(INLINE_UID(0x5df4d5fa,0x7a0e4bc6,0xb61ae905,0x6da13821),PClassInfo::kManyInstances,kVstAudioEffectClass,"MYGRAIN Bridge",0,"Instrument|Synth","0.6.0",kVstVersionString,mygrain::Bridge::create)
 #endif
 END_FACTORY

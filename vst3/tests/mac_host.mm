@@ -16,6 +16,7 @@
 #include <iostream>
 #include <thread>
 using namespace Steinberg;using namespace Steinberg::Vst;
+#include "project_state_checks.h"
 static NSButton* button(NSView* view,NSInteger tag){for(NSView* child in view.subviews){if([child isKindOfClass:[NSButton class]]&&child.tag==tag)return (NSButton*)child;if(auto* result=button(child,tag))return result;}return nil;}
 int main(int argc,char**argv){@autoreleasepool{
  if(argc<3)return 2;[NSApplication sharedApplication];
@@ -74,7 +75,8 @@ int main(int argc,char**argv){@autoreleasepool{
   }
  }}
  running=false;audio.join();
- MemoryStream state;if(component->getState(&state)!=kResultOk||state.getSize()!=(fx?16:12))return 12;state.seek(0,IBStream::kIBSeekSet,nullptr);if(component->setState(&state)!=kResultOk)return 13;
+ MemoryStream state;if(component->getState(&state)!=kResultOk||state.getSize()<48)return 12;state.seek(0,IBStream::kIBSeekSet,nullptr);if(component->setState(&state)!=kResultOk)return 13;
+ if(!checkProjectState(factory,info,host,component,state))return 14;
  std::cout<<"LATENCY="<<processor->getLatencySamples()<<" STATE_BYTES="<<state.getSize()<<std::endl;
  view->removed();view->release();[window release];processor->setProcessing(false);component->setActive(false);controller->release();processor->release();component->terminate();component->release();factory->release();
  } // Drain AppKit event autoreleases before unloading Objective-C class code.

@@ -59,6 +59,7 @@ void BridgeView::tick(){
     const auto previousTitle=stateTitle,previousDetail=stateDetail;
     if(!owner.server){stateTitle=L"Make the connection.";stateDetail=L"Open Chrome. Your connection code is filled in and connected automatically.";}
     else if(!owner.server->port()){stateTitle=L"Starting your bridge...";stateDetail=L"Preparing a private connection on this computer.";}
+    else if(!isFx&&e.project.rendered.load()&&e.preparedMode.load()){stateTitle=e.armed.load()?L"Saved Rendered loop - DAW ready":L"Saved Rendered loop - stopped";stateDetail=L"Audio is stored in the project. Open Chrome to recall the editable patch.";}
     else if(!connected){stateTitle=armed?L"Armed - waiting for Chrome":L"Waiting for Chrome";stateDetail=L"Open MYGRAIN in Chrome, or use Copy code for a manual connection.";}
     else if(!ready){stateTitle=L"Chrome connected - enabling audio";stateDetail=L"If Chrome asks, press Start MYGRAIN once. Then load your patch.";}
     else if(isFx&&e.offline.load()){stateTitle=L"Offline - delayed dry fallback";stateDetail=L"MYGRAIN FX needs real-time export. The one-second delay remains compensated.";}
@@ -74,7 +75,7 @@ void BridgeView::tick(){
     // Update only on transitions, never on every meter tick.
     auto enable=[&](int id,bool value){auto button=GetDlgItem(window,id);if(bool(IsWindowEnabled(button))!=value)EnableWindow(button,value);};
     auto label=[&](int id,const wchar_t* value){auto button=GetDlgItem(window,id);wchar_t current[128]{};GetWindowTextW(button,current,128);if(std::wcscmp(current,value)!=0)SetWindowTextW(button,value);};
-    enable(101,!connected&&GetTickCount64()>=launchCooldown);enable(106,true);enable(103,connected&&ready);enable(104,connected||armed);
+    enable(101,!connected&&GetTickCount64()>=launchCooldown);enable(106,true);enable(103,(connected&&ready)||(!isFx&&e.project.rendered.load()));enable(104,connected||armed||e.project.rendered.load());
     label(101,connected?L"Chrome connected":GetTickCount64()<launchCooldown?L"Opening Chrome...":L"Open MYGRAIN in Chrome");
     label(106,armed?L"Armed - follow DAW":L"Arm - follow DAW");
     const uint32_t flags=uint32_t(connected)|(uint32_t(e.preparedMode.load())<<1);
@@ -110,7 +111,7 @@ void BridgeView::paint(HDC dc){
     if(isFx){const float peaks[]={owner.engine.fx->inputLeft.load(),owner.engine.fx->inputRight.load()};SolidBrush inputBar(Color(255,80,214,211));for(int ch=0;ch<2;ch++){SolidBrush trough(Color(255,34,49,69));g.FillRectangle(&trough,622,90+ch*9,130,5);g.FillRectangle(&inputBar,622,90+ch*9,int(130*std::clamp(peaks[ch],0.f,1.f)),5);}words(g,L"STEREO IN",622,105,130,8,mutedInk,false,true);}
     words(g,L"STEREO OUT",623,450,130,9,mutedInk,false,true);
     Pen divider(Color(255,44,58,78));g.DrawLine(&divider,28,494,752,494);
-    words(g,isFx?L"WINDOWS VST3 FX   /   0.1.0 PREVIEW":L"WINDOWS VST3   /   0.5.0 PREVIEW",28,511,345,10,mutedInk);
+    words(g,isFx?L"WINDOWS VST3 FX   /   0.2.0 PREVIEW":L"WINDOWS VST3   /   0.6.0 PREVIEW",28,511,345,10,mutedInk);
     words(g,isFx?L"1,000 ms / aligned dry + wet":L"Live edits. Rendered precision.",407,510,205,11,mutedInk,false,true);
     Graphics target(dc);target.DrawImage(&buffer,0,0);
 }
@@ -141,7 +142,7 @@ LRESULT CALLBACK BridgeView::windowProc(HWND hwnd,UINT msg,WPARAM w,LPARAM l){
             case 101:if(!self->owner.engine.connected.load()){try{self->owner.enable();self->openPending=true;self->tick();}catch(...){MessageBoxW(hwnd,L"The local bridge could not start.",L"MYGRAIN",MB_OK);}}return 0;
             case 102:try{self->owner.enable();self->copyPending=true;self->tick();}catch(...){}return 0;
             case 106:self->owner.engine.requestArm();return 0;
-            case 103:if(self->owner.engine.connected.load()&&self->owner.engine.browserReady.load())self->owner.engine.requestStart();return 0;
+            case 103:if((self->owner.engine.connected.load()&&self->owner.engine.browserReady.load())||self->owner.engine.project.rendered.load())self->owner.engine.requestStart();return 0;
             case 104:self->owner.engine.requestStop();return 0;
             case 105:self->owner.engine.browserReady.store(false);self->owner.engine.connected.store(false);self->owner.engine.requestPause();return 0;
         }}

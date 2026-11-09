@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Test actual packaged Mach-O, AppKit editor, socket transport and callback PCM."""
-import array,json,math,os,pathlib,socket,struct,subprocess,sys,time
+import array,json,math,os,pathlib,socket,struct,subprocess,sys,time,io,zipfile,zlib
 host,bundle,output=sys.argv[1:];out=pathlib.Path(output);out.parent.mkdir(parents=True,exist_ok=True)
 p=subprocess.Popen([host,bundle,output],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
 log=[]
@@ -41,6 +41,13 @@ if not fx:
  for first in range(0,frames,4096):
   count=min(4096,frames-first);send(struct.pack('<IIIId',0x324c474d,1,48000,count,float(first))+pcm[first*2:(first+count)*2].tobytes(),2)
  send('rendered')
+# Native protocol/state fixture; real editable browser recall is tested separately.
+archive=io.BytesIO()
+with zipfile.ZipFile(archive,'w') as z:z.writestr('song-part.json','{"nativeStateFixture":true}')
+settings=json.dumps({'format':'mygrain-daw-project','version':1,'kind':'fx' if fx else 'bridge'}).encode();patch=archive.getvalue()
+document=struct.pack('<IIII',0x3150474d,1,len(settings),len(patch))+settings+patch
+send(f'project-begin:41:{len(document)}:{zlib.crc32(document)}:{0 if fx else 1}')
+send(struct.pack('<IIII',0x3153474d,41,0,len(document))+document,2)
 start=time.monotonic();reopened=False;stopped=False;offline=False;shot=False
 while time.monotonic()-start<9:
  elapsed=time.monotonic()-start
@@ -58,7 +65,7 @@ while time.monotonic()-start<9:
   samples=array.array('f',(v*.25 for v in samples))
   send(struct.pack('<IIIId',0x3352474d,epoch,rate,n,first)+samples.tobytes(),2);returned+=n
 control('quit');ws.close();tail,_=p.communicate(timeout=12);log.append(tail);print(tail)
-assert p.returncode==0 and 'NATIVE_HOST_OK' in tail, ('native host exit',p.returncode,tail)
+assert p.returncode==0 and 'PROJECT_STATE_CHECKS_OK' in tail and 'NATIVE_HOST_OK' in tail, ('native host exit',p.returncode,tail)
 assert len(clocks)>100 and any(c['armed'] for c in clocks) and any(not c['armed'] for c in clocks[-30:])
 assert any(c['running'] for c in clocks), 'no native playback'
 assert any(c['offline'] for c in clocks)
@@ -74,5 +81,5 @@ if fx:
 else:
  assert abs(lrms-.12/math.sqrt(2))<.004 and abs(rrms-.08/math.sqrt(2))<.004,(lrms,rrms)
  assert abs(rms_segment(7.1,7.4,0)-.12/math.sqrt(2))<.004,'prepared offline audio'
-summary={'bundle':bundle,'nativeHost':True,'editorReopen':True,'savedStateRoundtrip':True,'offlineFallback':fx,'preparedOffline':not fx,'leftRms':lrms,'rightRms':rrms,'returnedFrames':returned,'clockMessages':len(clocks)}
+summary={'bundle':bundle,'nativeHost':True,'editorReopen':True,'savedStateRoundtrip':True,'embeddedSnapshot':True,'corruptAndTruncatedStateRejected':True,'freshRenderedOfflineWithoutChrome':not fx,'offlineFallback':fx,'preparedOffline':not fx,'leftRms':lrms,'rightRms':rrms,'returnedFrames':returned,'clockMessages':len(clocks)}
 pathlib.Path(output+'.json').write_text(json.dumps(summary,indent=2));print(json.dumps(summary))

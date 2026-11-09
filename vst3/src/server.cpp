@@ -100,6 +100,7 @@ std::string clockMessage(Engine& e) {
       <<",\"underruns\":"<<e.underflows.load()<<",\"overflows\":"<<e.overflows.load()<<",\"received\":"<<e.received.load()<<",\"leadMs\":350"
       <<",\"prepared\":"<<(e.preparedMode.load()?"true":"false")<<",\"loopRevision\":"<<e.preparedRevision.load()
       <<",\"loopFrames\":"<<e.preparedFrames.load()<<",\"loopBeats\":"<<e.preparedBeats.load()<<",\"loopBpm\":"<<e.preparedBpm.load()
+      <<",\"projectState\":1,\"projectRevision\":"<<e.project.revision.load()<<",\"projectBytes\":"<<e.project.bytes.load()<<",\"projectRendered\":"<<(e.project.rendered.load()?"true":"false")
       <<",\"stickyArm\":true,\"browserReady\":"<<(e.browserReady.load()?"true":"false")<<",\"continuousLive\":true,\"selectRendered\":true,\"timelineJumps\":"<<e.timelineJumps.load()<<",\"cycleWraps\":"<<e.cycleWraps.load()<<",\"cycleActive\":"<<(e.hostCycleActive.load()?"true":"false")
       <<",\"cycleStart\":"<<e.hostCycleStart.load()<<",\"cycleEnd\":"<<e.hostCycleEnd.load()<<"}";
     auto text=o.str();
@@ -161,11 +162,25 @@ void Server::loop() {
         uint32_t packetEpoch=0,packetRate=0;uint64_t expectedFrame=0;
         uint32_t uploadId=0,uploadRate=0,uploadFrames=0,uploadCursor=0;
         double uploadBeats=0,uploadBpm=120;std::vector<float> upload;
+        uint32_t projectId=0,projectSize=0,projectCursor=0,projectHash=0;bool projectRendered=false;
+        std::vector<uint8_t> projectUpload;
+        uint32_t downloadId=0,downloadCursor=0;std::shared_ptr<const SavedProject> download;
+        auto projectDeadline=std::chrono::steady_clock::now();
         auto lastClock=std::chrono::steady_clock::now()-std::chrono::seconds(1);
         bool live=true;
         while(live&&!quit.load()&&engine.connected.load()) {
             const auto now=std::chrono::steady_clock::now();
             if(now-lastClock>=std::chrono::milliseconds(25)){if(!sendFrame(client,1,clockMessage(engine)))break;lastClock=now;}
+            if(projectId&&now>projectDeadline){projectId=0;projectUpload.clear();if(!sendFrame(client,1,"{\"type\":\"projectError\",\"message\":\"Snapshot upload expired; previous snapshot retained.\"}"))break;}
+            // Send at most one bounded chunk per turn; never monopolize the FX
+            // return/clock loop or buffer a full snapshot in the network stack.
+            if(download){
+                uint32_t n=std::min<uint32_t>(32752,uint32_t(download->document.size())-downloadCursor);
+                std::string packet(16+n,'\0');uint32_t h[4]{0x3153474d,downloadId,downloadCursor,n};
+                std::memcpy(packet.data(),h,16);std::memcpy(packet.data()+16,download->document.data()+downloadCursor,n);
+                if(!sendFrame(client,2,packet))break;downloadCursor+=n;
+                if(downloadCursor==download->document.size())download.reset();
+            }
             // An active owner must never be displaced or leave a second socket
             // queued to take over later. Reject duplicates across profiles/browsers.
             if(ready(listener,0)){
@@ -202,6 +217,23 @@ void Server::loop() {
             for(size_t i=0;i<payload.size();++i)payload[i]^=char(mask[i%4]);
             if(opcode==9){live=sendFrame(client,10,std::string(payload.begin(),payload.end()));continue;}if(opcode==10)continue;
             if(opcode==1){const std::string cmd(payload.begin(),payload.end());
+                if(cmd.rfind("project-begin:",0)==0){
+                    auto fields=cmd.substr(14);std::replace(fields.begin(),fields.end(),':',' ');std::istringstream input(fields);uint64_t id=0,size=0,crc=0,mode=0;std::string trailing;
+                    if(cmd.size()>120||!(input>>id>>size>>crc>>mode)||(input>>trailing)||!id||id>UINT32_MAX||size<20||size>maxProjectBytes||crc>UINT32_MAX||mode>1||(engine.fx&&mode))break;
+                    projectId=uint32_t(id);projectSize=uint32_t(size);projectHash=uint32_t(crc);projectRendered=mode;projectCursor=0;
+                    try{projectUpload.assign(projectSize,0);}catch(const std::bad_alloc&){break;}
+                    projectDeadline=std::chrono::steady_clock::now()+std::chrono::seconds(120);continue;
+                }
+                if(cmd.rfind("project-get:",0)==0){
+                    auto fields=cmd.substr(12);std::replace(fields.begin(),fields.end(),':',' ');std::istringstream input(fields);uint64_t id=0,revision=0;std::string trailing;
+                    if(cmd.size()>80||!(input>>id>>revision)||(input>>trailing)||!id||id>UINT32_MAX||revision!=engine.project.revision.load())break;
+                    download=engine.project.get();if(!download)break;downloadId=uint32_t(id);downloadCursor=0;
+                    if(!sendFrame(client,1,"{\"type\":\"projectData\",\"id\":"+std::to_string(id)+",\"revision\":"+std::to_string(revision)+",\"bytes\":"+std::to_string(download->document.size())+",\"crc\":"+std::to_string(download->crc)+"}"))break;continue;
+                }
+                if(cmd.rfind("project-restored:",0)==0){
+                    const auto number=cmd.substr(17);if(number.empty()||number.size()>10||!std::all_of(number.begin(),number.end(),[](unsigned char c){return std::isdigit(c);}))break;
+                    if(std::stoull(number)==engine.project.revision.load())engine.project.recallPending.store(false);continue;
+                }
                 if(cmd=="arm")engine.requestArm();else if(cmd=="start")engine.requestStart();else if(cmd=="stop")engine.requestStop();else if(cmd=="hold")engine.requestHold();else if(cmd=="live")engine.requestLive();else if(cmd=="rendered")engine.requestRendered();else if(cmd=="ready")engine.browserReady.store(true);else if(cmd=="not-ready"){engine.browserReady.store(false);if(!engine.preparedMode.load())engine.requestPause();}
                 else if(engine.fx&&cmd.rfind("mix:",0)==0){auto value=cmd.substr(4);if(value.empty()||value.size()>3||!std::all_of(value.begin(),value.end(),[](unsigned char c){return std::isdigit(c);}))break;const int mix=std::stoi(value);if(mix>100)break;engine.fx->mix.store(mix/100.);}
                 else if(!engine.fx&&cmd.rfind("prepare:",0)==0){
@@ -214,6 +246,20 @@ void Server::loop() {
                 }
                 else if(cmd.rfind("ping:",0)==0 && cmd.size()<50 && std::all_of(cmd.begin()+5,cmd.end(),[](unsigned char c){return std::isdigit(c);}))live=sendFrame(client,1,"{\"type\":\"pong\",\"id\":\""+cmd.substr(5)+"\",\"clock\":"+std::to_string(engine.clock.load())+"}");
                 continue;
+            }
+            if(payload.size()>=16){
+                uint32_t h[4]{};std::memcpy(h,payload.data(),16);
+                if(h[0]==0x3153474d){
+                    if(!projectId||h[1]!=projectId||h[2]!=projectCursor||h[3]==0||h[3]>32752||payload.size()!=16+size_t(h[3])||uint64_t(projectCursor)+h[3]>projectSize)break;
+                    std::memcpy(projectUpload.data()+projectCursor,payload.data()+16,h[3]);projectCursor+=h[3];
+                    if(projectCursor==projectSize){
+                        const auto id=projectId;projectId=0;
+                        const bool stored=engine.project.commit(std::move(projectUpload),projectHash,projectRendered);
+                        if(!sendFrame(client,1,std::string("{\"type\":\"")+(stored?"projectStored":"projectError")+"\",\"id\":"+std::to_string(id)+",\"revision\":"+std::to_string(engine.project.revision.load())+",\"message\":\"Snapshot rejected; previous snapshot retained.\"}"))break;
+                        projectUpload.clear();
+                    }
+                    continue;
+                }
             }
             if(payload.size()<24)break;
             uint32_t magic=0,epoch=0,rate=0,frames=0;double firstFrame=0;
@@ -236,7 +282,9 @@ void Server::loop() {
                 std::memcpy(upload.data()+size_t(uploadCursor)*2,payload.data()+24,size_t(frames)*8);uploadCursor+=frames;
                 if(uploadCursor==uploadFrames){
                     for(auto& sample:upload)sample=std::isfinite(sample)?std::clamp(sample,-16.f,16.f):0.f;
+                    auto saved=std::make_shared<SavedLoop>();saved->pcm=upload;saved->rate=uploadRate;saved->beats=uploadBeats;saved->bpm=uploadBpm;
                     const bool stored=engine.prepared.publish(std::move(upload),uploadRate,uploadBeats,uploadBpm,uploadId);
+                    if(stored)engine.project.rememberLoop(saved);
                     live=sendFrame(client,1,std::string("{\"type\":\"")+(stored?"loopStored":"loopRejected")+"\",\"id\":"+std::to_string(uploadId)+"}");
                     uploadId=0;upload.clear();
                 }

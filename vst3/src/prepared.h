@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <cmath>
 #include <algorithm>
+#include <mutex>
 
 namespace mygrain {
 constexpr uint32_t maxPreparedFrames=4u*1024*1024; // 32 MiB stereo float32.
@@ -19,15 +20,18 @@ class PreparedBank {
         double beats=0, bpm=120;
     };
     std::array<Slot,3> slots;
+    std::mutex producerMutex;
     std::atomic<int> pending{-1};
     int current=-1; // Audio thread only.
 public:
     bool hasPending() const {return pending.load(std::memory_order_acquire)>=0;}
-    bool publish(std::vector<float>&& pcm,uint32_t rate,double beats,double bpm,uint32_t revision) {
+    bool publish(std::vector<float>&& pcm,uint32_t rate,double beats,double bpm,uint32_t revision,bool replacePending=false) {
+        std::lock_guard<std::mutex> lock(producerMutex);
         if(pcm.empty()||pcm.size()%2||pcm.size()/2>maxPreparedFrames||rate<8000||rate>192000||
            !std::isfinite(beats)||beats<=0||!std::isfinite(bpm)||bpm<1||bpm>300||!revision)return false;
         // Only one pending publication. Never overwrite a slot the audio thread
         // may have taken between the pending exchange and its Reading store.
+        if(replacePending){const int old=pending.exchange(-1,std::memory_order_acq_rel);if(old>=0)slots[old].state.store(Free,std::memory_order_release);}
         if(pending.load(std::memory_order_acquire)!=-1)return false;
         for(int i=0;i<3;++i){
             int expected=Free;
