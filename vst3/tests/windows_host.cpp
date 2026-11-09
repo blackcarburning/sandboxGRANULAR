@@ -47,6 +47,7 @@ int main(int argc,char**argv){
  HWND child=FindWindowExW(parent,nullptr,L"MYGRAINBridgeView010",nullptr);if(!child)return 11;
  SetPropW(child,L"audit-original",(HANDLE)SetWindowLongPtrW(child,GWLP_WNDPROC,(LONG_PTR)auditEditor));
  for(int id:{101,102,103,104,105,106}){auto button=GetDlgItem(child,id);SetPropW(button,L"audit-original",(HANDLE)SetWindowLongPtrW(button,GWLP_WNDPROC,(LONG_PTR)auditButton));}
+ if(OpenClipboard(parent)){EmptyClipboard();CloseClipboard();}
  SendMessageW(child,WM_COMMAND,102,0);
  std::atomic<bool> saveProject{false};
  std::atomic<bool> running{true},playing{true},seek{false},offline{false},cycling{false},cycleMetadata{true},reconfigure{false},stateRoundtrip{false};std::atomic<uint64_t> blocks{0};

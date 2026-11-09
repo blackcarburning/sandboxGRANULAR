@@ -168,6 +168,7 @@ void Server::loop() {
         auto projectDeadline=std::chrono::steady_clock::now();
         auto lastClock=std::chrono::steady_clock::now()-std::chrono::seconds(1);
         bool live=true;
+        try {
         while(live&&!quit.load()&&engine.connected.load()) {
             const auto now=std::chrono::steady_clock::now();
             if(now-lastClock>=std::chrono::milliseconds(25)){if(!sendFrame(client,1,clockMessage(engine)))break;lastClock=now;}
@@ -300,6 +301,7 @@ void Server::loop() {
             if(!engine.ring.push(samples.data(),frames,epoch)){engine.overflows.fetch_add(1);engine.requestStart();}
             else engine.received.fetch_add(frames);
         }
+        }catch(const std::exception&){ /* Retain the committed snapshot on allocation/parse failure. */ }
         engine.browserReady.store(false);engine.connected.store(false);engine.requestPause();closeSocket(client);
     }
     closeSocket(listener);boundPort.store(0);
