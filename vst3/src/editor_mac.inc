@@ -34,6 +34,7 @@
     NSButton* button=[NSButton buttonWithTitle:text target:self action:@selector(action:)];
     button.frame=NSMakeRect(x,y,width,48);button.tag=tag;button.bezelStyle=NSBezelStyleRounded;
     button.font=[NSFont systemFontOfSize:15 weight:NSFontWeightSemibold];button.bezelColor=color;
+    button.controlSize=NSControlSizeLarge;if(tag==106||tag==103||tag==104)button.contentTintColor=color;
     [self addSubview:button];return button;
 }
 - (NSLevelIndicator*)meterX:(double)x y:(double)y {
@@ -115,12 +116,15 @@
     }
     if(![statusLabel.stringValue isEqualToString:title])statusLabel.stringValue=title;
     if(![detailLabel.stringValue isEqualToString:detail])detailLabel.stringValue=detail;
-    openButton.enabled=!connected&&[NSDate timeIntervalSinceReferenceDate]>=cooldown;
+    const bool canOpen=!connected&&[NSDate timeIntervalSinceReferenceDate]>=cooldown;
+    if(openButton.enabled!=canOpen)openButton.enabled=canOpen;
     NSString* openTitle=connected?@"Chrome connected":@"Open MYGRAIN in Chrome";
     if(![openButton.title isEqualToString:openTitle])openButton.title=openTitle;
     NSString* armTitle=armed?@"Armed · follow DAW":@"Arm · follow DAW";
     if(![armButton.title isEqualToString:armTitle])armButton.title=armTitle;
-    playButton.enabled=connected&&ready;stopButton.enabled=connected||armed;
+    const bool canPlay=connected&&ready,canStop=connected||armed;
+    if(playButton.enabled!=canPlay)playButton.enabled=canPlay;
+    if(stopButton.enabled!=canStop)stopButton.enabled=canStop;
     auto update=[](NSLevelIndicator* meter,float peak){if(!meter)return;const double level=std::clamp((20.*std::log10(std::max(.00001f,peak))+60.)/60.,0.,1.);if(std::abs(meter.doubleValue-level)>.005)meter.doubleValue=level;};
     update(leftMeter,bridge->peakLeft.load());update(rightMeter,bridge->peakRight.load());
     if(mygrain::isFx){update(inputLeft,e.fx->inputLeft.load());update(inputRight,e.fx->inputRight.load());}
