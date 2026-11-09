@@ -171,6 +171,9 @@ void Server::loop() {
             if(ready(listener,0)){
                 Socket duplicate=accept(listener,nullptr,nullptr);
                 if(duplicate!=bad){
+#ifdef __APPLE__
+                    int noSigPipe=1;setsockopt(duplicate,SOL_SOCKET,SO_NOSIGPIPE,&noSigPipe,sizeof(noSigPipe));
+#endif
                     const char busy[]="HTTP/1.1 409 Conflict\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
                     sendAll(duplicate,busy,sizeof(busy)-1);closeSocket(duplicate);
                 }

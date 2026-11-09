@@ -62,7 +62,7 @@
         if(mygrain::isFx){inputLeft=[self meterX:607 y:38];inputRight=[self meterX:607 y:56];[self label:@"STEREO INPUT" x:608 y:77 width:145 size:10];}
         [self label:mygrain::isFx?@"macOS UNIVERSAL VST3 FX · 0.1.0 PREVIEW · 1,000 ms aligned delay":@"macOS UNIVERSAL VST3 · 0.5.0 PREVIEW · Live / Rendered" x:30 y:510 width:590 size:10];
         [self button:@"Disconnect" tag:105 x:626 y:490 width:128 color:[NSColor systemGrayColor]];
-        timer=[[NSTimer timerWithTimeInterval:.1 target:self selector:@selector(tick:) userInfo:nil repeats:YES] retain];
+        timer=[[NSTimer alloc] initWithFireDate:[NSDate dateWithTimeIntervalSinceNow:.1] interval:.1 target:self selector:@selector(tick:) userInfo:nil repeats:YES];
         [[NSRunLoop mainRunLoop] addTimer:timer forMode:NSRunLoopCommonModes];[self tick:nil];
     }return self;
 }
@@ -136,7 +136,7 @@ tresult PLUGIN_API BridgeView::attached(void* parent,FIDString type){
     [(NSView*)parent addSubview:view];systemWindow=parent;return kResultOk;
 }
 tresult PLUGIN_API BridgeView::removed(){
-    if(native){auto* view=(MGNativeView*)native;[view->timer invalidate];[view removeFromSuperview];[view release];native=nullptr;}
+    if(native){auto* view=(MGNativeView*)native;[view->timer invalidate];[view->timer release];view->timer=nil;[view removeFromSuperview];[view release];native=nullptr;}
     systemWindow=nullptr;return kResultOk;
 }
 }

@@ -58,7 +58,7 @@ while time.monotonic()-start<9:
   samples=array.array('f',(v*.25 for v in samples))
   send(struct.pack('<IIIId',0x3352474d,epoch,rate,n,first)+samples.tobytes(),2);returned+=n
 control('quit');ws.close();tail,_=p.communicate(timeout=12);log.append(tail);print(tail)
-assert p.returncode==0 and 'NATIVE_HOST_OK' in tail
+assert p.returncode==0 and 'NATIVE_HOST_OK' in tail, ('native host exit',p.returncode,tail)
 assert len(clocks)>100 and any(c['armed'] for c in clocks) and any(not c['armed'] for c in clocks[-30:])
 assert any(c['running'] for c in clocks), 'no native playback'
 assert any(c['offline'] for c in clocks)

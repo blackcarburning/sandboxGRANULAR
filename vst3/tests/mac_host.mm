@@ -36,6 +36,7 @@ int main(int argc,char**argv){@autoreleasepool{
  NSWindow* window=[[NSWindow alloc] initWithContentRect:NSMakeRect(0,0,780,552) styleMask:NSWindowStyleMaskTitled backing:NSBackingStoreBuffered defer:NO];
  IPlugView* view=controller->createView(ViewType::kEditor);if(!view||view->attached(window.contentView,kPlatformTypeNSView)!=kResultOk)return 10;
  if(!button(window.contentView,102)||!button(window.contentView,106))return 11;
+ [[NSPasteboard generalPasteboard] clearContents];
  [button(window.contentView,102) performClick:nil];
  std::atomic<bool> running{true};std::atomic<int> mode{0};
  std::thread audio([&]{

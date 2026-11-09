@@ -325,3 +325,66 @@ Stop precedence are checked in the native host.
 `../tests/daw-bridge-sticky.cjs` reproduces the baseline repaint/routing fault
 and checks zero idle full-window/button/label churn, native graph rebuilds,
 state round-trips, offline/realtime changes, reconnect and explicit Stop.
+
+## macOS / Bitwig Studio universal preview
+
+The same Bridge (0.5.0) and separate FX (0.1.0) identities now have native
+AppKit editors and universal `arm64;x86_64` Mach-O bundles. macOS deployment
+target is 11.0; install a Chrome version supported by your macOS. Crypto uses
+Apple CommonCrypto/Security and the socket listener remains loopback-only with
+an exact production Origin and per-instance random capability. No OpenSSL,
+Homebrew runtime, helper app or virtual audio cable is shipped. Browser/audio
+protocols, DSP, saved patch/Song formats and render cache identities are unchanged.
+
+On a Mac with Xcode Command Line Tools, CMake, Python 3 and the same pinned SDK:
+
+```sh
+bash vst3/mac/build.sh /tmp/mygrain-mac-build /tmp/mygrain-vst3-sdk
+python3 vst3/mac/release.py /tmp/mygrain-mac-build /tmp/mygrain-vst3-sdk /tmp/mygrain-mac-release
+```
+
+`mac/build.sh` builds the plugins, native AppKit test host, SDK validator,
+module-information tool and the core/transport/FX test suites. `mac/release.py`
+checks both slices, imports/exports, bundle metadata and ad-hoc signatures;
+runs Steinberg validation on each final bundle; loads the actual Mach-O in an
+AppKit host and verifies its callback PCM, WebSocket authentication/accept key,
+FX return timing and gain, delayed dry fallback, prepared Bridge offline
+playback, editor close/reopen, Arm/Stop and a state roundtrip. It packages only
+the tested bundle, installer, checksums, licence and explicit verification notes.
+The CMake target host is a test tool, not part of the release.
+
+Bundle layout (Mac, not the Windows `x86_64-win` layout):
+
+```text
+MYGRAIN Bridge.vst3/Contents/
+  Info.plist
+  MacOS/MYGRAIN Bridge
+  Resources/mygrain-logo.png
+  Resources/moduleinfo.json
+  _CodeSignature/CodeResources
+```
+
+`MYGRAIN FX.vst3` has the corresponding executable/resource layout and separate
+bundle ID, class ID and Objective-C editor class. Both may coexist in one host.
+The UI timer is invalidated on editor removal; closing the editor never stops
+the component's audio connection. Cocoa handles Retina scaling. Socket writes
+suppress `SIGPIPE` on macOS without changing the DAW process's signal handlers.
+
+The ZIP's `Install MYGRAIN.command` verifies all checksums and the shipped
+ad-hoc signature, installs to `~/Library/Audio/Plug-Ins/VST3`, backs up an
+existing bundle outside that scan folder, and removes quarantine only from
+the exact bundle it installed. It uses no administrator privileges and does
+not disable Gatekeeper globally. It is not Developer ID signed/notarized.
+If Finder blocks a downloaded command file, launch it with `bash` in Terminal
+as described in the included README. In Bitwig, include that user VST3 folder
+in Settings > Locations and rescan. Bridge is an instrument; FX is an effect.
+
+CI is `.github/workflows/mygrain-macos-vst3.yml`, using a supported macOS 15
+Apple Silicon runner and the pinned SDK. Automated native-host tests are not
+a claim of physical Mac/Bitwig/CoreAudio recording alignment. Both slices are
+built and inspected; native execution coverage is the runner's architecture.
+Actual verification logs/results travel inside each ZIP. The public setup
+page at `vst3-setup.html#mac` and the two desktop plugin download panels expose
+separate versioned Mac and Windows ZIPs. The exact two Mac filenames must also
+be in the backend public-file and attachment allowlists; no source/build tree
+is exposed through the application route.
