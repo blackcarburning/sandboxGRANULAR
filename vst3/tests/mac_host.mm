@@ -24,6 +24,7 @@ int main(int argc,char**argv){@autoreleasepool{
  auto entry=(bool(*)(CFBundleRef))dlsym(module,"bundleEntry");auto exit=(bool(*)())dlsym(module,"bundleExit");auto get=(IPluginFactory*(PLUGIN_API*)())dlsym(module,"GetPluginFactory");
  CFURLRef url=CFURLCreateWithFileSystemPath(nullptr,(CFStringRef)path,kCFURLPOSIXPathStyle,true);CFBundleRef ref=CFBundleCreate(nullptr,url);CFRelease(url);
  if(!entry||!exit||!get||!entry(ref))return 4;
+ @autoreleasepool {
  auto* factory=get();PClassInfo info{};if(factory->getClassInfo(0,&info)!=kResultOk)return 5;
  IComponent* component=nullptr;if(factory->createInstance(info.cid,IComponent::iid,(void**)&component)!=kResultOk)return 6;
  HostApplication host;if(component->initialize(&host)!=kResultOk)return 7;
@@ -75,6 +76,8 @@ int main(int argc,char**argv){@autoreleasepool{
  running=false;audio.join();
  MemoryStream state;if(component->getState(&state)!=kResultOk||state.getSize()!=(fx?16:12))return 12;state.seek(0,IBStream::kIBSeekSet,nullptr);if(component->setState(&state)!=kResultOk)return 13;
  std::cout<<"LATENCY="<<processor->getLatencySamples()<<" STATE_BYTES="<<state.getSize()<<std::endl;
- view->removed();view->release();[window release];processor->setProcessing(false);component->setActive(false);controller->release();processor->release();component->terminate();component->release();factory->release();exit();CFRelease(ref);dlclose(module);
+ view->removed();view->release();[window release];processor->setProcessing(false);component->setActive(false);controller->release();processor->release();component->terminate();component->release();factory->release();
+ } // Drain AppKit event autoreleases before unloading Objective-C class code.
+ exit();CFRelease(ref);dlclose(module);
  std::cout<<"NATIVE_HOST_OK"<<std::endl;return 0;
 }}
