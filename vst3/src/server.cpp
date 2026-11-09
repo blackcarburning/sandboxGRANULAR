@@ -164,6 +164,7 @@ void Server::loop() {
         double uploadBeats=0,uploadBpm=120;std::vector<float> upload;
         uint32_t projectId=0,projectSize=0,projectCursor=0,projectHash=0;bool projectRendered=false;
         std::vector<uint8_t> projectUpload;
+        uint32_t storedId=0,storedRevision=0,storedDirty=0;
         uint32_t downloadId=0,downloadCursor=0;std::shared_ptr<const SavedProject> download;
         auto projectDeadline=std::chrono::steady_clock::now();
         auto lastClock=std::chrono::steady_clock::now()-std::chrono::seconds(1);
@@ -172,6 +173,11 @@ void Server::loop() {
         while(live&&!quit.load()&&engine.connected.load()) {
             const auto now=std::chrono::steady_clock::now();
             if(now-lastClock>=std::chrono::milliseconds(25)){if(!sendFrame(client,1,clockMessage(engine)))break;lastClock=now;}
+            // Ready means the snapshot is complete AND the UI-thread host dirty
+            // notification has landed (when that optional host interface exists).
+            if(storedId&&(!engine.project.supportsDirty.load()||engine.project.dirtyNotified.load(std::memory_order_acquire)>=storedDirty)){
+                if(!sendFrame(client,1,"{\"type\":\"projectStored\",\"id\":"+std::to_string(storedId)+",\"revision\":"+std::to_string(storedRevision)+"}"))break;storedId=0;
+            }
             if(projectId&&now>projectDeadline){projectId=0;projectUpload.clear();if(!sendFrame(client,1,"{\"type\":\"projectError\",\"message\":\"Snapshot upload expired; previous snapshot retained.\"}"))break;}
             // Send at most one bounded chunk per turn; never monopolize the FX
             // return/clock loop or buffer a full snapshot in the network stack.
@@ -256,7 +262,8 @@ void Server::loop() {
                     if(projectCursor==projectSize){
                         const auto id=projectId;projectId=0;
                         const bool stored=engine.project.commit(std::move(projectUpload),projectHash,projectRendered);
-                        if(!sendFrame(client,1,std::string("{\"type\":\"")+(stored?"projectStored":"projectError")+"\",\"id\":"+std::to_string(id)+",\"revision\":"+std::to_string(engine.project.revision.load())+",\"message\":\"Snapshot rejected; previous snapshot retained.\"}"))break;
+                        if(stored){storedId=id;storedRevision=engine.project.revision.load();storedDirty=engine.project.dirtyRevision.load();}
+                        else if(!sendFrame(client,1,"{\"type\":\"projectError\",\"id\":"+std::to_string(id)+",\"message\":\"Snapshot rejected; previous snapshot retained.\"}"))break;
                         projectUpload.clear();
                     }
                     continue;

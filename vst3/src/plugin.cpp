@@ -68,16 +68,17 @@ class Bridge final : public SingleComponentEffect, public ITimerCallback {
 public:
     Timer* projectTimer=nullptr;
     uint32_t notifiedProject=0;
-    void stopProjectTimer(){if(projectTimer){projectTimer->stop();projectTimer->release();projectTimer=nullptr;}}
+    void stopProjectTimer(){engine.project.supportsDirty.store(false);if(projectTimer){projectTimer->stop();projectTimer->release();projectTimer=nullptr;}}
     void onTimer(Timer*) override {
         const auto revision=engine.project.dirtyRevision.load(std::memory_order_acquire);
-        if(revision!=notifiedProject&&setDirty(true)==kResultOk)notifiedProject=revision;
+        if(revision!=notifiedProject&&setDirty(true)==kResultOk){notifiedProject=revision;engine.project.dirtyNotified.store(revision,std::memory_order_release);}
     }
     tresult PLUGIN_API setComponentHandler(IComponentHandler* handler) override {
         stopProjectTimer();const auto result=SingleComponentEffect::setComponentHandler(handler);
         // SDK platform timer dispatches on the host UI/main runloop, independently
         // of editor lifetime. Never call a host callback from socket/audio threads.
         if(result==kResultOk&&componentHandler2)projectTimer=Timer::create(this,100);
+        engine.project.supportsDirty.store(projectTimer!=nullptr);
         return result;
     }
     Engine engine{isFx};

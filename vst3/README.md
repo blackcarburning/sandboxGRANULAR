@@ -464,3 +464,6 @@ timer calls IComponentHandler2::setDirty(true) on the host UI thread, including
 when the editor is closed. It exists only while that optional handler is
 connected, is stopped on terminate, and never calls the host from the socket
 or audio threads. Native host tests assert notifications and callback thread.
+The projectStored/Ready acknowledgement is sent only after that dirty callback
+lands when supported, so an immediate DAW Save cannot race the UI notification.
+Unsupported hosts still receive the complete snapshot and may save it normally.

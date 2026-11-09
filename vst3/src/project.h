@@ -30,8 +30,8 @@ struct SavedProject {std::vector<uint8_t> document;std::shared_ptr<const SavedLo
 class ProjectStore {
     std::mutex mutex;std::shared_ptr<const SavedProject> committed;std::shared_ptr<const SavedLoop> latest;
 public:
-    std::atomic<uint32_t> revision{0},bytes{0},dirtyRevision{0};
-    std::atomic<bool> rendered{false},recallPending{false};
+    std::atomic<uint32_t> revision{0},bytes{0},dirtyRevision{0},dirtyNotified{0};
+    std::atomic<bool> rendered{false},recallPending{false},supportsDirty{false};
     std::shared_ptr<const SavedProject> get(){std::lock_guard<std::mutex> lock(mutex);return committed;}
     void rememberLoop(std::shared_ptr<const SavedLoop> loop){std::lock_guard<std::mutex> lock(mutex);latest=std::move(loop);}
     bool commit(std::vector<uint8_t>&& document,uint32_t crc,bool useRender){
