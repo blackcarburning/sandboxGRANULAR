@@ -467,3 +467,14 @@ or audio threads. Native host tests assert notifications and callback thread.
 The projectStored/Ready acknowledgement is sent only after that dirty callback
 lands when supported, so an immediate DAW Save cannot race the UI notification.
 Unsupported hosts still receive the complete snapshot and may save it normally.
+
+
+## Native remote controls · Bridge 0.7.0 / FX 0.3.0
+
+Native editors are 780×756 with branded gradient buttons, a two-line job status, measured layer-job counts and 25 canonical Quick Mute switches. One per-instance command travels over the existing Origin/capability-checked loopback WebSocket. UI/network state is mutex-protected off the audio thread; process() does not touch the remote state. Requests are serialised and idempotent per connection; unavailable/busy/conflicting browser operations reject commands. No separate port, service, account credential or arbitrary script command is added.
+
+Commands 1=Sparse, 2=Mega, 3=explicit layer state(index,value), 4=Bridge Refresh render, 5=Store project. Browser worker accepts only bounded remote-state numeric fields and hexadecimal UTF-8 status. Native bounds-checks progress, bitmasks and text; a disconnect clears pending commands and disables controls without resending generation. Existing generators and canonical layer button actions are reused; no sound schema, renderer/cache signature or legacy snapshot migration changes. Native saved-state versions and plugin class identities are unchanged.
+
+Sparse/Mega progress comes from createMegaRandomCommentary task records, not elapsed-time percentages. Existing full generation history wrapper/Undo and all cut/envelope rules remain in force. Generation holds live return while jobs run; Stop/disarm still wins. Rendered audio is immutable until explicit Refresh render; stop DAW first, then Store and DAW Save. Native Store waits for the existing snapshot transfer/host dirty acknowledgement. FX layer switches affect its silent modulation sources; they do not mix generators into the insert return.
+
+Verification: the native test hosts can invoke remote-sparse, remote-mega, remote-layer-N, remote-render, remote-store and remote-status via their private control file. Mac integration verifies actual AppKit actions and progress responses, plus SDK/native PCM/state teardown checks. Windows+Chromium integration verifies the existing generator with controlled sample jobs, real decoding, warning/error handling, layer two-way sync, native Refresh/Store, saved-state recall, capability isolation and screenshots. Production account/sample generation is not used by fixtures. Physical DAW/driver checks remain separate.

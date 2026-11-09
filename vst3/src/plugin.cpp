@@ -43,6 +43,7 @@ class BridgeView final : public CPluginView {
     float displayLeft=0,displayRight=0;
     uint32_t displayFlags=UINT32_MAX;int meterLeftPixels=-1,meterRightPixels=-1,inputMeterCode=-1;
     std::wstring stateTitle,stateDetail;
+    RemoteState remoteDisplay;
     static LRESULT CALLBACK windowProc(HWND,UINT,WPARAM,LPARAM);
     void tick();void launch();void copy();void paint(HDC);void paintButton(DRAWITEMSTRUCT*);
 public:
@@ -219,8 +220,8 @@ public:
 #endif
 BEGIN_FACTORY_DEF("MYGRAIN","https://openclaw.blackcarburning.com/mygrain/","mailto:claw@blackcarburning.com")
 #ifdef MYGRAIN_FX
-DEF_CLASS2(INLINE_UID(0x80192c74,0x1fca4fa0,0xa638de42,0xf66c7d18),PClassInfo::kManyInstances,kVstAudioEffectClass,"MYGRAIN FX",0,"Fx|Filter","0.2.0",kVstVersionString,mygrain::Bridge::create)
+DEF_CLASS2(INLINE_UID(0x80192c74,0x1fca4fa0,0xa638de42,0xf66c7d18),PClassInfo::kManyInstances,kVstAudioEffectClass,"MYGRAIN FX",0,"Fx|Filter","0.3.0",kVstVersionString,mygrain::Bridge::create)
 #else
-DEF_CLASS2(INLINE_UID(0x5df4d5fa,0x7a0e4bc6,0xb61ae905,0x6da13821),PClassInfo::kManyInstances,kVstAudioEffectClass,"MYGRAIN Bridge",0,"Instrument|Synth","0.6.0",kVstVersionString,mygrain::Bridge::create)
+DEF_CLASS2(INLINE_UID(0x5df4d5fa,0x7a0e4bc6,0xb61ae905,0x6da13821),PClassInfo::kManyInstances,kVstAudioEffectClass,"MYGRAIN Bridge",0,"Instrument|Synth","0.7.0",kVstVersionString,mygrain::Bridge::create)
 #endif
 END_FACTORY

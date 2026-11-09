@@ -100,7 +100,7 @@ std::string clockMessage(Engine& e) {
       <<",\"underruns\":"<<e.underflows.load()<<",\"overflows\":"<<e.overflows.load()<<",\"received\":"<<e.received.load()<<",\"leadMs\":350"
       <<",\"prepared\":"<<(e.preparedMode.load()?"true":"false")<<",\"loopRevision\":"<<e.preparedRevision.load()
       <<",\"loopFrames\":"<<e.preparedFrames.load()<<",\"loopBeats\":"<<e.preparedBeats.load()<<",\"loopBpm\":"<<e.preparedBpm.load()
-      <<",\"projectState\":1,\"projectRevision\":"<<e.project.revision.load()<<",\"projectBytes\":"<<e.project.bytes.load()<<",\"projectRendered\":"<<(e.project.rendered.load()?"true":"false")
+      <<",\"remoteControl\":1,\"projectState\":1,\"projectRevision\":"<<e.project.revision.load()<<",\"projectBytes\":"<<e.project.bytes.load()<<",\"projectRendered\":"<<(e.project.rendered.load()?"true":"false")
       <<",\"stickyArm\":true,\"browserReady\":"<<(e.browserReady.load()?"true":"false")<<",\"continuousLive\":true,\"selectRendered\":true,\"timelineJumps\":"<<e.timelineJumps.load()<<",\"cycleWraps\":"<<e.cycleWraps.load()<<",\"cycleActive\":"<<(e.hostCycleActive.load()?"true":"false")
       <<",\"cycleStart\":"<<e.hostCycleStart.load()<<",\"cycleEnd\":"<<e.hostCycleEnd.load()<<"}";
     auto text=o.str();
@@ -158,7 +158,7 @@ void Server::loop() {
         }
         const std::string response="HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: "+acceptKey(clientKey)+"\r\n\r\n";
         if(!sendAll(client,response.data(),response.size())){closeSocket(client);continue;}
-        engine.browserReady.store(false);engine.connected.store(true);engine.requestPause();
+        engine.remote.disconnect();engine.browserReady.store(false);engine.connected.store(true);engine.requestPause();
         uint32_t packetEpoch=0,packetRate=0;uint64_t expectedFrame=0;
         uint32_t uploadId=0,uploadRate=0,uploadFrames=0,uploadCursor=0;
         double uploadBeats=0,uploadBpm=120;std::vector<float> upload;
@@ -172,6 +172,9 @@ void Server::loop() {
         try {
         while(live&&!quit.load()&&engine.connected.load()) {
             const auto now=std::chrono::steady_clock::now();
+            const auto remote=engine.remote.next();
+            if(remote.id&&!sendFrame(client,1,"{\"type\":\"remoteCommand\",\"id\":"+std::to_string(remote.id)+",\"action\":"+std::to_string(remote.action)+",\"index\":"+std::to_string(remote.index)+",\"value\":"+std::to_string(remote.value)+"}"))break;
+
             if(now-lastClock>=std::chrono::milliseconds(25)){if(!sendFrame(client,1,clockMessage(engine)))break;lastClock=now;}
             // Ready means the snapshot is complete AND the UI-thread host dirty
             // notification has landed (when that optional host interface exists).
@@ -224,6 +227,14 @@ void Server::loop() {
             for(size_t i=0;i<payload.size();++i)payload[i]^=char(mask[i%4]);
             if(opcode==9){live=sendFrame(client,10,std::string(payload.begin(),payload.end()));continue;}if(opcode==10)continue;
             if(opcode==1){const std::string cmd(payload.begin(),payload.end());
+                if(cmd.rfind("remote-state:",0)==0){
+                    if(cmd.size()>1100)break;std::string data=cmd.substr(13);uint32_t fields[8]{};bool valid=true;
+                    for(auto& value:fields){const auto end=data.find(':');if(end==std::string::npos||!end||end>10){valid=false;break;}const auto n=data.substr(0,end);if(!std::all_of(n.begin(),n.end(),[](unsigned char c){return std::isdigit(c);})){valid=false;break;}auto number=std::stoull(n);if(number>UINT32_MAX){valid=false;break;}value=uint32_t(number);data.erase(0,end+1);}
+                    if(!valid||fields[1]>1||fields[7]>1||data.size()>840||data.size()%2)break;
+                    std::string text;auto hex=[](char c)->int{if(c>='0'&&c<='9')return c-'0';if(c>='a'&&c<='f')return c-'a'+10;return -1;};
+                    for(size_t i=0;i<data.size();i+=2){int a=hex(data[i]),b=hex(data[i+1]);if(a<0||b<0){valid=false;break;}char c=char(a*16+b);if((unsigned char)c<32||c==127){valid=false;break;}text+=c;}
+                    if(!valid||!engine.remote.update(fields[0],fields[1],fields[2],fields[3],fields[4],fields[5],fields[6],fields[7],std::move(text)))break;continue;
+                }
                 if(cmd.rfind("project-begin:",0)==0){
                     auto fields=cmd.substr(14);std::replace(fields.begin(),fields.end(),':',' ');std::istringstream input(fields);uint64_t id=0,size=0,crc=0,mode=0;std::string trailing;
                     if(cmd.size()>120||!(input>>id>>size>>crc>>mode)||(input>>trailing)||!id||id>UINT32_MAX||size<20||size>maxProjectBytes||crc>UINT32_MAX||mode>1||(engine.fx&&mode))break;
@@ -309,7 +320,7 @@ void Server::loop() {
             else engine.received.fetch_add(frames);
         }
         }catch(const std::exception&){ /* Retain the committed snapshot on allocation/parse failure. */ }
-        engine.browserReady.store(false);engine.connected.store(false);engine.requestPause();closeSocket(client);
+        engine.browserReady.store(false);engine.connected.store(false);engine.requestPause();engine.remote.disconnect();closeSocket(client);
     }
     closeSocket(listener);boundPort.store(0);
 

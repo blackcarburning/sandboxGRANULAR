@@ -36,7 +36,7 @@ int main(int argc,char**argv){@autoreleasepool{
  ProcessSetup setup{};setup.processMode=kRealtime;setup.symbolicSampleSize=kSample32;setup.maxSamplesPerBlock=128;setup.sampleRate=48000;
  if(processor->setupProcessing(setup)!=kResultOk)return 9;
  if(fx)component->activateBus(kAudio,kInput,0,true);component->activateBus(kAudio,kOutput,0,true);component->setActive(true);processor->setProcessing(true);
- NSWindow* window=[[NSWindow alloc] initWithContentRect:NSMakeRect(0,0,780,552) styleMask:NSWindowStyleMaskTitled backing:NSBackingStoreBuffered defer:NO];
+ NSWindow* window=[[NSWindow alloc] initWithContentRect:NSMakeRect(0,0,780,756) styleMask:NSWindowStyleMaskTitled backing:NSBackingStoreBuffered defer:NO];
  IPlugView* view=controller->createView(ViewType::kEditor);if(!view||view->attached(window.contentView,kPlatformTypeNSView)!=kResultOk)return 10;
  if(!button(window.contentView,102)||!button(window.contentView,106))return 11;
  [[NSPasteboard generalPasteboard] clearContents];
@@ -64,6 +64,7 @@ int main(int argc,char**argv){@autoreleasepool{
   std::ifstream control(std::string(argv[2])+".control");std::string command;std::getline(control,command);
   if(command!=previous){previous=command;
    if(command=="quit")break;
+   if(command.rfind("remote-",0)==0){unsigned id=0;if(command=="remote-sparse")id=201;else if(command=="remote-mega")id=202;else if(command=="remote-render")id=203;else if(command=="remote-store")id=204;else if(command.rfind("remote-layer-",0)==0)id=300+std::stoul(command.substr(13));if(id)[button(window.contentView,id) performClick:nil];}
    if(command=="arm")[button(window.contentView,106) performClick:nil];
    if(command=="stop")[button(window.contentView,104) performClick:nil];
    if(command=="disconnect")[button(window.contentView,105) performClick:nil];

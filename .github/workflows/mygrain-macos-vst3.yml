@@ -2,7 +2,7 @@ name: MYGRAIN macOS VST3
 on:
   workflow_dispatch:
   push:
-    branches: [mygrain-project-recall-20261109]
+    branches: [mygrain-native-controls-20261109]
     paths: ['vst3/**', '.github/workflows/mygrain-macos-vst3.yml']
 permissions:
   contents: read

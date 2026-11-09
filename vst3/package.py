@@ -14,16 +14,16 @@ binary=args.bundle/'Contents/x86_64-win/MYGRAIN Bridge.vst3'
 assert binary.read_bytes()[:2]==b'MZ'
 metadata=json.loads((args.bundle/'Contents/Resources/moduleinfo.json').read_text())
 assert metadata['Classes'][0]['CID']=='5DF4D5FA7A0E4BC6B61AE9056DA13821'
-assert metadata['Version']=='0.6.0'
+assert metadata['Version']=='0.7.0'
 files={p.relative_to(args.bundle.parent).as_posix():p.read_bytes() for p in args.bundle.rglob('*') if p.is_file()}
 assert set(files)=={'MYGRAIN Bridge.vst3/Contents/x86_64-win/MYGRAIN Bridge.vst3','MYGRAIN Bridge.vst3/Contents/Resources/moduleinfo.json'}
 files['SETUP.html']=(args.setup or app/'vst3-setup.html').read_bytes()
-assert b'0.6.0' in files['SETUP.html'] and b'Playback mode' in files['SETUP.html']
+assert b'0.7.0' in files['SETUP.html'] and b'Playback mode' in files['SETUP.html']
 files['VERIFICATION.txt']=args.verification.read_bytes()
 files['LICENSES/Steinberg-VST3-SDK-MIT.txt']=(args.sdk/'LICENSE.txt').read_bytes()
 for filename,destination in [('/usr/share/common-licenses/GPL-3','GPL-3.txt'),('/usr/share/doc/gcc-mingw-w64-base/copyright','GCC-MinGW-copyright-and-runtime-exception.txt'),('/usr/share/doc/mingw-w64-common/copyright','MinGW-w64-copyright.txt')]:
     files['LICENSES/'+destination]=pathlib.Path(filename).read_bytes()
-files['README-FIRST.txt']=b'''MYGRAIN Bridge 0.6.0 - Windows x64 VST3 preview
+files['README-FIRST.txt']=b'''MYGRAIN Bridge 0.7.0 - Windows x64 VST3 preview
 
 1. Extract this ZIP.
 2. Copy the WHOLE "MYGRAIN Bridge.vst3" folder into:
@@ -47,6 +47,16 @@ files['README-FIRST.txt']=b'''MYGRAIN Bridge 0.6.0 - Windows x64 VST3 preview
 
 No installer, helper app, virtual audio cable, service or VC runtime install.
 Do not copy only the inner binary. Read SETUP.html (or the online copy):
+Native plugin controls: Sparse Random / Mega Random replace the current patch
+using Chrome; Undo remains in MYGRAIN. The status box reports actual layer jobs
+and warnings. Lit layer buttons are On; dark buttons are muted. These mirror
+the browser Layers section, including global reverb/delay. Existing solo states
+still apply. In Rendered mode use Refresh render after edits (stop DAW first).
+Store in project stores the editable patch and retained Rendered loop; wait for
+Ready for DAW save, then Save in the DAW. Chrome must stay connected for these
+patch controls; they do not add native synthesis. FX source layers are silent
+modulation sources, not an additional audible mix into the FX return.
+
 https://openclaw.blackcarburning.com/mygrain/vst3-setup.html
 
 Preview limits: real Windows DAW testing still pending; live patch output

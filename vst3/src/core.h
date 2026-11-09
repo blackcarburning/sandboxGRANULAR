@@ -6,6 +6,7 @@
 #include <vector>
 #include "prepared.h"
 #include "project.h"
+#include "remote.h"
 #include "fx.h"
 #include <memory>
 
@@ -60,6 +61,7 @@ public:
     AudioRing ring;
     PreparedBank prepared;
     ProjectStore project;
+    RemoteControl remote;
     std::atomic<bool> preparedMode{false};
     std::atomic<uint32_t> preparedRevision{0}, preparedFrames{0};
     std::atomic<double> preparedBeats{0}, preparedBpm{120};

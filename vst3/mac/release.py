@@ -12,7 +12,7 @@ def tool(name):
  matches=[p for p in build.rglob(name) if p.is_file() and os.access(p,os.X_OK)]
  assert matches,(name,build);return matches[0]
 validator,moduleinfo,host=tool('validator'),tool('moduleinfotool'),tool('mac-plugin-host')
-for title,version,cid,kind in [('MYGRAIN Bridge','0.6.0','5DF4D5FA7A0E4BC6B61AE9056DA13821','bridge'),('MYGRAIN FX','0.2.0','80192C741FCA4FA0A638DE42F66C7D18','fx')]:
+for title,version,cid,kind in [('MYGRAIN Bridge','0.7.0','5DF4D5FA7A0E4BC6B61AE9056DA13821','bridge'),('MYGRAIN FX','0.3.0','80192C741FCA4FA0A638DE42F66C7D18','fx')]:
  bundles=list(build.rglob(title+'.vst3'));assert len(bundles)==1,bundles
  bundle=bundles[0];binary=bundle/'Contents/MacOS'/title
  assert binary.is_file(),list(bundle.rglob('*'))
@@ -85,6 +85,16 @@ paste into Chrome's VST3 panel (Bridge) or DAW INPUT card (FX).
 To remove: close Bitwig and remove this bundle from the user VST3 directory.
 Automated macOS/native host verification is included; physical Mac/Bitwig and
 CoreAudio-driver recording alignment remain unverified.
+Native plugin controls: Sparse Random / Mega Random replace the current patch
+using Chrome; Undo remains in MYGRAIN. The status box reports actual layer jobs
+and warnings. Lit layer buttons are On; dark buttons are muted. These mirror
+the browser Layers section, including global reverb/delay. Existing solo states
+still apply. In Rendered mode use Refresh render after edits (stop DAW first).
+Store in project stores the editable patch and retained Rendered loop; wait for
+Ready for DAW save, then Save in the DAW. Chrome must stay connected for these
+patch controls; they do not add native synthesis. FX source layers are silent
+modulation sources, not an additional audible mix into the FX return.
+
 https://openclaw.blackcarburning.com/mygrain/vst3-setup.html#mac
 ''')
  verification=f'{title} {version}\nSDK pinned: 3cdf9ca5d1f5b1b21e0a86832aa4abe55607bd96\nmacOS runner: '+run('sw_vers')+'\nUniversal architectures: '+architecture+'\nAd-hoc signature verified. System frameworks only. Core/transport/FX CTest checks passed.\nActual Mach-O factory/editor/socket/callback PCM, editor reopen, saved-state roundtrip, Arm/Stop, offline output tested on runner architecture.\n'+(output/(kind+'-native.f32.json')).read_text()+'\n\nPhysical Mac/Bitwig/CoreAudio tests NOT performed. No Developer ID notarization.\n\n'+validation
