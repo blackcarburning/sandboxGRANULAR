@@ -32,6 +32,7 @@ int main(int argc,char**argv){@autoreleasepool{
  IAudioProcessor* processor=nullptr;IEditController* controller=nullptr;
  if(component->queryInterface(IAudioProcessor::iid,(void**)&processor)!=kResultOk||component->queryInterface(IEditController::iid,(void**)&controller)!=kResultOk)return 8;
  const bool fx=component->getBusCount(kAudio,kInput)==1;
+ ProjectDirtyHandler projectDirty;controller->setComponentHandler(&projectDirty);
  ProcessSetup setup{};setup.processMode=kRealtime;setup.symbolicSampleSize=kSample32;setup.maxSamplesPerBlock=128;setup.sampleRate=48000;
  if(processor->setupProcessing(setup)!=kResultOk)return 9;
  if(fx)component->activateBus(kAudio,kInput,0,true);component->activateBus(kAudio,kOutput,0,true);component->setActive(true);processor->setProcessing(true);
@@ -75,6 +76,8 @@ int main(int argc,char**argv){@autoreleasepool{
   }
  }}
  running=false;audio.join();
+ if(projectDirty.wrongThread.load()||!projectDirty.calls.load())return 15;
+ std::cout<<"PROJECT_DIRTY_UI="<<projectDirty.calls.load()<<std::endl;
  MemoryStream state;if(component->getState(&state)!=kResultOk||state.getSize()<48)return 12;state.seek(0,IBStream::kIBSeekSet,nullptr);if(component->setState(&state)!=kResultOk)return 13;
  if(!checkProjectState(factory,info,host,component,state))return 14;
  std::cout<<"LATENCY="<<processor->getLatencySamples()<<" STATE_BYTES="<<state.getSize()<<std::endl;

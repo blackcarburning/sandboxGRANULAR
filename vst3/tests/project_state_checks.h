@@ -4,6 +4,30 @@
 #include <cstring>
 #include <cmath>
 #include <iostream>
+#include <atomic>
+#include <thread>
+// Stack-owned test handler. Controller releases it before the host scope ends.
+class ProjectDirtyHandler final : public IComponentHandler,public IComponentHandler2 {
+    std::atomic<uint32> refs{1};const std::thread::id ui=std::this_thread::get_id();
+public:
+    std::atomic<uint32> calls{0};std::atomic<bool> wrongThread{false};
+    tresult PLUGIN_API queryInterface(const TUID iid,void** obj) override {
+        if(!obj)return kInvalidArgument;*obj=nullptr;
+        if(FUnknownPrivate::iidEqual(iid,IComponentHandler::iid)||FUnknownPrivate::iidEqual(iid,FUnknown::iid))*obj=static_cast<IComponentHandler*>(this);
+        else if(FUnknownPrivate::iidEqual(iid,IComponentHandler2::iid))*obj=static_cast<IComponentHandler2*>(this);
+        if(!*obj)return kNoInterface;addRef();return kResultOk;
+    }
+    uint32 PLUGIN_API addRef() override {return ++refs;}
+    uint32 PLUGIN_API release() override {return --refs;}
+    tresult PLUGIN_API beginEdit(ParamID) override {return kResultOk;}
+    tresult PLUGIN_API performEdit(ParamID,ParamValue) override {return kResultOk;}
+    tresult PLUGIN_API endEdit(ParamID) override {return kResultOk;}
+    tresult PLUGIN_API restartComponent(int32) override {return kResultOk;}
+    tresult PLUGIN_API setDirty(TBool value) override {if(std::this_thread::get_id()!=ui)wrongThread=true;if(value)calls++;return kResultOk;}
+    tresult PLUGIN_API requestOpenEditor(FIDString) override {return kResultOk;}
+    tresult PLUGIN_API startGroupEdit() override {return kResultOk;}
+    tresult PLUGIN_API finishGroupEdit() override {return kResultOk;}
+};
 static bool checkProjectState(IPluginFactory* factory,const PClassInfo& info,HostApplication& host,IComponent*,MemoryStream& state){
  auto same=[](MemoryStream& a,MemoryStream& b){return a.getSize()==b.getSize()&&std::memcmp(a.getData(),b.getData(),a.getSize())==0;};
  IComponent* clone=nullptr;if(factory->createInstance(info.cid,IComponent::iid,(void**)&clone)!=kResultOk||clone->initialize(&host)!=kResultOk)return false;

@@ -1,4 +1,5 @@
 #include "core.h"
+#include "base/source/timer.h"
 #include "server.h"
 #include "public.sdk/source/vst/vstsinglecomponenteffect.h"
 #include "public.sdk/source/common/pluginview.h"
@@ -63,14 +64,28 @@ public:
     tresult PLUGIN_API removed() override;
 };
 #endif
-class Bridge final : public SingleComponentEffect {
+class Bridge final : public SingleComponentEffect, public ITimerCallback {
 public:
+    Timer* projectTimer=nullptr;
+    uint32_t notifiedProject=0;
+    void stopProjectTimer(){if(projectTimer){projectTimer->stop();projectTimer->release();projectTimer=nullptr;}}
+    void onTimer(Timer*) override {
+        const auto revision=engine.project.dirtyRevision.load(std::memory_order_acquire);
+        if(revision!=notifiedProject&&setDirty(true)==kResultOk)notifiedProject=revision;
+    }
+    tresult PLUGIN_API setComponentHandler(IComponentHandler* handler) override {
+        stopProjectTimer();const auto result=SingleComponentEffect::setComponentHandler(handler);
+        // SDK platform timer dispatches on the host UI/main runloop, independently
+        // of editor lifetime. Never call a host callback from socket/audio threads.
+        if(result==kResultOk&&componentHandler2)projectTimer=Timer::create(this,100);
+        return result;
+    }
     Engine engine{isFx};
     std::atomic<float> peakLeft{0},peakRight{0};
     std::unique_ptr<Server> server;
     static FUnknown* create(void*) {return static_cast<IComponent*>(new Bridge);}
     Bridge(){engine.active.store(false);processContextRequirements.needProjectTimeMusic().needTempo().needBarPositionMusic().needTimeSignature().needTransportState().needCycleMusic();}
-    ~Bridge() override {server.reset();}
+    ~Bridge() override {server.reset();stopProjectTimer();}
     void enable(){if(!server){server=std::make_unique<Server>(engine);server->start();}}
     tresult PLUGIN_API initialize(FUnknown* host) override {
         const auto result=SingleComponentEffect::initialize(host);if(result!=kResultOk)return result;
@@ -79,7 +94,7 @@ public:
         if(!isFx)addEventInput(STR16("MIDI"));
         return kResultOk;
     }
-    tresult PLUGIN_API terminate() override {server.reset();return SingleComponentEffect::terminate();}
+    tresult PLUGIN_API terminate() override {server.reset();stopProjectTimer();return SingleComponentEffect::terminate();}
     tresult PLUGIN_API setBusArrangements(SpeakerArrangement* inputs,int32 numIns,SpeakerArrangement* outputs,int32 numOuts) override {
         return numIns==(isFx?1:0)&&(!isFx||(inputs&&inputs[0]==SpeakerArr::kStereo))&&numOuts==1&&outputs&&outputs[0]==SpeakerArr::kStereo?kResultTrue:kResultFalse;
     }

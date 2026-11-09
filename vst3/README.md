@@ -458,3 +458,9 @@ compares exact offline Rendered callback PCM without a browser. Native Mac
 integration uploads an embedded native protocol fixture and runs the same
 checks on actual Mach-O. tests/daw-project-browser.cjs covers real editable
 patch + sound capture, native DAW Save, fresh-instance recall and isolation.
+
+Successful Store also increments a non-RT dirty counter. The SDK platform
+timer calls IComponentHandler2::setDirty(true) on the host UI thread, including
+when the editor is closed. It exists only while that optional handler is
+connected, is stopped on terminate, and never calls the host from the socket
+or audio threads. Native host tests assert notifications and callback thread.

@@ -30,7 +30,7 @@ struct SavedProject {std::vector<uint8_t> document;std::shared_ptr<const SavedLo
 class ProjectStore {
     std::mutex mutex;std::shared_ptr<const SavedProject> committed;std::shared_ptr<const SavedLoop> latest;
 public:
-    std::atomic<uint32_t> revision{0},bytes{0};
+    std::atomic<uint32_t> revision{0},bytes{0},dirtyRevision{0};
     std::atomic<bool> rendered{false},recallPending{false};
     std::shared_ptr<const SavedProject> get(){std::lock_guard<std::mutex> lock(mutex);return committed;}
     void rememberLoop(std::shared_ptr<const SavedLoop> loop){std::lock_guard<std::mutex> lock(mutex);latest=std::move(loop);}
@@ -38,7 +38,7 @@ public:
         if(!validProjectDocument(document)||projectCrc(document.data(),document.size())!=crc)return false;
         auto value=std::make_shared<SavedProject>();value->document=std::move(document);value->crc=crc;value->rendered=useRender;
         std::lock_guard<std::mutex> lock(mutex);if(useRender){if(!latest)return false;value->loop=latest;}
-        committed=value;bytes.store(uint32_t(value->document.size()));rendered.store(useRender);recallPending.store(false);revision.fetch_add(1,std::memory_order_release);return true;
+        committed=value;bytes.store(uint32_t(value->document.size()));rendered.store(useRender);recallPending.store(false);revision.fetch_add(1,std::memory_order_release);dirtyRevision.fetch_add(1,std::memory_order_release);return true;
     }
     void restore(std::shared_ptr<const SavedProject> value){
         std::lock_guard<std::mutex> lock(mutex);committed=std::move(value);latest=committed?committed->loop:nullptr;
