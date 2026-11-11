@@ -16,6 +16,7 @@
 #include <iostream>
 #include <thread>
 using namespace Steinberg;using namespace Steinberg::Vst;
+#include "project_state_checks.h"
 static NSButton* button(NSView* view,NSInteger tag){for(NSView* child in view.subviews){if([child isKindOfClass:[NSButton class]]&&child.tag==tag)return (NSButton*)child;if(auto* result=button(child,tag))return result;}return nil;}
 int main(int argc,char**argv){@autoreleasepool{
  if(argc<3)return 2;[NSApplication sharedApplication];
@@ -31,10 +32,11 @@ int main(int argc,char**argv){@autoreleasepool{
  IAudioProcessor* processor=nullptr;IEditController* controller=nullptr;
  if(component->queryInterface(IAudioProcessor::iid,(void**)&processor)!=kResultOk||component->queryInterface(IEditController::iid,(void**)&controller)!=kResultOk)return 8;
  const bool fx=component->getBusCount(kAudio,kInput)==1;
+ ProjectDirtyHandler projectDirty;controller->setComponentHandler(&projectDirty);
  ProcessSetup setup{};setup.processMode=kRealtime;setup.symbolicSampleSize=kSample32;setup.maxSamplesPerBlock=128;setup.sampleRate=48000;
  if(processor->setupProcessing(setup)!=kResultOk)return 9;
  if(fx)component->activateBus(kAudio,kInput,0,true);component->activateBus(kAudio,kOutput,0,true);component->setActive(true);processor->setProcessing(true);
- NSWindow* window=[[NSWindow alloc] initWithContentRect:NSMakeRect(0,0,780,552) styleMask:NSWindowStyleMaskTitled backing:NSBackingStoreBuffered defer:NO];
+ NSWindow* window=[[NSWindow alloc] initWithContentRect:NSMakeRect(0,0,1240,756) styleMask:NSWindowStyleMaskTitled backing:NSBackingStoreBuffered defer:NO];
  IPlugView* view=controller->createView(ViewType::kEditor);if(!view||view->attached(window.contentView,kPlatformTypeNSView)!=kResultOk)return 10;
  if(!button(window.contentView,102)||!button(window.contentView,106))return 11;
  [[NSPasteboard generalPasteboard] clearContents];
@@ -62,6 +64,7 @@ int main(int argc,char**argv){@autoreleasepool{
   std::ifstream control(std::string(argv[2])+".control");std::string command;std::getline(control,command);
   if(command!=previous){previous=command;
    if(command=="quit")break;
+   if(command.rfind("remote-",0)==0){unsigned id=0;if(command=="remote-sparse")id=201;else if(command=="remote-mega")id=202;else if(command=="remote-render")id=203;else if(command=="remote-store")id=204;else if(command=="remote-pot")id=210;else if(command=="remote-stir")id=211;else if(command=="remote-big-stir")id=212;else if(command=="remote-auto")id=220;else if(command=="remote-interval")id=222;else if(command.rfind("remote-pot-power-",0)==0)id=500+std::stoul(command.substr(17));else if(command.rfind("remote-pot-up-",0)==0)id=600+std::stoul(command.substr(14));else if(command.rfind("remote-pot-down-",0)==0)id=700+std::stoul(command.substr(16));else if(command.rfind("remote-pot-jump-",0)==0)id=400+std::stoul(command.substr(16));else if(command.rfind("remote-layer-",0)==0)id=300+std::stoul(command.substr(13));if(id)[button(window.contentView,id) performClick:nil];}
    if(command=="arm")[button(window.contentView,106) performClick:nil];
    if(command=="stop")[button(window.contentView,104) performClick:nil];
    if(command=="disconnect")[button(window.contentView,105) performClick:nil];
@@ -74,7 +77,10 @@ int main(int argc,char**argv){@autoreleasepool{
   }
  }}
  running=false;audio.join();
- MemoryStream state;if(component->getState(&state)!=kResultOk||state.getSize()!=(fx?16:12))return 12;state.seek(0,IBStream::kIBSeekSet,nullptr);if(component->setState(&state)!=kResultOk)return 13;
+ if(projectDirty.wrongThread.load()||!projectDirty.calls.load())return 15;
+ std::cout<<"PROJECT_DIRTY_UI="<<projectDirty.calls.load()<<std::endl;
+ MemoryStream state;if(component->getState(&state)!=kResultOk||state.getSize()<48)return 12;state.seek(0,IBStream::kIBSeekSet,nullptr);if(component->setState(&state)!=kResultOk)return 13;
+ if(!checkProjectState(factory,info,host,component,state))return 14;
  std::cout<<"LATENCY="<<processor->getLatencySamples()<<" STATE_BYTES="<<state.getSize()<<std::endl;
  view->removed();view->release();[window release];processor->setProcessing(false);component->setActive(false);controller->release();processor->release();component->terminate();component->release();factory->release();
  } // Drain AppKit event autoreleases before unloading Objective-C class code.

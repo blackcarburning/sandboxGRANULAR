@@ -12,7 +12,7 @@ def tool(name):
  matches=[p for p in build.rglob(name) if p.is_file() and os.access(p,os.X_OK)]
  assert matches,(name,build);return matches[0]
 validator,moduleinfo,host=tool('validator'),tool('moduleinfotool'),tool('mac-plugin-host')
-for title,version,cid,kind in [('MYGRAIN Bridge','0.5.0','5DF4D5FA7A0E4BC6B61AE9056DA13821','bridge'),('MYGRAIN FX','0.1.0','80192C741FCA4FA0A638DE42F66C7D18','fx')]:
+for title,version,cid,kind in [('MYGRAIN Bridge','0.8.0','5DF4D5FA7A0E4BC6B61AE9056DA13821','bridge'),('MYGRAIN FX','0.4.0','80192C741FCA4FA0A638DE42F66C7D18','fx')]:
  bundles=list(build.rglob(title+'.vst3'));assert len(bundles)==1,bundles
  bundle=bundles[0];binary=bundle/'Contents/MacOS'/title
  assert binary.is_file(),list(bundle.rglob('*'))
@@ -33,12 +33,22 @@ for title,version,cid,kind in [('MYGRAIN Bridge','0.5.0','5DF4D5FA7A0E4BC6B61AE9
  stage=output/(kind+'-package');stage.mkdir(exist_ok=True);shutil.copytree(bundle,stage/bundle.name,dirs_exist_ok=True)
  shutil.copy2(src/'mac/Install-MYGRAIN.command',stage/'Install MYGRAIN.command')
  (stage/'LICENSES').mkdir(exist_ok=True);shutil.copy2(sdk/'LICENSE.txt',stage/'LICENSES/Steinberg-VST3-SDK-MIT.txt')
- (stage/'README-FIRST.txt').write_text(f'''{title} {version} — macOS universal VST3 preview (Apple Silicon + Intel), macOS 11+.
+ (stage/'README-FIRST.txt').write_text(f'''{title} {version} — macOS universal VST3 preview (Apple Silicon ARM64 + Intel x86_64), macOS 11+.
 
 1. Extract the ZIP and close Bitwig Studio.
-2. Run "Install MYGRAIN.command". No administrator password is needed.
-   If Finder blocks the script, open Terminal, type bash followed by a space,
-   drag "Install MYGRAIN.command" into Terminal, then press Return.
+2. Open Terminal and enter the extracted folder: type cd followed by a space,
+   drag the EXTRACTED FOLDER into Terminal, then press Return. Run:
+
+   ./"Install MYGRAIN.command"
+
+   Use the capital I in Install. The ./ means the current folder; the quotes
+   keep the filename's space together. Keep the installer, plugin bundle and
+   SHA256SUMS.txt together in this extracted folder. Close Bitwig first.
+   If you get "Permission denied", run this alternative from the same folder:
+
+   bash "./Install MYGRAIN.command"
+
+   No administrator password is needed.
    Installer verifies hashes and signatures, copies ONLY this plugin to
    ~/Library/Audio/Plug-Ins/VST3 and removes its download quarantine flag.
    This is ad-hoc signed, not Apple Developer ID signed or notarized.
@@ -59,17 +69,33 @@ return uses delayed dry. Print wet audio in REAL TIME; this is not low-latency
 live monitoring. DAW Play/BPM clocks silent patch modulation sources. Avoid
 routing the output back to its own input.
 ''' if kind=='fx' else '''BRIDGE: Live streams patch edits after buffering and keeps running over DAW
-loops/seeks. Rendered captures a snapshot in RAM and follows the DAW timeline,
-including offline playback. First Live start schedules a future bar. The snapshot
-is not stored in the project; reconnect and render after reopening.
+loops/seeks. Rendered follows the DAW timeline, including offline playback.
+First Live start schedules a future bar. Store in Rendered mode also embeds
+the retained loop, so saved audio plays natively without Chrome running.
 ''')+'''
-Save MYGRAIN patches separately. Projects do not embed Chrome or source samples.
+Auto-store is On by default: 60 seconds, adjustable from 15 to 3600.
+Wait for a completed store (or Store now), then
+save the DAW project. This embeds the editable patch and its required sounds.
+Connect Chrome after reopening to recall the saved patch automatically.
+Automatic storage defaults to every 60 seconds; save the DAW project normally. It stores the current patch,
+not the Songs library or account credentials. Browser login/audio gesture may
+still be needed. FX still needs Chrome for real-time wet processing.
 Arm remains latched through reconnect/processing changes; explicit Stop disarms.
 Closing only the editor does not disconnect. Manual fallback: Copy code, then
 paste into Chrome's VST3 panel (Bridge) or DAW INPUT card (FX).
 To remove: close Bitwig and remove this bundle from the user VST3 directory.
 Automated macOS/native host verification is included; physical Mac/Bitwig and
 CoreAudio-driver recording alignment remain unverified.
+Native plugin controls: Sparse Random / Mega Random replace the current patch
+using Chrome; Undo remains in MYGRAIN. The status box reports actual layer jobs
+and warnings. Lit layer buttons are On; dark buttons are muted. These mirror
+the browser Layers section, including global reverb/delay. Existing solo states
+still apply. In Rendered mode use Refresh render after edits (stop DAW first).
+Auto-store / Store now stores the editable patch and retained Rendered loop; wait for
+Ready for DAW save, then Save in the DAW. Chrome must stay connected for these
+patch controls; they do not add native synthesis. FX source layers are silent
+modulation sources, not an additional audible mix into the FX return.
+
 https://openclaw.blackcarburning.com/mygrain/vst3-setup.html#mac
 ''')
  verification=f'{title} {version}\nSDK pinned: 3cdf9ca5d1f5b1b21e0a86832aa4abe55607bd96\nmacOS runner: '+run('sw_vers')+'\nUniversal architectures: '+architecture+'\nAd-hoc signature verified. System frameworks only. Core/transport/FX CTest checks passed.\nActual Mach-O factory/editor/socket/callback PCM, editor reopen, saved-state roundtrip, Arm/Stop, offline output tested on runner architecture.\n'+(output/(kind+'-native.f32.json')).read_text()+'\n\nPhysical Mac/Bitwig/CoreAudio tests NOT performed. No Developer ID notarization.\n\n'+validation

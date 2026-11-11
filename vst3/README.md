@@ -33,9 +33,15 @@ bundle into the standard VST3 directory and rescan. User instructions are in
   valid packet in the next generation. Invalid floats are sanitized. No mutex,
   allocation, socket, file IO or UI call occurs in `Engine::process`.
 - Host callback timing chooses the next musical bar at least one second ahead.
-  The browser plans transport and capture on exactly the same audio sample and
-  renders ahead of the selected host target. The native reader starts at that
-  target, independently of browser message delivery jitter.
+  The browser plans transport on an exact audio sample, then begins capture
+  after the measured final-graph processing delay, matching Rendered/WAV's
+  audible origin. Both render ahead of the selected host target. The native
+  reader presents that first audible-origin frame at the host target,
+  independently of browser message delivery jitter. Starting capture at the
+  uncorrected transport origin inserted the compressor's approximately 6 ms
+  lookahead (288 samples at 48 kHz) into Live recordings. This browser-side
+  correction requires a page reload, not a plugin reinstall. Live still uses
+  independent clocks and bounded drift correction; it is not sample-locked.
 - 350 ms is the intended browser lookahead, not guaranteed measured roundtrip
   latency. At first valid playback the consumer calibrates its queue target to
   actual prefill. Linear interpolation converts sample rates; a slow bounded
@@ -375,9 +381,15 @@ ad-hoc signature, installs to `~/Library/Audio/Plug-Ins/VST3`, backs up an
 existing bundle outside that scan folder, and removes quarantine only from
 the exact bundle it installed. It uses no administrator privileges and does
 not disable Gatekeeper globally. It is not Developer ID signed/notarized.
-If Finder blocks a downloaded command file, launch it with `bash` in Terminal
-as described in the included README. In Bitwig, include that user VST3 folder
-in Settings > Locations and rescan. Bridge is an instrument; FX is an effect.
+Open Terminal in the extracted folder (type `cd `, drag the extracted folder
+into Terminal, then Return), and run `./"Install MYGRAIN.command"` with the
+capital I shown. `./` selects the current directory; quotes preserve the space.
+If the executable permission is missing, use `bash "./Install MYGRAIN.command"`.
+Keep the installer, bundle and `SHA256SUMS.txt` together. In Bitwig, include
+that user VST3 folder in Settings > Locations and rescan. Bridge is an
+instrument; FX is an effect. The release generator and both public ZIP readmes
+carry these same Terminal instructions. Documentation-only ZIP updates retain
+every plugin/installer byte and file mode, updating the README checksum only.
 
 CI is `.github/workflows/mygrain-macos-vst3.yml`, using a supported macOS 15
 Apple Silicon runner and the pinned SDK. Automated native-host tests are not
@@ -388,3 +400,96 @@ page at `vst3-setup.html#mac` and the two desktop plugin download panels expose
 separate versioned Mac and Windows ZIPs. The exact two Mac filenames must also
 be in the backend public-file and attachment allowlists; no source/build tree
 is exposed through the application route.
+
+## Live capture origin regression
+
+`tests/daw-bridge-start-alignment.cjs` compares a known four-impulse A layer
+rendered with the real final-mix engine against real Chromium/worklet/worker
+audio received by the native Bridge engine. Run against an isolated accounts
+fixture only, never production: `MYGRAIN_TEST_URL` must be a loopback URL. Set
+`MYGRAIN_ALIGNMENT_OUTPUT` to a private evidence directory and compile
+`vst3/tests/bridge_fixture.cpp` with `vst3/src/server.cpp` (`-std=c++17 -pthread
+-I vst3/src -lcrypto`) as `/tmp/mygrain-live-start-fixture`, or override
+`MYGRAIN_ALIGNMENT_FIXTURE`. Run at both `MYGRAIN_TEST_RATE=44100` and `48000`.
+The native fixture runs at 48 kHz, so 44.1 kHz also checks resampling. JSON/PCM
+evidence records cold-start alignment and subsequent bounded clock drift. It
+is not a physical target-platform VST3 host/DAW/audio-device test.
+
+## 0.6.0 Bridge / 0.2.0 FX: explicit project snapshot recall
+
+The previous sections document earlier releases; the RAM-only/state-v2 limits
+are superseded by this section. Plugin class IDs stay unchanged. Bridge reads
+v1/v2 and writes v3; FX reads v1 and writes v2. The 48-byte native header stores
+magic/version/flags/mix/document bytes+CRC/loop rate+frames/beats+BPM, followed
+by the bounded opaque document and optional float32 stereo loop. Parse and
+validate all fields before publication; malformed/truncated state leaves the
+last committed snapshot intact. Host streams may make partial reads/writes.
+
+`daw-project.js` captures the existing complete editable-part ZIP and wraps it
+with versioned Bridge mode/bars or FX gain/mute/route JSON (MGP1 envelope).
+`daw-project-worker.js` moves CRC-checked contiguous MGS1 chunks over the
+existing per-instance authenticated loopback socket; no server storage or
+credentials are involved. project-begin completes atomically into ProjectStore;
+project-get retrieves only that plugin's revision. Interrupted uploads retain
+the previous committed snapshot. Limits: 128 MiB ZIP, 64 KiB settings, 32 MiB
+rendered PCM; 120-second bounded transfers. Explicit Store in Rendered mode
+retains the most recent successful loop, not a new capture. Store then DAW Save
+is required after edits; the Store button does not save the host project.
+
+getState only serializes an already-resident immutable snapshot. No network,
+browser request or render occurs in that callback. Mutexes/shared_ptr copies,
+CRC and allocations occur only on state/socket threads; process() uses atomic
+flags and existing ownership-state PCM slots. Producers serialize publication
+off-thread; restore may safely replace a pending slot before audio adoption.
+Rendered snapshots play without Chrome or an open editor. Live/FX remain gated
+until the browser restores and acknowledges the current project revision.
+
+On connection, recall waits for account/audio readiness, validates/decodes the
+ZIP using the existing adapter, and applies it with start:false,persist:false.
+It does not replace account scratch persistence or Song libraries, and excludes
+DAW card controls from the generic Song control inventory. Existing Songs, DSP
+and render compatibility hashes are unchanged. Separate instances have separate
+local state and tabs; codes/tokens are never serialized.
+
+Verification: tests/project_state_checks.h loads actual factory clones, checks
+full variable-size state roundtrips/repeated pre-process restore, rejects
+truncation/corruption without replacing valid state, reads legacy state and
+compares exact offline Rendered callback PCM without a browser. Native Mac
+integration uploads an embedded native protocol fixture and runs the same
+checks on actual Mach-O. tests/daw-project-browser.cjs covers real editable
+patch + sound capture, native DAW Save, fresh-instance recall and isolation.
+
+Successful Store also increments a non-RT dirty counter. The SDK platform
+timer calls IComponentHandler2::setDirty(true) on the host UI thread, including
+when the editor is closed. It exists only while that optional handler is
+connected, is stopped on terminate, and never calls the host from the socket
+or audio threads. Native host tests assert notifications and callback thread.
+The projectStored/Ready acknowledgement is sent only after that dirty callback
+lands when supported, so an immediate DAW Save cannot race the UI notification.
+Unsupported hosts still receive the complete snapshot and may save it normally.
+
+
+## Native remote controls · Bridge 0.7.0 / FX 0.3.0
+
+Native editors are 780×756 with branded gradient buttons, a two-line job status, measured layer-job counts and 25 canonical Quick Mute switches. One per-instance command travels over the existing Origin/capability-checked loopback WebSocket. UI/network state is mutex-protected off the audio thread; process() does not touch the remote state. Requests are serialised and idempotent per connection; unavailable/busy/conflicting browser operations reject commands. No separate port, service, account credential or arbitrary script command is added.
+
+Commands 1=Sparse, 2=Mega, 3=explicit layer state(index,value), 4=Bridge Refresh render, 5=Store project. Browser worker accepts only bounded remote-state numeric fields and hexadecimal UTF-8 status. Native bounds-checks progress, bitmasks and text; a disconnect clears pending commands and disables controls without resending generation. Existing generators and canonical layer button actions are reused; no sound schema, renderer/cache signature or legacy snapshot migration changes. Native saved-state versions and plugin class identities are unchanged.
+
+Sparse/Mega progress comes from createMegaRandomCommentary task records, not elapsed-time percentages. Existing full generation history wrapper/Undo and all cut/envelope rules remain in force. Generation holds live return while jobs run; Stop/disarm still wins. Rendered audio is immutable until explicit Refresh render; stop DAW first, then Store and DAW Save. Native Store waits for the existing snapshot transfer/host dirty acknowledgement. FX layer switches affect its silent modulation sources; they do not mix generators into the insert return.
+
+Verification: the native test hosts can invoke remote-sparse, remote-mega, remote-layer-N, remote-render, remote-store and remote-status via their private control file. Mac integration verifies actual AppKit actions and progress responses, plus SDK/native PCM/state teardown checks. Windows+Chromium integration verifies the existing generator with controlled sample jobs, real decoding, warning/error handling, layer two-way sync, native Refresh/Store, saved-state recall, capability isolation and screenshots. Production account/sample generation is not used by fixtures. Physical DAW/driver checks remain separate.
+
+### Native cold-start preparation
+
+Native Bridge Arm/Play now waits for Q sample/graph preparation before starting any live lane, matching browser Arm. The entire patch is planned against the latest native clock after preparation; an expired deadline requests a later bar, not a late Q entry. Stop, disarm, disconnect, mode change or a conflicting remote/project operation cancels the pending continuation. This is a browser-only scheduling fix; current/legacy Song and offline render paths already prepare their samples and remain unchanged. Native cold-cache tests reproduce the original partial A/Q start, then verify a common first sample after 20 seconds idle, including a load spanning the old target and Stop during preparation. This establishes that late-layer path, not every possible perceived effect-tail build-up.
+
+Standalone protocol-state guards: `c++ -std=c++17 -pthread -Isrc tests/remote_test.cpp -o /tmp/mygrain-remote-test && /tmp/mygrain-remote-test` tests bounds, unavailable/busy rejection, stale status isolation, single delivery, disconnect/no replay and independent instances.
+
+
+## Automatic project storage · Bridge 0.8.0 / FX 0.4.0
+
+Auto-store defaults On at 60 seconds (15–3600 adjustable); account/kind preferences are local and included per project snapshot. Reopen restores the DAW-owned snapshot before scheduling storage. `busy` means destructive restore only; `storing` never changes stream readiness or transport. Recording, generation, Song/history operations and pending source loads defer automatic capture. Mega skips its tempo question and keeps the host tempo in plugin mode.
+
+A dedicated codec worker uses the canonical Song snapshot and PCM16 rules, caches unchanged source WAVs, constructs standard editable ZIPs and CRCs away from audio/network workers. New native plugins accept bounded literal/copy deltas against the exact committed revision; unchanged sound spans are copied from the immutable plugin snapshot. Older plugins receive a full snapshot. Native reconstruction/CRC/commit runs in a separate job, keeping socket PCM/clock servicing live. Invalid, partial, stale or failed transfers retain the old snapshot; acknowledgement still waits for host UI-thread dirty notification. DAW getState never waits on Chrome. An in-flight DAW save captures the last completed snapshot.
+
+Both native windows are 1240×756: existing transport/generation/Layers on the left; the same Pot artwork, linked powers, drag/up/down order, Stir/BIG STIR and browser effect jumps on the right. Auto-store controls and measured last time/duration/project-payload bytes/snapshot size/counts/next check sit below. Wire stats include application project headers, not WebSocket/TCP framing. Session totals reset on reconnect; recalled snapshots report their capture date. Rendered audio stays explicit Refresh render; it is never rerendered by the auto-store timer. No Song schema, DSP recipe, cached-render identity or native class identity changed.

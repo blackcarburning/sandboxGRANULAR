@@ -6,13 +6,13 @@ for name in ('bundle','setup','verification','sdk','output'):p.add_argument('--'
 a=p.parse_args();assert a.bundle.name=='MYGRAIN FX.vst3'
 binary=a.bundle/'Contents/x86_64-win/MYGRAIN FX.vst3';assert binary.read_bytes()[:2]==b'MZ'
 info=json.loads((a.bundle/'Contents/Resources/moduleinfo.json').read_text())
-assert info['Version']=='0.1.0' and info['Classes'][0]['CID']=='80192C741FCA4FA0A638DE42F66C7D18'
+assert info['Version']=='0.4.0' and info['Classes'][0]['CID']=='80192C741FCA4FA0A638DE42F66C7D18'
 assert info['Classes'][0]['Sub Categories']==['Fx','Filter']
 files={q.relative_to(a.bundle.parent).as_posix():q.read_bytes() for q in a.bundle.rglob('*') if q.is_file()}
 assert len(files)==2
 files['SETUP.html']=a.setup.read_bytes();assert b'id="fx"' in files['SETUP.html']
 files['VERIFICATION.txt']=a.verification.read_bytes()
-files['README-FIRST.txt']=b'''MYGRAIN FX 0.1.0 - Windows x64 stereo VST3 effect preview
+files['README-FIRST.txt']=b'''MYGRAIN FX 0.4.0 - Windows x64 stereo VST3 effect preview
 
 1. Extract this ZIP; close the DAW.
 2. Copy the WHOLE "MYGRAIN FX.vst3" folder into:
@@ -35,8 +35,10 @@ Offline bounce/freeze, bypass, Stop, disconnect and missing returns use the
 SAME delayed DRY path. Initial one-second fill is silent.
 Arm stays latched through routing/processing interruptions and reconnects.
 Only explicit Stop/disarm clears it. Projects save Arm, bypass and dry/wet.
-Input gain/routing are browser session controls, not saved Song content.
-Save your editable MYGRAIN patch separately. DAW projects do not embed it.
+Auto-store (default 60 seconds) captures the editable patch, required sounds and
+input gain/routing. Wait for Ready for DAW save, then save the DAW project.
+On reopening, connect Chrome to recall. Automatic storage includes later edits at the selected interval.
+Input gain/routing remain separate from Song content.
 To use DAW-processed material in a saved Song, print to audio and import it.
 
 One FX instance per tab. Use a different tab for the Bridge instrument.
@@ -47,6 +49,16 @@ No helper EXE, installer, virtual cable, service or extra runtime installation.
 Keep the Bridge instrument if wanted: this has a separate plugin identity.
 See SETUP.html and VERIFICATION.txt for limits and actual test coverage.
 Physical Windows/ASIO/commercial-DAW validation remains outstanding.
+
+Native plugin controls: Sparse Random / Mega Random replace the current patch
+using Chrome; Undo remains in MYGRAIN. The status box reports actual layer jobs
+and warnings. Lit layer buttons are On; dark buttons are muted. These mirror
+the browser Layers section, including global reverb/delay. Existing solo states
+still apply. In Rendered mode use Refresh render after edits (stop DAW first).
+Auto-store / Store now stores the editable patch and retained Rendered loop; wait for
+Ready for DAW save, then Save in the DAW. Chrome must stay connected for these
+patch controls; they do not add native synthesis. FX source layers are silent
+modulation sources, not an additional audible mix into the FX return.
 
 https://openclaw.blackcarburning.com/mygrain/vst3-setup.html#fx
 '''
