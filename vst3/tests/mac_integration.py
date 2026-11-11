@@ -56,8 +56,8 @@ while time.monotonic()-start<9:
  elapsed=time.monotonic()-start
  if remoteStep<11 and elapsed>.6+remoteStep*.4:
   control(['remote-sparse','remote-mega','remote-layer-9','remote-pot','remote-pot-power-0','remote-pot-down-0','remote-stir','remote-big-stir','remote-auto','remote-interval','remote-pot-jump-0'][remoteStep]);remoteStep+=1
- if elapsed>3 and not reopened:control('reopen');reopened=True
- if elapsed>4 and not shot:control('screenshot');shot=True
+ if elapsed>5.3 and not reopened:control('reopen');reopened=True
+ if elapsed>5.7 and not shot:control('screenshot');shot=True
  if elapsed>6 and not offline:control('offline');offline=True
  if elapsed>7.5 and not stopped:control('stop');stopped=True
  opcode,body=receive()
