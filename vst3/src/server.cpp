@@ -164,7 +164,7 @@ void Server::loop() {
         uint32_t uploadId=0,uploadRate=0,uploadFrames=0,uploadCursor=0;
         double uploadBeats=0,uploadBpm=120;std::vector<float> upload;
         uint32_t projectId=0,projectSize=0,projectCursor=0,projectHash=0;bool projectRendered=false,projectDelta=false;uint32_t projectBaseRevision=0;
-        std::vector<uint8_t> projectUpload;std::future<bool> projectJob;uint32_t jobId=0;
+        std::vector<uint8_t> projectUpload;std::future<bool> projectJob;uint32_t jobId=0,jobRevision=0;
         uint32_t storedId=0,storedRevision=0,storedDirty=0;
         uint32_t downloadId=0,downloadCursor=0;std::shared_ptr<const SavedProject> download;
         auto projectDeadline=std::chrono::steady_clock::now();
@@ -175,7 +175,7 @@ void Server::loop() {
             const auto now=std::chrono::steady_clock::now();
             if(projectJob.valid()&&projectJob.wait_for(std::chrono::seconds(0))==std::future_status::ready){
                 const bool ok=projectJob.get();
-                if(ok){storedId=jobId;storedRevision=engine.project.revision.load();storedDirty=engine.project.dirtyRevision.load();}
+                if(ok&&engine.project.revision.load()==jobRevision){storedId=jobId;storedRevision=jobRevision;storedDirty=engine.project.dirtyRevision.load();}
                 else if(!sendFrame(client,1,"{\"type\":\"projectError\",\"id\":"+std::to_string(jobId)+",\"message\":\"Snapshot rejected or project changed; previous snapshot retained.\"}"))break;
                 jobId=0;
             }
@@ -185,6 +185,7 @@ void Server::loop() {
             if(now-lastClock>=std::chrono::milliseconds(25)){if(!sendFrame(client,1,clockMessage(engine)))break;lastClock=now;}
             // Ready means the snapshot is complete AND the UI-thread host dirty
             // notification has landed (when that optional host interface exists).
+            if(storedId&&engine.project.revision.load()!=storedRevision){if(!sendFrame(client,1,"{\"type\":\"projectError\",\"id\":"+std::to_string(storedId)+",\"message\":\"DAW project changed before storage acknowledgement; restore the current project.\"}"))break;storedId=0;}
             if(storedId&&(!engine.project.supportsDirty.load()||engine.project.dirtyNotified.load(std::memory_order_acquire)>=storedDirty)){
                 if(!sendFrame(client,1,"{\"type\":\"projectStored\",\"id\":"+std::to_string(storedId)+",\"revision\":"+std::to_string(storedRevision)+"}"))break;storedId=0;
             }
@@ -287,7 +288,7 @@ void Server::loop() {
                     std::memcpy(projectUpload.data()+projectCursor,payload.data()+16,h[3]);projectCursor+=h[3];
                     if(projectCursor==projectSize){
                         const auto id=projectId;projectId=0;
-                        jobId=id;auto previous=projectDelta?engine.project.get():nullptr;
+                        jobId=id;jobRevision=projectBaseRevision+1;auto previous=projectDelta?engine.project.get():nullptr;
                         projectJob=std::async(std::launch::async,[&,body=std::move(projectUpload),previous,hash=projectHash,render=projectRendered,base=projectBaseRevision,delta=projectDelta]()mutable{
                             try{if(delta){if(!previous)return false;body=expandProjectDelta(body,previous->document);}return engine.project.commit(std::move(body),hash,render,base);}catch(...){return false;}
                         });projectUpload.clear();

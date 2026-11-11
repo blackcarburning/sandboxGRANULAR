@@ -1,6 +1,6 @@
 # MYGRAIN Bridge — portable Windows VST3 preview
 
-Version 0.5.0. Windows x86-64 instrument; no installer, helper EXE, registry
+Version 0.8.0 (Bridge) / 0.4.0 (FX). Windows x86-64 and universal macOS; no installer, helper EXE, registry
 registration, audio cable or Windows service. Copy the whole `MYGRAIN Bridge.vst3`
 bundle into the standard VST3 directory and rescan. User instructions are in
 `../vst3-setup.html` and included in the ZIP.
