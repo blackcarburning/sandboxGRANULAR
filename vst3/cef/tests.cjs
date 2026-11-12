@@ -1,0 +1,58 @@
+'use strict';
+// Run against a real CEF helper and native VST3 host. No production account requests.
+const {chromium}=require('playwright-core'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),{spawn}=require('node:child_process');
+const [hostExe,bundle,out]=process.argv.slice(2),app=path.resolve(__dirname,'../..'),origin='https://openclaw.blackcarburning.com',delay=ms=>new Promise(r=>setTimeout(r,ms));
+fs.mkdirSync(out,{recursive:true});
+async function until(fn,label,timeout=30000){const end=Date.now()+timeout;while(Date.now()<end){if(await fn())return;await delay(100);}throw Error('Timeout '+label);}
+const mime=p=>({'.html':'text/html','.js':'text/javascript','.cjs':'text/javascript','.json':'application/json','.css':'text/css','.wasm':'application/wasm','.png':'image/png','.webp':'image/webp','.wav':'audio/wav','.woff2':'font/woff2'}[path.extname(p)]||'application/octet-stream');
+async function fixture(context){
+ await context.route('**/*',async route=>{
+  const u=new URL(route.request().url());if(u.origin!==origin){await route.abort();return;}
+  const n=decodeURIComponent(u.pathname.replace(/^\/mygrain\/?/,''))||'index.html';
+  const headers={'x-mygrain-isolated-test':'cef-project','cache-control':'no-store'};
+  if(n==='account-context.js'){await route.fulfill({headers,contentType:'text/javascript',body:'window.mygrainAccountContext={user:{username:"cef-fixture"}};'});return;}
+  if(n.startsWith('api/')){
+   const body=n==='api/auth/session'?{authenticated:true,user:{username:'cef-fixture'}}:{items:[],files:[],folders:[],songs:[],parts:[],presets:[],favourites:[],favorites:[],sources:[],libraries:[],jobs:[]};
+   await route.fulfill({headers,contentType:'application/json',body:JSON.stringify(body)});return;
+  }
+  const file=path.resolve(app,n);if(!file.startsWith(app+path.sep)||!fs.existsSync(file)||!fs.statSync(file).isFile()){await route.fulfill({status:404,headers,body:'Isolated fixture: missing asset'});return;}
+  await route.fulfill({headers,contentType:mime(file),body:fs.readFileSync(file)});
+ });
+}
+let child,browser,code,log='',exit=null;const raw=path.resolve(out,'cef-native.f32'),control=raw+'.control';
+function command(c){fs.writeFileSync(control,c);}
+async function run(state){
+ log='';exit=null;const argv=[bundle,raw,'300'];if(state)argv.push(state);
+ child=spawn(hostExe,argv,{env:{...process.env,MYGRAIN_CEF_DEBUG_PORT:'19381'}});child.stdout.on('data',b=>{log+=b;process.stdout.write(b);});child.stderr.on('data',b=>fs.appendFileSync(raw+'.stderr',b));child.on('exit',n=>{exit=n;});
+ await until(()=>/187\d{2}\.[a-f0-9]{32}/.test(log),'native code');code=log.match(/187\d{2}\.[a-f0-9]{32}/)[0];
+ await until(async()=>{try{const r=await fetch('http://127.0.0.1:19381/json/version');return r.ok;}catch{return false;}},'real CEF debugger',45000);
+ browser=await chromium.connectOverCDP('http://127.0.0.1:19381');const c=browser.contexts()[0];await fixture(c);const p=c.pages()[0];
+ const response=await p.goto(origin+'/mygrain/#daw='+code);assert.equal(response.headers()['x-mygrain-isolated-test'],'cef-project');
+ await p.waitForFunction(()=>window.mygrainDawBridge&&document.documentElement.dataset.mygrainStartup==='ready',null,{timeout:90000});
+ if(await p.locator('#start-btn').isVisible())await p.locator('#start-btn').click();
+ await p.waitForFunction(()=>mygrainDawBridge.connected&&mygrainDawBridge.diagnostics().project.ready&&isAudioGraphReady()&&!engineStarting&&!stateSaveSuspended&&!mygrainCardHistory.busy,null,{timeout:90000});
+ return p;
+}
+async function close(){command('quit');if(browser){await browser.close().catch(()=>{});browser=null;}await until(()=>exit!==null,'native clean unload',15000);assert.equal(exit,0,log);fs.writeFileSync(path.join(out,'cef-native-host.log'),log);}
+function rms(){const bytes=fs.readFileSync(raw);let power=0,n=0;for(let at=Math.max(0,bytes.length-48000*8);at+4<=bytes.length;at+=4){const v=bytes.readFloatLE(at);assert(Number.isFinite(v));power+=v*v;n++;}return Math.sqrt(power/Math.max(1,n));}
+(async()=>{try{
+ const p=await run();command('stop');const diag=()=>p.evaluate(()=>mygrainDawBridge.diagnostics());
+ assert.equal((await diag()).project.auto.enabled,true);assert.equal((await diag()).project.auto.interval,60);
+ await p.evaluate(async()=>{stopAllPerformancePlayback({silent:true});clearAllPerformanceSoloStates({silent:true,skipSave:true});applyGlobalBpm(120);syncPatternLengthControls(16,{skipSave:true});setFxMuted(true,{silent:true});setFilterEnabled('lpf',false);setFilterEnabled('hpf',false);setDrumMachineEnabled(false,{silent:true,skipSave:true});
+  const b=audioContext.createBuffer(2,audioContext.sampleRate*4,audioContext.sampleRate);for(let c=0;c<2;c++)for(let i=0;i<b.length;i++)b.getChannelData(c)[i]=.15*Math.cos(2*Math.PI*(c?223:110)*i/b.sampleRate);bastardLoopBuffer=b;bastardLoopSourceBpm=120;bastardLoopMetadata={bpm:120,summary:'CEF isolated auto-save source',durationSeconds:4};setBastardLoopEnabled(true,{silent:true,skipSave:true});setLoopLayerSolo('bastarda',{silent:true,skipSave:true});
+  const panel=document.querySelector('#dawBridgeCard .daw-project-panel');panel.querySelector('.daw-project-interval').value='15';panel.querySelector('.daw-project-interval').dispatchEvent(new Event('change'));
+ });
+ command('arm-plugin');await delay(250);command('play');await p.waitForFunction(()=>mygrainDawBridge.diagnostics().clock.running,null,{timeout:25000});await delay(1200);assert(rms()>.0001,'real native output must be audible');
+ await p.waitForFunction(()=>mygrainDawBridge.diagnostics().project.stats.count>=1,null,{timeout:45000});const first=(await diag()).project;assert(first.stats.snapshotBytes>100000,'real source WAV must be stored');assert.equal(first.auto.interval,15);
+ command('close-editor');await delay(500);const count=first.stats.count;await p.evaluate(()=>{bastardLoopMetadata.summary='CEF updated while native editor closed';});
+ await p.waitForFunction(n=>mygrainDawBridge.diagnostics().project.stats.count>n,count,{timeout:35000});assert(rms()>.0001,'audio continues with editor closed');
+ const expected=await p.evaluate(()=>({frames:bastardLoopBuffer.length,first:bastardLoopBuffer.getChannelData(0)[100],summary:bastardLoopMetadata.summary}));
+ command('save-project');await until(()=>/PROJECT_SAVED=/.test(log),'DAW project saved');assert.match(log,/PROJECT_STATE_CHECKS_OK/);assert.match(log,/PROJECT_DIRTY_UI=/);const state=path.join(out,'saved-project.bin');fs.copyFileSync(raw+'.project.bin',state);
+ // Reopen is the same running CEF instance, not an empty new browser.
+ command('reopen-editor');await delay(500);assert.equal((await diag()).connected,true);assert.equal(await p.evaluate(()=>bastardLoopMetadata.summary),expected.summary);
+ command('stop');await delay(400);command('cef-reload');await p.waitForEvent('framenavigated',{predicate:f=>f===p.mainFrame(),timeout:125000});
+ if(await p.locator('#start-btn').isVisible())await p.locator('#start-btn').click();await p.waitForFunction(()=>mygrainDawBridge?.connected&&mygrainDawBridge.diagnostics().project.ready&&!mygrainDawBridge.diagnostics().project.busy,null,{timeout:90000});assert.equal(await p.evaluate(()=>bastardLoopMetadata.summary),expected.summary);assert.equal((await diag()).project.auto.interval,15);
+ await p.screenshot({path:path.join(out,'cef-embedded-app.png')});await close();
+ fs.writeFileSync(control,'');const q=await run(state);assert.equal(await q.evaluate(()=>bastardLoopMetadata.summary),expected.summary);assert.equal(await q.evaluate(()=>bastardLoopBuffer.length),expected.frames);assert(Math.abs(await q.evaluate(()=>bastardLoopBuffer.getChannelData(0)[100])-expected.first)<.00005);assert.equal((await q.evaluate(()=>mygrainDawBridge.diagnostics())).project.auto.interval,15);await close();
+ fs.writeFileSync(path.join(out,'cef-results.json'),JSON.stringify({first,expected,autoSaveWhileClosed:true,reloadRecall:true,freshNativeRecall:true,nativeAudio:true},null,2));console.log('PASS real CEF, native PCM, closed-editor auto-save, safe reload, fresh DAW recall and clean unload');
+}finally{if(exit===null&&child){command('quit');await delay(1000);child.kill();}if(browser)await browser.close().catch(()=>{});}})().catch(e=>{console.error(e);process.exitCode=1;});

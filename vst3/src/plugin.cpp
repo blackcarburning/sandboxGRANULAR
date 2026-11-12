@@ -12,6 +12,9 @@
 #include <cstring>
 #include <sstream>
 #include <cwchar>
+#ifdef MYGRAIN_CEF
+#include "../cef/session.h"
+#endif
 #ifdef _WIN32
 #include <windows.h>
 #include <shellapi.h>
@@ -31,7 +34,27 @@ constexpr bool isFx=true;
 constexpr bool isFx=false;
 #endif
 class Bridge;
+#if defined(MYGRAIN_CEF) && (defined(_WIN32) || defined(__APPLE__))
+class BridgeView final : public CPluginView {
+    Bridge& owner;
+    void* native=nullptr;
+public:
+    explicit BridgeView(Bridge& b);
+    ~BridgeView() override;
+    tresult PLUGIN_API isPlatformTypeSupported(FIDString type) override {
 #ifdef _WIN32
+        return type&&std::strcmp(type,kPlatformTypeHWND)==0?kResultTrue:kResultFalse;
+#else
+        return type&&std::strcmp(type,kPlatformTypeNSView)==0?kResultTrue:kResultFalse;
+#endif
+    }
+    tresult PLUGIN_API attached(void* parent,FIDString type) override;
+    tresult PLUGIN_API removed() override;
+    tresult PLUGIN_API canResize() override {return kResultTrue;}
+    tresult PLUGIN_API onSize(ViewRect* size) override;
+    tresult PLUGIN_API checkSizeConstraint(ViewRect* size) override {if(!size)return kInvalidArgument;size->right=size->left+std::clamp(size->getWidth(),800,2048);size->bottom=size->top+std::clamp(size->getHeight(),500,1600);return kResultOk;}
+};
+#elif defined(_WIN32)
 class BridgeView final : public CPluginView {
     Bridge& owner;
     HWND window=nullptr;
@@ -69,6 +92,10 @@ public:
 #endif
 class Bridge final : public SingleComponentEffect, public ITimerCallback {
 public:
+#ifdef MYGRAIN_CEF
+    // Component-owned, not view-owned: audio and automatic stores survive removed().
+    cef::Session embedded;
+#endif
     Timer* projectTimer=nullptr;
     uint32_t notifiedProject=0;
     void stopProjectTimer(){engine.project.supportsDirty.store(false);if(projectTimer){projectTimer->stop();projectTimer->release();projectTimer=nullptr;}}
@@ -89,7 +116,11 @@ public:
     std::unique_ptr<Server> server;
     static FUnknown* create(void*) {return static_cast<IComponent*>(new Bridge);}
     Bridge(){engine.active.store(false);processContextRequirements.needProjectTimeMusic().needTempo().needBarPositionMusic().needTimeSignature().needTransportState().needCycleMusic();}
-    ~Bridge() override {server.reset();stopProjectTimer();}
+    ~Bridge() override {
+#ifdef MYGRAIN_CEF
+        embedded.stop();
+#endif
+        server.reset();stopProjectTimer();}
     void enable(){if(!server){server=std::make_unique<Server>(engine);server->start();}}
     tresult PLUGIN_API initialize(FUnknown* host) override {
         const auto result=SingleComponentEffect::initialize(host);if(result!=kResultOk)return result;
@@ -98,7 +129,11 @@ public:
         if(!isFx)addEventInput(STR16("MIDI"));
         return kResultOk;
     }
-    tresult PLUGIN_API terminate() override {server.reset();stopProjectTimer();return SingleComponentEffect::terminate();}
+    tresult PLUGIN_API terminate() override {
+#ifdef MYGRAIN_CEF
+        embedded.stop();
+#endif
+        server.reset();stopProjectTimer();return SingleComponentEffect::terminate();}
     tresult PLUGIN_API setBusArrangements(SpeakerArrangement* inputs,int32 numIns,SpeakerArrangement* outputs,int32 numOuts) override {
         return numIns==(isFx?1:0)&&(!isFx||(inputs&&inputs[0]==SpeakerArr::kStereo))&&numOuts==1&&outputs&&outputs[0]==SpeakerArr::kStereo?kResultTrue:kResultFalse;
     }
@@ -213,15 +248,21 @@ public:
         return nullptr;
     }
 };
-#ifdef _WIN32
+#if defined(MYGRAIN_CEF) && defined(_WIN32)
+#include "../cef/editor_win.inc"
+#elif defined(_WIN32)
 #include "editor.inc"
 #endif
 }
-#ifdef __APPLE__
+#if defined(MYGRAIN_CEF) && defined(__APPLE__)
+#include "../cef/editor_mac.inc"
+#elif defined(__APPLE__)
 #include "editor_mac.inc"
 #endif
 BEGIN_FACTORY_DEF("MYGRAIN","https://openclaw.blackcarburning.com/mygrain/","mailto:claw@blackcarburning.com")
-#ifdef MYGRAIN_FX
+#ifdef MYGRAIN_CEF
+DEF_CLASS2(INLINE_UID(0xa44b25e1,0x3de64853,0xa16cc639,0x21c9d4b2),PClassInfo::kManyInstances,kVstAudioEffectClass,"MyGrain CEF",0,"Instrument|Synth","0.1.0",kVstVersionString,mygrain::Bridge::create)
+#elif defined(MYGRAIN_FX)
 DEF_CLASS2(INLINE_UID(0x80192c74,0x1fca4fa0,0xa638de42,0xf66c7d18),PClassInfo::kManyInstances,kVstAudioEffectClass,"MYGRAIN FX",0,"Fx|Filter","0.4.0",kVstVersionString,mygrain::Bridge::create)
 #else
 DEF_CLASS2(INLINE_UID(0x5df4d5fa,0x7a0e4bc6,0xb61ae905,0x6da13821),PClassInfo::kManyInstances,kVstAudioEffectClass,"MYGRAIN Bridge",0,"Instrument|Synth","0.8.0",kVstVersionString,mygrain::Bridge::create)

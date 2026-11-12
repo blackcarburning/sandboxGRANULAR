@@ -15,6 +15,10 @@
 #include <iostream>
 #include <thread>
 #include <vector>
+#ifdef MYGRAIN_CEF_HOST
+#include "../cef/ipc.h"
+#include <filesystem>
+#endif
 using namespace Steinberg;using namespace Steinberg::Vst;
 #include "project_state_checks.h"
 static uint64_t fullPaints=0,meterPaints=0,buttonPaints=0,labelWrites=0;
@@ -45,11 +49,19 @@ int main(int argc,char**argv){
  component->activateBus(kAudio,kOutput,0,true);component->setActive(true);processor->setProcessing(true);
  HWND parent=CreateWindowExW(0,L"STATIC",L"MYGRAIN Windows DLL test host",WS_OVERLAPPEDWINDOW|WS_VISIBLE,0,0,1270,815,nullptr,nullptr,GetModuleHandle(nullptr),nullptr);
  IPlugView* view=controller->createView(ViewType::kEditor);if(!view||view->attached(parent,kPlatformTypeHWND)!=kResultOk)return 10;
- HWND child=FindWindowExW(parent,nullptr,L"MYGRAINBridgeView010",nullptr);if(!child)return 11;
+ HWND child=FindWindowExW(parent,nullptr,
+#ifdef MYGRAIN_CEF_HOST
+ L"MyGrainCEFView010",
+#else
+ L"MYGRAINBridgeView010",
+#endif
+ nullptr);if(!child)return 11;
  SetPropW(child,L"audit-original",(HANDLE)SetWindowLongPtrW(child,GWLP_WNDPROC,(LONG_PTR)auditEditor));
  for(int id:{101,102,103,104,105,106}){auto button=GetDlgItem(child,id);SetPropW(button,L"audit-original",(HANDLE)SetWindowLongPtrW(button,GWLP_WNDPROC,(LONG_PTR)auditButton));}
  if(OpenClipboard(parent)){EmptyClipboard();CloseClipboard();}
+#ifndef MYGRAIN_CEF_HOST
  SendMessageW(child,WM_COMMAND,102,0);
+#endif
  std::atomic<bool> saveProject{false};
  std::atomic<bool> running{true},playing{true},seek{false},offline{false},cycling{false},cycleMetadata{true},reconfigure{false},stateRoundtrip{false};std::atomic<uint64_t> blocks{0};
  const std::string control=std::string(argv[2])+".control";
@@ -104,11 +116,21 @@ int main(int argc,char**argv){
  bool printed=false;std::string previous;
  while(running&&std::chrono::steady_clock::now()<end){
   MSG message;while(PeekMessageW(&message,nullptr,0,0,PM_REMOVE)){TranslateMessage(&message);DispatchMessageW(&message);}
+#ifdef MYGRAIN_CEF_HOST
+  if(!printed){for(const auto& entry:std::filesystem::directory_iterator(std::filesystem::temp_directory_path())){if(entry.path().filename().u8string().rfind("mygrain-cef-",0)!=0)continue;mygrain::cef::Mapping display;if(display.open((entry.path()/"display.ipc").u8string(),false)){std::string url=display.data->url;auto pos=url.find("#daw=");if(pos!=std::string::npos){std::cout<<url.substr(pos+5)<<std::endl;printed=true;break;}}}}
+#else
   if(!printed&&OpenClipboard(parent)){
    if(auto memory=GetClipboardData(CF_UNICODETEXT)){if(auto* text=(const wchar_t*)GlobalLock(memory)){std::wstring wide(text);GlobalUnlock(memory);std::string code(wide.begin(),wide.end());if(code.size()==38&&code.find('.')==5){std::cout<<code<<std::endl;printed=true;}}}CloseClipboard();
   }
+#endif
   std::ifstream input(control);std::string cmd;if(input)std::getline(input,cmd);
-  if(cmd!=previous){previous=cmd;if(cmd.rfind("remote-",0)==0){if(cmd=="remote-status"){std::cout<<"REMOTE_BUTTONS=";for(int id:{201,202,203,204,300,324})std::cout<<id<<":"<<IsWindowEnabled(GetDlgItem(child,id))<<",";std::cout<<std::endl;}unsigned id=0;if(cmd=="remote-sparse")id=201;else if(cmd=="remote-mega")id=202;else if(cmd=="remote-render")id=203;else if(cmd=="remote-store")id=204;else if(cmd=="remote-pot")id=210;else if(cmd=="remote-stir")id=211;else if(cmd=="remote-big-stir")id=212;else if(cmd=="remote-auto")id=220;else if(cmd=="remote-interval")id=222;else if(cmd.rfind("remote-pot-power-",0)==0)id=500+std::stoul(cmd.substr(17));else if(cmd.rfind("remote-pot-up-",0)==0)id=600+std::stoul(cmd.substr(14));else if(cmd.rfind("remote-pot-down-",0)==0)id=700+std::stoul(cmd.substr(16));else if(cmd.rfind("remote-pot-jump-",0)==0)id=400+std::stoul(cmd.substr(16));else if(cmd.rfind("remote-layer-",0)==0)id=300+std::stoul(cmd.substr(13));if(id)SendMessageW(child,WM_COMMAND,id,0);}if(cmd=="close-editor"){if(view){view->removed();view->release();view=nullptr;}}else if(cmd=="save-project")saveProject=true;else if(cmd=="stop")playing=false;else if(cmd=="play")playing=true;else if(cmd=="seek")seek=true;else if(cmd=="rewind"){playing=false;seek=true;}else if(cmd=="loop")cycling=true;else if(cmd=="linear")cycling=false;else if(cmd=="loop-no-metadata"){cycling=true;cycleMetadata=false;}else if(cmd=="cycle-metadata")cycleMetadata=true;else if(cmd=="offline")offline=true;else if(cmd=="offline-setup"){offline=true;reconfigure=true;}else if(cmd=="realtime-setup"||cmd=="routing-change"){offline=false;reconfigure=true;}else if(cmd=="state-roundtrip"){stateRoundtrip=true;reconfigure=true;}else if(cmd=="realtime")offline=false;else if(cmd=="arm-plugin")SendMessageW(child,WM_COMMAND,106,0);else if(cmd=="stop-plugin")SendMessageW(child,WM_COMMAND,104,0);else if(cmd=="play-plugin")SendMessageW(child,WM_COMMAND,103,0);else if(cmd=="screenshot"){
+  if(cmd!=previous){previous=cmd;
+#ifdef MYGRAIN_CEF_HOST
+  if(cmd=="reopen-editor"&&!view){view=controller->createView(ViewType::kEditor);if(!view||view->attached(parent,kPlatformTypeHWND)!=kResultOk)return 21;child=FindWindowExW(parent,nullptr,L"MyGrainCEFView010",nullptr);}
+  if(cmd=="cef-reload")SendMessageW(child,WM_COMMAND,101,0);
+  if(cmd=="cef-store")SendMessageW(child,WM_COMMAND,102,0);
+#endif
+if(cmd.rfind("remote-pot-drag-",0)==0){const auto from=std::stoul(cmd.substr(16,1)),to=std::stoul(cmd.substr(18,1));auto row=GetDlgItem(child,400+from);SendMessageW(row,WM_LBUTTONDOWN,MK_LBUTTON,MAKELPARAM(20,10));SendMessageW(row,WM_MOUSEMOVE,MK_LBUTTON,MAKELPARAM(20,10+(int(to)-int(from))*35));SendMessageW(row,WM_LBUTTONUP,0,MAKELPARAM(20,10+(int(to)-int(from))*35));}if(cmd=="remote-interval15"){SetWindowTextW(GetDlgItem(child,221),L"15");SendMessageW(child,WM_COMMAND,222,0);}if(cmd.rfind("remote-",0)==0){if(cmd=="remote-status"){std::cout<<"REMOTE_BUTTONS=";for(int id:{201,202,203,204,300,324})std::cout<<id<<":"<<IsWindowEnabled(GetDlgItem(child,id))<<",";std::cout<<std::endl;}unsigned id=0;if(cmd=="remote-sparse")id=201;else if(cmd=="remote-mega")id=202;else if(cmd=="remote-render")id=203;else if(cmd=="remote-store")id=204;else if(cmd=="remote-pot")id=210;else if(cmd=="remote-stir")id=211;else if(cmd=="remote-big-stir")id=212;else if(cmd=="remote-auto")id=220;else if(cmd=="remote-interval")id=222;else if(cmd.rfind("remote-pot-power-",0)==0)id=500+std::stoul(cmd.substr(17));else if(cmd.rfind("remote-pot-up-",0)==0)id=600+std::stoul(cmd.substr(14));else if(cmd.rfind("remote-pot-down-",0)==0)id=700+std::stoul(cmd.substr(16));else if(cmd.rfind("remote-pot-jump-",0)==0)id=400+std::stoul(cmd.substr(16));else if(cmd.rfind("remote-layer-",0)==0)id=300+std::stoul(cmd.substr(13));if(id)SendMessageW(child,WM_COMMAND,id,0);}if(cmd=="close-editor"){if(view){view->removed();view->release();view=nullptr;}}else if(cmd=="save-project")saveProject=true;else if(cmd=="stop")playing=false;else if(cmd=="play")playing=true;else if(cmd=="seek")seek=true;else if(cmd=="rewind"){playing=false;seek=true;}else if(cmd=="loop")cycling=true;else if(cmd=="linear")cycling=false;else if(cmd=="loop-no-metadata"){cycling=true;cycleMetadata=false;}else if(cmd=="cycle-metadata")cycleMetadata=true;else if(cmd=="offline")offline=true;else if(cmd=="offline-setup"){offline=true;reconfigure=true;}else if(cmd=="realtime-setup"||cmd=="routing-change"){offline=false;reconfigure=true;}else if(cmd=="state-roundtrip"){stateRoundtrip=true;reconfigure=true;}else if(cmd=="realtime")offline=false;else if(cmd=="arm-plugin")SendMessageW(child,WM_COMMAND,106,0);else if(cmd=="stop-plugin")SendMessageW(child,WM_COMMAND,104,0);else if(cmd=="play-plugin")SendMessageW(child,WM_COMMAND,103,0);else if(cmd=="screenshot"){
 
    RECT rect{};GetClientRect(child,&rect);const int width=rect.right,height=rect.bottom;HDC screen=GetDC(child),dc=CreateCompatibleDC(screen);HBITMAP bitmap=CreateCompatibleBitmap(screen,width,height);auto prior=SelectObject(dc,bitmap);BitBlt(dc,0,0,width,height,screen,0,0,SRCCOPY);BITMAPINFO info{};info.bmiHeader.biSize=sizeof(BITMAPINFOHEADER);info.bmiHeader.biWidth=width;info.bmiHeader.biHeight=-height;info.bmiHeader.biPlanes=1;info.bmiHeader.biBitCount=32;info.bmiHeader.biCompression=BI_RGB;std::vector<char> pixels(size_t(width)*height*4);GetDIBits(dc,bitmap,0,height,pixels.data(),&info,DIB_RGB_COLORS);BITMAPFILEHEADER header{};header.bfType=0x4d42;header.bfOffBits=sizeof(header)+sizeof(info.bmiHeader);header.bfSize=header.bfOffBits+DWORD(pixels.size());std::ofstream image(std::string(argv[2])+".bmp",std::ios::binary);image.write((char*)&header,sizeof(header));image.write((char*)&info.bmiHeader,sizeof(info.bmiHeader));image.write(pixels.data(),pixels.size());SelectObject(dc,prior);DeleteObject(bitmap);DeleteDC(dc);ReleaseDC(child,screen);
   }else if(cmd.rfind("paint-audit",0)==0){std::ofstream audit(std::string(argv[2])+".paint.json");audit<<"{\"full\":"<<fullPaints<<",\"meter\":"<<meterPaints<<",\"buttons\":"<<buttonPaints<<",\"labels\":"<<labelWrites<<"}";}else if(cmd=="quit")break;}
