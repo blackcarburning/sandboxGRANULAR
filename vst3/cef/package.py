@@ -3,7 +3,7 @@
 import argparse,hashlib,json,pathlib,zipfile,stat
 p=argparse.ArgumentParser();p.add_argument('--bundle',type=pathlib.Path,required=True);p.add_argument('--platform',choices=['windows','macos'],required=True);p.add_argument('--verification',type=pathlib.Path,required=True);p.add_argument('--sdk',type=pathlib.Path,required=True);p.add_argument('--output',type=pathlib.Path,required=True);a=p.parse_args()
 source=pathlib.Path(__file__).parent;app=source.parents[1];assert a.bundle.name=='MyGrain CEF.vst3'
-info=json.loads((a.bundle/'Contents/Resources/moduleinfo.json').read_text());assert info['Version']=='0.1.0' and info['Classes'][0]['CID']=='A44B25E13DE64853A16CC63921C9D4B2'
+info=json.loads((a.bundle/'Contents/Resources/moduleinfo.json').read_text());assert info['Version']=='0.1.1' and info['Classes'][0]['CID']=='A44B25E13DE64853A16CC63921C9D4B2'
 files={};modes={};links={}
 for file in a.bundle.rglob('*'):
  if file.is_symlink():links[file.relative_to(a.bundle.parent).as_posix()]=str(file.readlink()).encode();continue
@@ -17,7 +17,7 @@ else:
  assert files['MyGrain CEF.vst3/Contents/MacOS/MyGrain CEF'][:4]==b'\xca\xfe\xba\xbe'
  files['Install MyGrain CEF.command']=(source/'Install-MyGrain-CEF.command').read_bytes();modes['Install MyGrain CEF.command']=0o755
  install='macOS 13+. Close the DAW. From the extracted folder run ./"Install MyGrain CEF.command" (or bash "./Install MyGrain CEF.command"). Installs only this plugin in your user VST3 folder. Ad-hoc signed, not Developer-ID signed/notarized.'
-files['README-FIRST.txt']=('''MyGrain CEF 0.1.0 preview - '''+a.platform+'''\n\n'''+install+'''
+files['README-FIRST.txt']=('''MyGrain CEF 0.1.1 preview - '''+a.platform+'''\n\n'''+install+'''
 
 Add MyGrain CEF as an INSTRUMENT, open its window and sign in. The app is
 embedded; no external Chrome window or connection-code copying is needed.

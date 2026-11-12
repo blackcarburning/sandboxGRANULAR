@@ -1,7 +1,7 @@
 // Editor is only a remote CEF surface. Closing it never closes the browser.
 namespace {
 struct CefSurface {
- Bridge& owner;HWND window=nullptr;uint32_t frame=0,w=0,h=0;std::vector<uint8_t> pixels;std::string status;
+ Bridge& owner;bool hostKeyboard=false,focused=false;HWND window=nullptr;uint32_t frame=0,w=0,h=0;std::vector<uint8_t> pixels;std::string status;
  explicit CefSurface(Bridge& b):owner(b){}
  static uint32_t modifiers(){uint32_t m=0;if(GetKeyState(VK_SHIFT)<0)m|=2;if(GetKeyState(VK_CONTROL)<0)m|=4;if(GetKeyState(VK_MENU)<0)m|=8;if(GetKeyState(VK_LBUTTON)<0)m|=16;if(GetKeyState(VK_MBUTTON)<0)m|=32;if(GetKeyState(VK_RBUTTON)<0)m|=64;return m;}
  void event(cef::EventType type,int x=0,int y=0,int a=0,int b=0){owner.embedded.ipc.push({type,x,y-68,a,b,modifiers()});}
@@ -32,18 +32,18 @@ struct CefSurface {
   case WM_TIMER:s->tick();return 0;
   case WM_SIZE:s->owner.embedded.resize(LOWORD(lp),std::max(200,int(HIWORD(lp))-68));MoveWindow(GetDlgItem(window,230),8,39,std::max(100,int(LOWORD(lp))-16),25,TRUE);return 0;
   case WM_COMMAND:switch(LOWORD(wp)){case 101:s->event(cef::Reload);break;case 102:s->owner.engine.remote.request(5);break;case 220:s->owner.engine.remote.request(11,0,!s->owner.engine.remote.get().companion.autoStore);break;case 106:s->owner.engine.requestArm();break;case 104:s->owner.engine.requestStop();break;}return 0;
-  case WM_SETFOCUS:s->event(cef::Focus,0,68,1);return 0;
-  case WM_KILLFOCUS:s->event(cef::Focus);return 0;
+  case WM_SETFOCUS:s->focused=true;s->event(cef::Focus,0,68,1);return 0;
+  case WM_KILLFOCUS:s->focused=false;s->hostKeyboard=false;s->event(cef::Focus);return 0;
   case WM_MOUSEMOVE:if(y>=68)s->event(cef::Move,x,y);return 0;
-  case WM_LBUTTONDOWN:case WM_RBUTTONDOWN:case WM_MBUTTONDOWN:case WM_LBUTTONDBLCLK:if(y>=68){SetFocus(window);SetCapture(window);s->event(cef::Down,x,y,message==WM_RBUTTONDOWN?2:message==WM_MBUTTONDOWN?1:0,message==WM_LBUTTONDBLCLK?2:1);}return 0;
+  case WM_LBUTTONDOWN:case WM_RBUTTONDOWN:case WM_MBUTTONDOWN:case WM_LBUTTONDBLCLK:if(y>=68){SetFocus(window);s->event(cef::Focus,0,68,1);SetCapture(window);s->event(cef::Down,x,y,message==WM_RBUTTONDOWN?2:message==WM_MBUTTONDOWN?1:0,message==WM_LBUTTONDBLCLK?2:1);}return 0;
   case WM_LBUTTONUP:case WM_RBUTTONUP:case WM_MBUTTONUP:ReleaseCapture();s->event(cef::Up,x,y,message==WM_RBUTTONUP?2:message==WM_MBUTTONUP?1:0,1);return 0;
   case WM_MOUSEWHEEL:case WM_MOUSEHWHEEL:{POINT p{x,y};ScreenToClient(window,&p);s->event(cef::Wheel,p.x,p.y,message==WM_MOUSEHWHEEL?short(HIWORD(wp)):0,message==WM_MOUSEWHEEL?short(HIWORD(wp)):0);return 0;}
-  case WM_KEYDOWN:case WM_SYSKEYDOWN:s->event(cef::KeyDown,0,68,int(wp),int(lp));return 0;
-  case WM_KEYUP:case WM_SYSKEYUP:s->event(cef::KeyUp,0,68,int(wp),int(lp));return 0;
-  case WM_CHAR:s->event(cef::Char,0,68,int(wp),int(lp));return 0;
+  case WM_KEYDOWN:case WM_SYSKEYDOWN:if(!s->hostKeyboard)s->event(cef::KeyDown,0,68,int(wp),int(lp));return 0;
+  case WM_KEYUP:case WM_SYSKEYUP:if(!s->hostKeyboard)s->event(cef::KeyUp,0,68,int(wp),int(lp));return 0;
+  case WM_CHAR:if(!s->hostKeyboard)s->event(cef::Char,0,68,int(wp),int(lp));return 0;
   case WM_GETDLGCODE:return DLGC_WANTALLKEYS|DLGC_WANTARROWS|DLGC_WANTCHARS;
   case WM_ERASEBKGND:return 1;
-  case WM_PAINT:{PAINTSTRUCT ps;HDC dc=BeginPaint(window,&ps);RECT r{};GetClientRect(window,&r);FillRect(dc,&r,(HBRUSH)GetStockObject(DKGRAY_BRUSH));if(s->w&&s->h){BITMAPINFO info{};info.bmiHeader.biSize=sizeof(BITMAPINFOHEADER);info.bmiHeader.biWidth=s->w;info.bmiHeader.biHeight=-LONG(s->h);info.bmiHeader.biPlanes=1;info.bmiHeader.biBitCount=32;StretchDIBits(dc,0,68,r.right,r.bottom-68,0,0,s->w,s->h,s->pixels.data(),&info,DIB_RGB_COLORS,SRCCOPY);}EndPaint(window,&ps);return 0;}
+  case WM_PAINT:{PAINTSTRUCT ps;HDC dc=BeginPaint(window,&ps);RECT r{};GetClientRect(window,&r);RECT toolbar{0,0,r.right,68};FillRect(dc,&toolbar,(HBRUSH)GetStockObject(DKGRAY_BRUSH));if(s->w&&s->h){BITMAPINFO info{};info.bmiHeader.biSize=sizeof(BITMAPINFOHEADER);info.bmiHeader.biWidth=s->w;info.bmiHeader.biHeight=-LONG(s->h);info.bmiHeader.biPlanes=1;info.bmiHeader.biBitCount=32;StretchDIBits(dc,0,68,r.right,r.bottom-68,0,0,s->w,s->h,s->pixels.data(),&info,DIB_RGB_COLORS,SRCCOPY);}else{RECT browser{0,68,r.right,r.bottom};FillRect(dc,&browser,(HBRUSH)GetStockObject(DKGRAY_BRUSH));}EndPaint(window,&ps);return 0;}
   case WM_DESTROY:KillTimer(window,1);return 0;
   }return DefWindowProcW(window,message,wp,lp);
  }
@@ -59,3 +59,18 @@ tresult PLUGIN_API BridgeView::attached(void* parent,FIDString type){
 }
 tresult PLUGIN_API BridgeView::removed(){if(native){auto* surface=(CefSurface*)native;native=nullptr;owner.embedded.visible(false);DestroyWindow(surface->window);delete surface;}return CPluginView::removed();}
 tresult PLUGIN_API BridgeView::onSize(ViewRect* size){if(!size)return kInvalidArgument;rect=*size;if(native)MoveWindow(((CefSurface*)native)->window,0,0,rect.getWidth(),rect.getHeight(),TRUE);return kResultOk;}
+
+tresult PLUGIN_API BridgeView::onFocus(TBool focused){
+ if(!native)return kResultFalse;auto* s=(CefSurface*)native;
+ s->focused=focused;if(focused){auto current=GetFocus();if(current!=s->window&&!IsChild(s->window,current))SetFocus(s->window);}
+ else s->hostKeyboard=false;
+ return owner.embedded.ipc.push({cef::Focus,0,0,focused?1:0})?kResultTrue:kResultFalse;
+}
+tresult PLUGIN_API BridgeView::onKeyDown(char16 key,int16 code,int16 modifiers){
+ if(!native||!((CefSurface*)native)->focused||GetFocus()!=((CefSurface*)native)->window)return kResultFalse;
+ auto* s=(CefSurface*)native;s->hostKeyboard=true;return cef::hostKey(owner.embedded.ipc,false,key,code,modifiers)?kResultTrue:kResultFalse;
+}
+tresult PLUGIN_API BridgeView::onKeyUp(char16 key,int16 code,int16 modifiers){
+ if(!native||!((CefSurface*)native)->focused||GetFocus()!=((CefSurface*)native)->window)return kResultFalse;
+ return cef::hostKey(owner.embedded.ipc,true,key,code,modifiers)?kResultTrue:kResultFalse;
+}

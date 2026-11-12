@@ -5,14 +5,18 @@ const [hostExe,bundle,out]=process.argv.slice(2),app=path.resolve(process.env.MY
 fs.mkdirSync(out,{recursive:true});
 async function until(fn,label,timeout=30000){const end=Date.now()+timeout;while(Date.now()<end){if(await fn())return;await delay(100);}throw Error('Timeout '+label);}
 const mime=p=>({'.html':'text/html','.js':'text/javascript','.cjs':'text/javascript','.json':'application/json','.css':'text/css','.wasm':'application/wasm','.png':'image/png','.webp':'image/webp','.wav':'audio/wav','.woff2':'font/woff2'}[path.extname(p)]||'application/octet-stream');
-async function fixture(context){
+async function fixture(context,auth={signedIn:true,posts:0}){
  await context.route('**/*',async route=>{
   const u=new URL(route.request().url());if(u.origin!==origin){await route.abort();return;}
   const n=decodeURIComponent(u.pathname.replace(/^\/mygrain\/?/,''))||'index.html';
   const headers={'x-mygrain-isolated-test':'cef-project','cache-control':'no-store'};
-  if(n==='account-context.js'){await route.fulfill({headers,contentType:'text/javascript',body:'window.mygrainAccountContext={user:{username:"cef-fixture"}};'});return;}
+  if(n==='account-context.js'){await route.fulfill({headers,contentType:'text/javascript',body:'window.mygrainAccountContext='+JSON.stringify(auth.signedIn?{user:{username:'cef-fixture'}}:{user:null})+';'});return;}
+  if(n==='api/auth/login'){
+   const body=route.request().postDataJSON();assert.deepEqual(body,{username:'native-user7',password:'Aa7!@-z'});auth.signedIn=true;auth.posts++;
+   await route.fulfill({headers,contentType:'application/json',body:JSON.stringify({ok:true,user:{username:'cef-fixture'}})});return;
+  }
   if(n.startsWith('api/')){
-   const body=n==='api/auth/session'?{authenticated:true,user:{username:'cef-fixture'}}:{items:[],files:[],folders:[],songs:[],parts:[],presets:[],favourites:[],favorites:[],sources:[],libraries:[],jobs:[]};
+   const body=n==='api/auth/session'?{ok:true,authenticated:auth.signedIn,user:auth.signedIn?{username:'cef-fixture'}:null}:{items:[],files:[],folders:[],songs:[],parts:[],presets:[],favourites:[],favorites:[],sources:[],libraries:[],jobs:[]};
    await route.fulfill({headers,contentType:'application/json',body:JSON.stringify(body)});return;
   }
   const file=path.resolve(app,n);if(!file.startsWith(app+path.sep)||!fs.existsSync(file)||!fs.statSync(file).isFile()){await route.fulfill({status:404,headers,body:'Isolated fixture: missing asset'});return;}
@@ -26,9 +30,34 @@ async function run(state){
  child=spawn(hostExe,argv,{env:{...process.env,MYGRAIN_CEF_DEBUG_PORT:'19381'}});child.stdout.on('data',b=>{log+=b;process.stdout.write(b);});child.stderr.on('data',b=>fs.appendFileSync(raw+'.stderr',b));child.on('exit',n=>{exit=n;});
  await until(()=>/187\d{2}\.[a-f0-9]{32}/.test(log),'native code');code=log.match(/187\d{2}\.[a-f0-9]{32}/)[0];
  await until(async()=>{try{const r=await fetch('http://127.0.0.1:19381/json/version');return r.ok;}catch{return false;}},'real CEF debugger',45000);
- browser=await chromium.connectOverCDP('http://127.0.0.1:19381');const c=browser.contexts()[0];await fixture(c);const p=c.pages()[0];
- const response=await p.goto(origin+'/mygrain/?cef_fixture='+Date.now()+'#daw='+code);assert.equal(response.headers()['x-mygrain-isolated-test'],'cef-project');
+ browser=await chromium.connectOverCDP('http://127.0.0.1:19381');const c=browser.contexts()[0];const auth={signedIn:!!state,posts:0};await fixture(c,auth);const p=c.pages()[0];
+ const response=await p.goto(origin+'/mygrain/?account=login&cef_fixture='+Date.now()+'#daw='+code);assert.equal(response.headers()['x-mygrain-isolated-test'],'cef-project');
  p.on('pageerror',e=>fs.appendFileSync(path.join(out,'page-errors.txt'),e.stack+'\n'));
+ if(!state){
+  const click=async selector=>{const box=await p.locator(selector).boundingBox();assert(box);command(`cef-click ${Math.round(box.x+box.width/2)} ${Math.round(box.y+box.height/2)}`);await delay(150);};
+  const key=async(ch,code=0,mod=0)=>{command(`cef-host-key ${ch} ${code} ${mod}`);await delay(70);};
+  await p.locator('#mygrainLoginUsername').waitFor({state:'visible'});await click('#mygrainLoginUsername');
+  // Native window fallback before any host keyboard callback is delivered.
+  command('cef-native-key 110 78');await p.waitForFunction(()=>document.querySelector('#mygrainLoginUsername').value==='n');
+  command('cef-host-focus 1');await delay(100);
+  for(const ch of 'ative-user8')await key(ch.charCodeAt(0));
+  await key(0,1);await key(55); // Backspace then 7.
+  await p.waitForFunction(()=>document.querySelector('#mygrainLoginUsername').value==='native-user7');
+  command('cef-host-focus 0');await delay(100);await key(88);await delay(150);
+  assert.equal(await p.locator('#mygrainLoginUsername').inputValue(),'native-user7','blurred plugin must not consume host keys');
+  command('cef-host-focus 1');await delay(100);await key(9,2); // Tab, not a mouse/CDP focus command.
+  await p.waitForFunction(()=>document.activeElement.id==='mygrainLoginPassword');
+  for(const ch of 'Aa7!@-z')await key(ch.charCodeAt(0));
+  await p.waitForFunction(()=>document.querySelector('#mygrainLoginPassword').value==='Aa7!@-z');
+  // A native duplicate after host handling must not insert a second character.
+  command('cef-native-key 122 90');await delay(200);
+  assert.equal(await p.locator('#mygrainLoginPassword').inputValue(),'Aa7!@-z');
+  await p.screenshot({path:path.join(out,'native-login.png')});
+  await Promise.all([p.waitForEvent('framenavigated',{predicate:f=>f===p.mainFrame(),timeout:15000}),key(13,4)]);
+  await until(()=>auth.posts===1,'synthetic native login');
+  fs.writeFileSync(path.join(out,'native-login-results.json'),JSON.stringify({nativeTyping:true,vst3Keyboard:true,editing:true,tab:true,focusRelease:true,noDuplicate:true,loginSubmitted:true}));
+ }
+
  await p.waitForFunction(()=>window.mygrainDawBridge&&document.documentElement.dataset.mygrainStartup==='ready',null,{timeout:90000}).catch(async error=>{fs.writeFileSync(path.join(out,'startup-diagnostic.json'),JSON.stringify(await p.evaluate(()=>({url:location.href,build:document.querySelector('.build-badge')?.textContent,status:document.documentElement.dataset,body:document.body.innerText.slice(0,15000)})),null,2));throw error;});
  if(await p.locator('#start-btn').isVisible())await p.locator('#start-btn').click();
  await p.waitForFunction(()=>mygrainDawBridge.connected&&mygrainDawBridge.diagnostics().project.ready&&isAudioGraphReady()&&!engineStarting&&!stateSaveSuspended&&!mygrainCardHistory.busy,null,{timeout:90000});

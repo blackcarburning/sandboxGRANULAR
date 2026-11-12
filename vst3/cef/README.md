@@ -1,4 +1,4 @@
-# MyGrain CEF 0.1.0 preview
+# MyGrain CEF 0.1.1 preview
 
 Separate VST3 instrument, name **MyGrain CEF**, class ID
 `A44B25E13DE64853A16CC63921C9D4B2`. Never replaces MYGRAIN Bridge 0.8.0 or
@@ -85,3 +85,19 @@ recall and clean unload. Use the final packaged binary in the SDK validator.
 
 CEF and Chromium credits are shipped in the bundle, alongside existing SDK/
 runtime licenses. Keep the whole bundle, including helpers and resources.
+
+## 0.1.1 keyboard and painting repair
+
+The editor implements IPlugView onKeyDown/onKeyUp/onFocus. Steinberg key codes and
+modifiers are translated explicitly; Unicode text events are sent alongside raw
+key events. Native-window delivery remains a fallback until the host uses its
+VST3 route, then is suppressed for that focus session to avoid duplicate typing.
+Blur releases keyboard capture; native toolbar controls retain their own focus.
+CEF is refocused on browser clicks. Windows paints the completed browser bitmap
+without clearing beneath it; AppKit uses a backing layer and browser-only damage.
+
+Release CI enters synthetic credentials into the real signed-out login with
+native input and the VST3 ABI, including Tab, Backspace, punctuation, focus loss,
+no duplicate native delivery, and Enter submission to isolated mocked auth.
+No production account requests or credentials are used. Existing audio, closed-
+editor automatic storage, reload, fresh recall and clean-unload gates remain.

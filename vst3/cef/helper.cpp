@@ -105,7 +105,7 @@ void command(const Event& e,cef_browser_host_t* host){
  case Down:case Up:host->send_mouse_click_event(host,&mouse,cef_mouse_button_type_t(e.a),e.type==Up,std::max(1,e.b));break;
  case Wheel:host->send_mouse_wheel_event(host,&mouse,e.a,e.b);break;
  case Focus:host->set_focus(host,e.a);break;
- case KeyDown:case KeyUp:case Char:{cef_key_event_t key{};key.size=sizeof(key);key.type=e.type==Char?KEYEVENT_CHAR:e.type==KeyUp?KEYEVENT_KEYUP:KEYEVENT_RAWKEYDOWN;key.windows_key_code=e.a;key.native_key_code=e.b;key.character=key.unmodified_character=e.type==Char?char16_t(e.a):0;key.modifiers=e.modifiers;host->send_key_event(host,&key);break;}
+ case KeyDown:case KeyUp:case Char:{cef_key_event_t key{};key.size=sizeof(key);key.type=e.type==Char?KEYEVENT_CHAR:e.type==KeyUp?KEYEVENT_KEYUP:KEYEVENT_RAWKEYDOWN;key.windows_key_code=e.a;key.native_key_code=e.b;key.character=key.unmodified_character=e.type==Char?char16_t(e.a):char16_t(e.x);key.modifiers=e.modifiers;host->send_key_event(host,&key);break;}
  case Store:script("window.mygrainDawBridge?.storeProject()");break;
  case Reload:
   // Store first and wait for the acknowledged revision. Never reload after a failed/busy store.
