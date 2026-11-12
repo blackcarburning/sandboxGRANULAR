@@ -96,7 +96,7 @@ async function run(state,signedOutOnly=false){
 async function close(){command('quit');if(browser){await browser.close().catch(()=>{});browser=null;}await until(()=>exit!==null,'native clean unload',15000);assert.equal(exit,0,log);fs.writeFileSync(path.join(out,'cef-native-host.log'),log);}
 function rms(){const bytes=fs.readFileSync(raw);let power=0,n=0;for(let at=Math.max(0,bytes.length-48000*8);at+4<=bytes.length;at+=4){const v=bytes.readFloatLE(at);assert(Number.isFinite(v));power+=v*v;n++;}return Math.sqrt(power/Math.max(1,n));}
 (async()=>{try{
- const p=await run();command('stop');const diag=()=>p.evaluate(()=>mygrainDawBridge.diagnostics());
+ const p=await run();await until(()=>fs.existsSync(loginPath),'remembered session persisted');assert(!fs.readFileSync(loginPath).includes(Buffer.from('Aa7!@-z')),'never store the account password');command('stop');const diag=()=>p.evaluate(()=>mygrainDawBridge.diagnostics());
  const audit=async label=>{const value=await p.evaluate(async()=>{const a=audioContext.createAnalyser();a.fftSize=2048;finalAmplifierNode.connect(a);await new Promise(r=>setTimeout(r,150));const v=new Float32Array(2048);a.getFloatTimeDomainData(v);finalAmplifierNode.disconnect(a);return {audio:{state:audioContext.state,time:audioContext.currentTime,rate:audioContext.sampleRate,rms:Math.sqrt(v.reduce((sum,x)=>sum+x*x,0)/v.length)},visibility:document.visibilityState,bridge:mygrainDawBridge.diagnostics(),status:document.querySelector('#dawBridgeStatus')?.textContent};});value.nativeRms=rms();fs.writeFileSync(path.join(out,label+'.json'),JSON.stringify(value,null,2));};
 
  assert.equal((await diag()).project.auto.enabled,true);assert.equal((await diag()).project.auto.interval,60);
@@ -133,6 +133,10 @@ function rms(){const bytes=fs.readFileSync(raw);let power=0,n=0;for(let at=Math.
  await p.evaluate(()=>{applyGlobalBpm(240);syncPerformanceExportBars(1,{skipSave:true});});
  for(const [selector,name] of [['#performanceRepoExportBtn','cef-native-wav'],['#performanceLoopStoreAddBtn','cef-native-loop']]){
   await p.evaluate(selector=>document.querySelector(selector).click(),selector);
+  if(selector==='#performanceRepoExportBtn'){
+   await until(async()=>{await acknowledged('cef-dialog-state','CEF_DIALOG=');return Number(log.split('CEF_DIALOG=').pop().split('\n')[0])===2;},'native editable-patch confirmation',15000);
+   await dialogReply('',true);
+  }
   await until(async()=>{await acknowledged('cef-dialog-state','CEF_DIALOG=');return Number(log.split('CEF_DIALOG=').pop().split('\n')[0])===3;},'native repository filename prompt',45000);
   const before=uploads.length;await dialogReply(name);await until(()=>uploads.length>before,'real repository export upload',45000);
   await p.waitForFunction(selector=>!document.querySelector(selector).disabled,selector,{timeout:45000});
@@ -175,7 +179,7 @@ function rms(){const bytes=fs.readFileSync(raw);let power=0,n=0;for(let at=Math.
  await audit('before-close');command('close-editor');await delay(500);const count=(await diag()).project.stats.count;await p.evaluate(()=>{bastardLoopMetadata.summary='CEF updated while native editor closed';});
  await p.waitForFunction(n=>mygrainDawBridge.diagnostics().project.stats.count>n,count,{timeout:35000});await audit('after-close');assert(rms()>.0001,'audio continues with editor closed');
  const expected=await p.evaluate(()=>({frames:bastardLoopBuffer.length,first:bastardLoopBuffer.getChannelData(0)[100],summary:bastardLoopMetadata.summary}));
- command('save-project');await until(()=>/PROJECT_SAVED=/.test(log),'DAW project saved');assert.match(log,/PROJECT_STATE_CHECKS_OK/);assert.match(log,/PROJECT_DIRTY_UI=/);const state=path.join(out,'saved-project.bin');fs.copyFileSync(raw+'.project.bin',state);
+ command('save-project');await until(()=>/PROJECT_SAVED=/.test(log),'DAW project saved');assert.match(log,/PROJECT_STATE_CHECKS_OK/);assert.match(log,/PROJECT_DIRTY_UI=/);const state=path.join(out,'saved-project.bin');fs.copyFileSync(raw+'.project.bin',state);const savedBytes=fs.readFileSync(state);assert(!savedBytes.includes(Buffer.from(fixtureToken))&&!savedBytes.includes(Buffer.from('Aa7!@-z')),'session and password must not be embedded in DAW projects');
  // Reopen is the same running CEF instance, not an empty new browser.
  command('reopen-editor');await delay(500);assert.equal((await diag()).connected,true);assert.equal(await p.evaluate(()=>bastardLoopMetadata.summary),expected.summary);
  // Match the real app's clean URL: changing only #daw must not count as a reload.
