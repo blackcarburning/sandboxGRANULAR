@@ -33,13 +33,35 @@ inline uint32_t keyModifiers(int flags){
 #endif
  return out;
 }
+// macOS CEF derives the key identity from NSEvent hardware codes, not windows_key_code.
+inline int nativeKey(int vk){
+#ifdef __APPLE__
+ switch(vk){
+ case 'A':return 0;case 'S':return 1;case 'D':return 2;case 'F':return 3;case 'H':return 4;case 'G':return 5;case 'Z':return 6;case 'X':return 7;case 'C':return 8;case 'V':return 9;case 'B':return 11;case 'Q':return 12;case 'W':return 13;case 'E':return 14;case 'R':return 15;case 'Y':return 16;case 'T':return 17;
+ case '1':return 18;case '2':return 19;case '3':return 20;case '4':return 21;case '6':return 22;case '5':return 23;case '9':return 25;case '7':return 26;case '8':return 28;case '0':return 29;
+ case 'O':return 31;case 'U':return 32;case 'I':return 34;case 'P':return 35;case 'L':return 37;case 'J':return 38;case 'K':return 40;case 'N':return 45;case 'M':return 46;
+ case 187:return 24;case 189:return 27;case 221:return 30;case 219:return 33;case 222:return 39;case 186:return 41;case 220:return 42;case 188:return 43;case 191:return 44;case 190:return 47;case 192:return 50;
+ case 13:return 36;case 9:return 48;case 32:return 49;case 8:return 51;case 27:return 53;case 35:return 119;case 36:return 115;case 33:return 116;case 34:return 121;case 37:return 123;case 38:return 126;case 39:return 124;case 40:return 125;case 46:return 117;
+ default:return 0;
+ }
+#else
+ return 0;
+#endif
+}
+inline char16_t keyText(char16_t character,int vk){
+ if(character)return character;
+#ifdef __APPLE__
+ switch(vk){case 8:return 127;case 9:return 9;case 13:return 13;case 27:return 27;case 37:return 0xf702;case 38:return 0xf700;case 39:return 0xf703;case 40:return 0xf701;case 46:return 0xf728;case 36:return 0xf729;case 35:return 0xf72b;case 33:return 0xf72c;case 34:return 0xf72d;default:break;}
+#endif
+ return 0;
+}
 inline bool hostKey(Mapping& ipc,bool up,char16_t character,int code,int flags){
  const auto vk=virtualKey(character,code);if(!vk&&!character)return false;
  const auto modifiers=keyModifiers(flags);
- if(!ipc.push({up?KeyUp:KeyDown,int(character),0,vk,0,modifiers}))return false;
+ if(!ipc.push({up?KeyUp:KeyDown,int(keyText(character,vk)),0,vk,nativeKey(vk),modifiers}))return false;
  // CEF OSR needs the text event in addition to the physical key event.
  // Unicode arrives from the host's layout; never derive passwords via ASCII key codes.
- if(!up&&character&&character!=127&&!(modifiers&(4|128)))ipc.push({Char,0,0,int(character),0,modifiers});
+ if(!up&&character&&character!=127&&!(modifiers&(4|128)))ipc.push({Char,0,0,int(character),nativeKey(vk),modifiers});
  return true;
 }
 }

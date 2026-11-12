@@ -52,7 +52,7 @@
 - (void)key:(NSEvent*)e up:(BOOL)up{
  if(hostKeyboard)return;int key=0;NSString* chars=e.charactersIgnoringModifiers;
  if(chars.length){unichar c=[chars characterAtIndex:0];if(c>='a'&&c<='z')key=c-32;else if(c==NSDeleteCharacter)key=8;else if(c<128)key=c;else if(c==NSLeftArrowFunctionKey)key=37;else if(c==NSUpArrowFunctionKey)key=38;else if(c==NSRightArrowFunctionKey)key=39;else if(c==NSDownArrowFunctionKey)key=40;else if(c==NSDeleteCharacter)key=8;else if(c==NSDeleteFunctionKey)key=46;else if(c==NSHomeFunctionKey)key=36;else if(c==NSEndFunctionKey)key=35;}
- owner->embedded.ipc.push({up?mygrain::cef::KeyUp:mygrain::cef::KeyDown,0,0,key,int(e.keyCode),[self modifiers:e]});
+ owner->embedded.ipc.push({up?mygrain::cef::KeyUp:mygrain::cef::KeyDown,int(e.characters.length?[e.characters characterAtIndex:0]:chars.length?[chars characterAtIndex:0]:0),0,key,int(e.keyCode),[self modifiers:e]});
  if(!up&&!(e.modifierFlags&(NSEventModifierFlagCommand|NSEventModifierFlagControl))){for(NSUInteger i=0;i<e.characters.length;i++){unichar c=[e.characters characterAtIndex:i];if(c<0xf700)owner->embedded.ipc.push({mygrain::cef::Char,0,0,int(c),int(e.keyCode),[self modifiers:e]});}}
 }
 - (void)keyDown:(NSEvent*)e{[self key:e up:NO];}
