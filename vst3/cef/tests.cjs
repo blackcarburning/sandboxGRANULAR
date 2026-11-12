@@ -12,6 +12,20 @@ const previewWav=wavFixture();
 async function until(fn,label,timeout=30000){const end=Date.now()+timeout;while(Date.now()<end){if(await fn())return;await delay(100);}throw Error('Timeout '+label);}
 const mime=p=>({'.html':'text/html','.js':'text/javascript','.cjs':'text/javascript','.json':'application/json','.css':'text/css','.wasm':'application/wasm','.png':'image/png','.webp':'image/webp','.wav':'audio/wav','.woff2':'font/woff2'}[path.extname(p)]||'application/octet-stream');
 async function fixture(context,auth={signedIn:true,posts:0}){
+ // Chromium AudioWorklet module fetches can bypass CDP request interception.
+ // Pin the unchanged release module bytes in a same-origin blob instead of
+ // accidentally executing the older production worklet during isolated tests.
+ await context.addInitScript(source=>{
+  const original=Worklet.prototype.addModule;
+  Worklet.prototype.addModule=function(url,...args){
+   if(new URL(url,location.href).pathname==='/mygrain/daw-bridge-worklet.js'){
+    const blob=URL.createObjectURL(new Blob([source],{type:'text/javascript'}));
+    window.cefPinnedWorkletLoads=(window.cefPinnedWorkletLoads||0)+1;
+    return original.call(this,blob,...args).finally(()=>URL.revokeObjectURL(blob));
+   }
+   return original.call(this,url,...args);
+  };
+ },fs.readFileSync(path.join(app,'daw-bridge-worklet.js'),'utf8'));
  await context.route('**/*',async route=>{
   const u=new URL(route.request().url());if(u.origin!==origin){await route.abort();return;}
   auth.signedIn=(route.request().headers().cookie||'').includes('mygrain_session='+fixtureToken);
@@ -62,7 +76,7 @@ async function run(state,signedOutOnly=false){
   const acknowledged=async(c,marker)=>{const count=(log.match(new RegExp(marker,'g'))||[]).length;command(c);await until(()=>(log.match(new RegExp(marker,'g'))||[]).length>count,'native input acknowledgement '+c,10000);await delay(30);};
   const key=(ch,code=0,mod=0)=>acknowledged(`cef-host-key ${ch} ${code} ${mod}`,'CEF_KEY=');
   const focus=state=>acknowledged('cef-host-focus '+state,'CEF_FOCUS=');
-  await p.locator('#mygrainLoginUsername').waitFor({state:'visible'});await click('#mygrainLoginUsername');
+  await p.locator('#mygrainLoginUsername').waitFor({state:'visible'});await p.evaluate(async()=>{await document.fonts.ready;});await delay(500);await focus(1);await click('#mygrainLoginUsername');await p.waitForFunction(()=>document.activeElement.id==='mygrainLoginUsername');
   // Native window fallback before any host keyboard callback is delivered.
   command('cef-native-key 110 78');await p.waitForFunction(()=>document.querySelector('#mygrainLoginUsername').value==='n');
   await focus(1);
@@ -160,7 +174,7 @@ function rms(){const bytes=fs.readFileSync(raw);let power=0,n=0;for(let at=Math.
  await p.evaluate(async()=>{window.cefWidgetContext=new AudioContext({sampleRate:44100});await cefWidgetContext.resume();const o=cefWidgetContext.createOscillator(),g=cefWidgetContext.createGain();g.gain.value=.08;o.connect(g);g.connect(cefWidgetContext.destination);o.start();});
  await delay(1700);const widgetRms=rms();assert(widgetRms>.005,'independent widget AudioContext must reach native output');await p.evaluate(()=>cefWidgetContext.close());await delay(1700);assert(rms()<.00001);
  await p.evaluate(()=>{const o=audioContext.createOscillator(),g=audioContext.createGain();g.gain.value=.08;o.connect(g);g.connect(finalAmplifierNode);o.start();window.cefInlineOsc=o;});
- await delay(1700);const inlineRms=rms();assert(inlineRms>.005,'inline main-bus audition must reach native output while disarmed');await p.evaluate(()=>cefInlineOsc.stop());await delay(1700);assert(rms()<.00001);
+ await delay(1700);const inlineRms=rms();assert(await p.evaluate(()=>cefPinnedWorkletLoads>0),'exact release worklet must load');assert(inlineRms>.005,'inline main-bus audition must reach native output while disarmed');await p.evaluate(()=>cefInlineOsc.stop());await delay(1700);assert(rms()<.00001);
  fs.writeFileSync(path.join(out,'native-preview-results.json'),JSON.stringify({wavRms,loopRms,widgetRms,inlineRms,stopped:true,disarmed:true,pauseAndCloseSilence:true},null,2));
  console.log('PASS real WAV/decoded Loop/widget/inline previews at stopped-disarmed native output');
  // Graph-ready is not sample-load-ready. Auto-store deliberately defers while
