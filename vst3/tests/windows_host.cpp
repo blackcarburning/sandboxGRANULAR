@@ -18,6 +18,7 @@
 #ifdef MYGRAIN_CEF_HOST
 #include "../cef/ipc.h"
 #include <filesystem>
+#include <set>
 #endif
 using namespace Steinberg;using namespace Steinberg::Vst;
 #include "project_state_checks.h"
@@ -47,6 +48,9 @@ int main(int argc,char**argv){
  ProcessSetup setup{};setup.processMode=kRealtime;setup.symbolicSampleSize=kSample32;setup.maxSamplesPerBlock=128;setup.sampleRate=48000;
  if(processor->setupProcessing(setup)!=kResultOk)return 9;
  component->activateBus(kAudio,kOutput,0,true);component->setActive(true);processor->setProcessing(true);
+#ifdef MYGRAIN_CEF_HOST
+ std::set<std::filesystem::path> priorDisplays;for(const auto& item:std::filesystem::directory_iterator(std::filesystem::temp_directory_path()))priorDisplays.insert(item.path());
+#endif
  HWND parent=CreateWindowExW(0,L"STATIC",L"MYGRAIN Windows DLL test host",WS_OVERLAPPEDWINDOW|WS_VISIBLE,0,0,1270,815,nullptr,nullptr,GetModuleHandle(nullptr),nullptr);
  IPlugView* view=controller->createView(ViewType::kEditor);if(!view||view->attached(parent,kPlatformTypeHWND)!=kResultOk)return 10;
  HWND child=FindWindowExW(parent,nullptr,
@@ -117,7 +121,7 @@ int main(int argc,char**argv){
  while(running&&std::chrono::steady_clock::now()<end){
   MSG message;while(PeekMessageW(&message,nullptr,0,0,PM_REMOVE)){TranslateMessage(&message);DispatchMessageW(&message);}
 #ifdef MYGRAIN_CEF_HOST
-  if(!printed){for(const auto& entry:std::filesystem::directory_iterator(std::filesystem::temp_directory_path())){if(entry.path().filename().u8string().rfind("mygrain-cef-",0)!=0)continue;mygrain::cef::Mapping display;if(display.open((entry.path()/"display.ipc").u8string(),false)){std::string url=display.data->url;auto pos=url.find("#daw=");if(pos!=std::string::npos){std::cout<<url.substr(pos+5)<<std::endl;printed=true;break;}}}}
+  if(!printed){for(const auto& entry:std::filesystem::directory_iterator(std::filesystem::temp_directory_path())){if(priorDisplays.count(entry.path())||entry.path().filename().u8string().rfind("mygrain-cef-",0)!=0)continue;mygrain::cef::Mapping display;if(display.open((entry.path()/"display.ipc").u8string(),false)){std::string url=display.data->url;auto pos=url.find("#daw=");if(pos!=std::string::npos){std::cout<<url.substr(pos+5)<<std::endl;printed=true;break;}}}}
 #else
   if(!printed&&OpenClipboard(parent)){
    if(auto memory=GetClipboardData(CF_UNICODETEXT)){if(auto* text=(const wchar_t*)GlobalLock(memory)){std::wstring wide(text);GlobalUnlock(memory);std::string code(wide.begin(),wide.end());if(code.size()==38&&code.find('.')==5){std::cout<<code<<std::endl;printed=true;}}}CloseClipboard();

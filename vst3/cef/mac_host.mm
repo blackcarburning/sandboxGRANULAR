@@ -19,6 +19,7 @@ using namespace Steinberg;using namespace Steinberg::Vst;
 #include "../tests/project_state_checks.h"
 #include "ipc.h"
 #include <filesystem>
+#include <set>
 static NSButton* button(NSView* view,NSInteger tag){for(NSView* child in view.subviews){if([child isKindOfClass:[NSButton class]]&&child.tag==tag)return (NSButton*)child;if(auto* result=button(child,tag))return result;}return nil;}
 int main(int argc,char**argv){@autoreleasepool{
  if(argc<3)return 2;[NSApplication sharedApplication];
@@ -39,6 +40,7 @@ int main(int argc,char**argv){@autoreleasepool{
  ProcessSetup setup{};setup.processMode=kRealtime;setup.symbolicSampleSize=kSample32;setup.maxSamplesPerBlock=128;setup.sampleRate=48000;
  if(processor->setupProcessing(setup)!=kResultOk)return 9;
  if(fx)component->activateBus(kAudio,kInput,0,true);component->activateBus(kAudio,kOutput,0,true);component->setActive(true);processor->setProcessing(true);
+ std::set<std::filesystem::path> priorDisplays;for(const auto& item:std::filesystem::directory_iterator(std::filesystem::temp_directory_path()))priorDisplays.insert(item.path());
  NSWindow* window=[[NSWindow alloc] initWithContentRect:NSMakeRect(0,0,1240,756) styleMask:NSWindowStyleMaskTitled backing:NSBackingStoreBuffered defer:NO];
  IPlugView* view=controller->createView(ViewType::kEditor);if(!view||view->attached(window.contentView,kPlatformTypeNSView)!=kResultOk)return 10;
  if(!button(window.contentView,102)||!button(window.contentView,106))return 11;
@@ -62,7 +64,7 @@ int main(int argc,char**argv){@autoreleasepool{
  bool printed=false;std::string previous;const auto deadline=std::chrono::steady_clock::now()+std::chrono::seconds(argc>3?std::atoi(argv[3]):300);
  while(running&&std::chrono::steady_clock::now()<deadline){@autoreleasepool{
   [[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:.02]];
-  if(!printed){for(const auto& item:std::filesystem::directory_iterator(std::filesystem::temp_directory_path())){if(item.path().filename().u8string().rfind("mygrain-cef-",0)!=0)continue;mygrain::cef::Mapping display;if(display.open((item.path()/"display.ipc").u8string(),false)){std::string url=display.data->url;auto pos=url.find("#daw=");if(pos!=std::string::npos){std::cout<<"CODE="<<url.substr(pos+5)<<std::endl;printed=true;break;}}}}
+  if(!printed){for(const auto& item:std::filesystem::directory_iterator(std::filesystem::temp_directory_path())){if(priorDisplays.count(item.path())||item.path().filename().u8string().rfind("mygrain-cef-",0)!=0)continue;mygrain::cef::Mapping display;if(display.open((item.path()/"display.ipc").u8string(),false)){std::string url=display.data->url;auto pos=url.find("#daw=");if(pos!=std::string::npos){std::cout<<"CODE="<<url.substr(pos+5)<<std::endl;printed=true;break;}}}}
 
   std::ifstream control(std::string(argv[2])+".control");std::string command;std::getline(control,command);
   if(command!=previous){previous=command;

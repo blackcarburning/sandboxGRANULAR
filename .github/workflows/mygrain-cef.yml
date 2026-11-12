@@ -43,9 +43,13 @@ jobs:
         run: |
           $bundle = "$env:RUNNER_TEMP/release/MyGrain CEF.vst3"
           $validator = (Get-ChildItem "$env:RUNNER_TEMP/plugin" -Recurse -Filter validator.exe | Select-Object -First 1).FullName
+          $metadata = (Get-ChildItem "$env:RUNNER_TEMP/plugin" -Recurse -Filter moduleinfotool.exe | Select-Object -First 1).FullName
+          python vst3/cef/metadata.py "$metadata" "$bundle"
           & $validator $bundle 2>&1 | Tee-Object "$env:RUNNER_TEMP/release/validator.txt"
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           $hostExe = "$env:RUNNER_TEMP/plugin/Release/cef-windows-host.exe"
+          python vst3/cef/unpack_test_app.py "$env:RUNNER_TEMP/test-app"
+          $env:MYGRAIN_CEF_APP_PATH = "$env:RUNNER_TEMP/test-app"
           node vst3/cef/tests.cjs "$hostExe" "$bundle/Contents/x86_64-win/MyGrain CEF.vst3" "$env:RUNNER_TEMP/release/evidence"
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - uses: actions/upload-artifact@v4
@@ -71,14 +75,14 @@ jobs:
           git clone --filter=blob:none https://github.com/steinbergmedia/vst3sdk.git "$RUNNER_TEMP/vst3sdk"
           git -C "$RUNNER_TEMP/vst3sdk" checkout 3cdf9ca5d1f5b1b21e0a86832aa4abe55607bd96
           git -C "$RUNNER_TEMP/vst3sdk" submodule update --init --recursive --depth 1
-          cmake -S vst3 -B "$RUNNER_TEMP/plugin" -DVST3_SDK_ROOT="$RUNNER_TEMP/vst3sdk" -DMYGRAIN_BUILD_CEF=ON -DMYGRAIN_BUILD_VALIDATOR=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES='arm64;x86_64' -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0
+          cmake -S vst3 -B "$RUNNER_TEMP/plugin" -DVST3_SDK_ROOT="$RUNNER_TEMP/vst3sdk" -DMYGRAIN_BUILD_CEF=ON -DMYGRAIN_BUILD_VALIDATOR=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES='arm64;x86_64' -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0
           cmake --build "$RUNNER_TEMP/plugin" --target MyGrainCEF cef-mac-host validator moduleinfotool -j 3
           python3 vst3/cef/fetch_sdk.py macosarm64 "$RUNNER_TEMP/cef-sdk"
           python3 vst3/cef/fetch_sdk.py macosx64 "$RUNNER_TEMP/cef-sdk"
           for pair in 'arm64 macosarm64' 'x86_64 macosx64'; do
             set -- $pair
             sdk=$(find "$RUNNER_TEMP/cef-sdk" -maxdepth 1 -type d -name "*${2}_minimal" | head -1)
-            cmake -S vst3/cef -B "$RUNNER_TEMP/helper-$1" -DCEF_ROOT="$sdk" -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES="$1" -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0
+            cmake -S vst3/cef -B "$RUNNER_TEMP/helper-$1" -DCEF_ROOT="$sdk" -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES="$1" -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0
             cmake --build "$RUNNER_TEMP/helper-$1" -j 3
           done
           mkdir -p "$RUNNER_TEMP/release"
@@ -86,11 +90,14 @@ jobs:
           intel=$(find "$RUNNER_TEMP/cef-sdk" -maxdepth 1 -type d -name '*macosx64_minimal' | head -1)
           python3 vst3/cef/universal.py "$arm" "$intel" "$RUNNER_TEMP/helper-arm64/MyGrainCEF" "$RUNNER_TEMP/helper-x86_64/MyGrainCEF" "$RUNNER_TEMP/universal-sdk" "$RUNNER_TEMP/MyGrainCEF"
           python3 vst3/cef/stage.py macos --plugin "$RUNNER_TEMP/plugin/MyGrain CEF.vst3" --helper "$RUNNER_TEMP/MyGrainCEF" --sdk "$RUNNER_TEMP/universal-sdk" --output "$RUNNER_TEMP/release"
+          metadata=$(find "$RUNNER_TEMP/plugin" -type f -name moduleinfotool | head -1)
+          python3 vst3/cef/metadata.py "$metadata" "$RUNNER_TEMP/release/MyGrain CEF.vst3"
           python3 vst3/cef/sign_mac.py "$RUNNER_TEMP/release/MyGrain CEF.vst3"
           validator=$(find "$RUNNER_TEMP/plugin" -type f -name validator | head -1)
           "$validator" "$RUNNER_TEMP/release/MyGrain CEF.vst3" | tee "$RUNNER_TEMP/release/validator.txt"
           npm install --no-save playwright-core
-          node vst3/cef/tests.cjs "$RUNNER_TEMP/plugin/cef-mac-host" "$RUNNER_TEMP/release/MyGrain CEF.vst3" "$RUNNER_TEMP/release/evidence"
+          python3 vst3/cef/unpack_test_app.py "$RUNNER_TEMP/test-app"
+          MYGRAIN_CEF_APP_PATH="$RUNNER_TEMP/test-app" node vst3/cef/tests.cjs "$RUNNER_TEMP/plugin/cef-mac-host" "$RUNNER_TEMP/release/MyGrain CEF.vst3" "$RUNNER_TEMP/release/evidence"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -1,7 +1,7 @@
 'use strict';
 // Run against a real CEF helper and native VST3 host. No production account requests.
 const {chromium}=require('playwright-core'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),{spawn}=require('node:child_process');
-const [hostExe,bundle,out]=process.argv.slice(2),app=path.resolve(__dirname,'../..'),origin='https://openclaw.blackcarburning.com',delay=ms=>new Promise(r=>setTimeout(r,ms));
+const [hostExe,bundle,out]=process.argv.slice(2),app=path.resolve(process.env.MYGRAIN_CEF_APP_PATH||path.join(__dirname,'../..')),origin='https://openclaw.blackcarburning.com',delay=ms=>new Promise(r=>setTimeout(r,ms));
 fs.mkdirSync(out,{recursive:true});
 async function until(fn,label,timeout=30000){const end=Date.now()+timeout;while(Date.now()<end){if(await fn())return;await delay(100);}throw Error('Timeout '+label);}
 const mime=p=>({'.html':'text/html','.js':'text/javascript','.cjs':'text/javascript','.json':'application/json','.css':'text/css','.wasm':'application/wasm','.png':'image/png','.webp':'image/webp','.wav':'audio/wav','.woff2':'font/woff2'}[path.extname(p)]||'application/octet-stream');
@@ -28,7 +28,8 @@ async function run(state){
  await until(async()=>{try{const r=await fetch('http://127.0.0.1:19381/json/version');return r.ok;}catch{return false;}},'real CEF debugger',45000);
  browser=await chromium.connectOverCDP('http://127.0.0.1:19381');const c=browser.contexts()[0];await fixture(c);const p=c.pages()[0];
  const response=await p.goto(origin+'/mygrain/?cef_fixture='+Date.now()+'#daw='+code);assert.equal(response.headers()['x-mygrain-isolated-test'],'cef-project');
- await p.waitForFunction(()=>window.mygrainDawBridge&&document.documentElement.dataset.mygrainStartup==='ready',null,{timeout:90000});
+ p.on('pageerror',e=>fs.appendFileSync(path.join(out,'page-errors.txt'),e.stack+'\n'));
+ await p.waitForFunction(()=>window.mygrainDawBridge&&document.documentElement.dataset.mygrainStartup==='ready',null,{timeout:90000}).catch(async error=>{fs.writeFileSync(path.join(out,'startup-diagnostic.json'),JSON.stringify(await p.evaluate(()=>({url:location.href,build:document.querySelector('.build-badge')?.textContent,status:document.documentElement.dataset,body:document.body.innerText.slice(0,15000)})),null,2));throw error;});
  if(await p.locator('#start-btn').isVisible())await p.locator('#start-btn').click();
  await p.waitForFunction(()=>mygrainDawBridge.connected&&mygrainDawBridge.diagnostics().project.ready&&isAudioGraphReady()&&!engineStarting&&!stateSaveSuspended&&!mygrainCardHistory.busy,null,{timeout:90000});
  return p;
@@ -51,8 +52,8 @@ function rms(){const bytes=fs.readFileSync(raw);let power=0,n=0;for(let at=Math.
  // Reopen is the same running CEF instance, not an empty new browser.
  command('reopen-editor');await delay(500);assert.equal((await diag()).connected,true);assert.equal(await p.evaluate(()=>bastardLoopMetadata.summary),expected.summary);
  command('stop');await delay(400);command('cef-reload');await p.waitForEvent('framenavigated',{predicate:f=>f===p.mainFrame(),timeout:125000});
- if(await p.locator('#start-btn').isVisible())await p.locator('#start-btn').click();await p.waitForFunction(()=>mygrainDawBridge?.connected&&mygrainDawBridge.diagnostics().project.ready&&!mygrainDawBridge.diagnostics().project.busy,null,{timeout:90000});assert.equal(await p.evaluate(()=>bastardLoopMetadata.summary),expected.summary);assert.equal((await diag()).project.auto.interval,15);
+ await p.waitForFunction(()=>window.mygrainDawBridge&&document.documentElement.dataset.mygrainStartup==='ready',null,{timeout:90000});if(await p.locator('#start-btn').isVisible())await p.locator('#start-btn').click();await p.waitForFunction(()=>window.mygrainDawBridge?.connected&&mygrainDawBridge.diagnostics().project.ready&&!mygrainDawBridge.diagnostics().project.busy,null,{timeout:90000});assert.equal(await p.evaluate(()=>bastardLoopMetadata.summary),expected.summary);assert.equal((await diag()).project.auto.interval,15);
  await p.screenshot({path:path.join(out,'cef-embedded-app.png')});await close();
  fs.writeFileSync(control,'');const q=await run(state);assert.equal(await q.evaluate(()=>bastardLoopMetadata.summary),expected.summary);assert.equal(await q.evaluate(()=>bastardLoopBuffer.length),expected.frames);assert(Math.abs(await q.evaluate(()=>bastardLoopBuffer.getChannelData(0)[100])-expected.first)<.00005);assert.equal((await q.evaluate(()=>mygrainDawBridge.diagnostics())).project.auto.interval,15);await close();
  fs.writeFileSync(path.join(out,'cef-results.json'),JSON.stringify({first,expected,autoSaveWhileClosed:true,reloadRecall:true,freshNativeRecall:true,nativeAudio:true},null,2));console.log('PASS real CEF, native PCM, closed-editor auto-save, safe reload, fresh DAW recall and clean unload');
-}finally{if(exit===null&&child){command('quit');await delay(1000);child.kill();}if(browser)await browser.close().catch(()=>{});}})().catch(e=>{console.error(e);process.exitCode=1;});
+}finally{for(const entry of fs.readdirSync(require('node:os').tmpdir()))if(entry.startsWith('mygrain-cef-')){const file=path.join(require('node:os').tmpdir(),entry,'profile','cef.log');if(fs.existsSync(file))fs.copyFileSync(file,path.join(out,entry+'-cef.log'));}if(exit===null&&child){command('quit');await delay(1000);child.kill();}if(browser)await browser.close().catch(()=>{});}})().catch(e=>{console.error(e);process.exitCode=1;});
