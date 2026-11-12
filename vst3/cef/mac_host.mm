@@ -1,3 +1,4 @@
+#include <sstream>
 // Native macOS integration harness; excluded from release bundles.
 #import <Cocoa/Cocoa.h>
 #include "pluginterfaces/base/ipluginbase.h"
@@ -73,6 +74,7 @@ int main(int argc,char**argv){@autoreleasepool{
    if(command=="stop-plugin")[button(window.contentView,104) performClick:nil];
    if(command=="cef-reload")[button(window.contentView,101) performClick:nil];
    if(command=="cef-store")[button(window.contentView,102) performClick:nil];
+   if(command.rfind("cef-click ",0)==0){std::istringstream point(command.substr(10));int x=0,y=0;if(point>>x>>y){NSView* surface=window.contentView.subviews.firstObject;NSPoint location=[surface convertPoint:NSMakePoint(x,y+68) toView:nil];for(NSEventType type:{NSEventTypeLeftMouseDown,NSEventTypeLeftMouseUp}){NSEvent* event=[NSEvent mouseEventWithType:type location:location modifierFlags:0 timestamp:NSProcessInfo.processInfo.systemUptime windowNumber:window.windowNumber context:nil eventNumber:0 clickCount:1 pressure:1];if(type==NSEventTypeLeftMouseDown)[surface mouseDown:event];else [surface mouseUp:event];}}}
    if(command=="play")playing=true;if(command=="stop")playing=false;
    if(command=="close-editor"&&view){view->removed();view->release();view=nullptr;}
    if(command=="reopen-editor"&&!view){view=controller->createView(ViewType::kEditor);if(!view||view->attached(window.contentView,kPlatformTypeNSView)!=kResultOk)std::abort();}
