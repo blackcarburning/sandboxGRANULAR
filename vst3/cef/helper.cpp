@@ -145,13 +145,15 @@ int run(int argc,char** argv){
  String url(target);browser=cef_browser_host_create_browser_sync(&window,&client.api,url,&options,nullptr,nullptr);
  if(!browser){mapping.data->status.store(5);cef_shutdown();return 68;}
  auto* host=browser->get_host(browser);host->set_audio_muted(host,1);mapping.data->status.store(1);
- uint32_t width=mapping.data->width.load(),height=mapping.data->height.load(),shown=1;bool quitting=false;
+ uint32_t width=mapping.data->width.load(),height=mapping.data->height.load();bool quitting=false;
  while(!closed){
   cef_do_message_loop_work();
   if(!quitting&&(mapping.data->quit.load()||!parentAlive(pid))){quitting=true;host->close_browser(host,1);}
   if(!quitting){
    auto w=mapping.data->width.load(),h=mapping.data->height.load();if(w!=width||h!=height){width=w;height=h;host->was_resized(host);}
-   auto s=mapping.data->shown.load();if(s!=shown){shown=s;host->was_hidden(host,!s);}
+   // An editor is only an OSR display surface, not browser visibility. CEF's
+   // was_hidden() suspends Web Audio on macOS despite background-timer switches.
+   // Keep this headless renderer active until the owning component unloads.
    Event e;while(mapping.pop(e))command(e,host);
   }
   std::this_thread::sleep_for(std::chrono::milliseconds(5));

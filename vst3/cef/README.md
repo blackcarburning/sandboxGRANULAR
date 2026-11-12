@@ -46,7 +46,8 @@ Live mode retains Bridge timing/buffering limits and needs real-time playback.
 CEF Alloy windowless rendering; private bounded shared-memory RGB frames and
 input ring. Rendering/copying never happens in the native audio callback.
 CEF alone owns Chromium processes, timers and its UI message loop. Background
-timer/renderer throttling is disabled so hiding a view does not pause storage.
+timer/renderer throttling is disabled, and closing the native surface never calls
+CEF was_hidden(): macOS can suspend Web Audio despite timer switches.
 Software painting avoids binding a DAW host's graphics device to Chromium's GPU.
 Mouse, wheel, keyboard, native save dialogs and browser select popups are routed
 through the surface. International IME/composition and physical DAWs require
