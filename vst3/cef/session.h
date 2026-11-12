@@ -29,7 +29,7 @@ public:
 #ifdef _WIN32
   return process&&WaitForSingleObject(process,0)==WAIT_TIMEOUT;
 #else
-  if(process<=0)return false;int status=0;const auto result=waitpid(process,&status,WNOHANG);if(result==process){process=-1;return false;}return result==0;
+  if(process<=0)return false;int status=0;const auto result=waitpid(process,&status,WNOHANG);if(result==process){if(std::getenv("MYGRAIN_CEF_DEBUG_PORT"))std::fprintf(stderr,"CEF_HELPER_EXIT=%d\n",status);process=-1;return false;}return result==0;
 #endif
  }
  void stop(){

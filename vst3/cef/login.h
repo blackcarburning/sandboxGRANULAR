@@ -56,11 +56,12 @@ bool loginVisitPending=false,loginImported=false;
 // Cookie callbacks run on CEF's UI thread, including the empty-visit release.
 struct LoginVisitor {
  cef_cookie_visitor_t api{};std::atomic<int> refs{1};RememberedLogin found;
- LoginVisitor(){api.base.size=sizeof(api);api.base.add_ref=[](cef_base_ref_counted_t* b){++((LoginVisitor*)b)->refs;};api.base.release=[](cef_base_ref_counted_t* b)->int{auto* self=(LoginVisitor*)b;if(--self->refs)return 0;delete self;return 1;};api.base.has_one_ref=[](cef_base_ref_counted_t* b)->int{return ((LoginVisitor*)b)->refs==1;};api.base.has_at_least_one_ref=[](cef_base_ref_counted_t* b)->int{return ((LoginVisitor*)b)->refs>0;};
+ LoginVisitor(){api.base.size=sizeof(api);api.base.add_ref=[](cef_base_ref_counted_t* b){++((LoginVisitor*)b)->refs;};api.base.release=[](cef_base_ref_counted_t* b)->int{auto* self=(LoginVisitor*)b;if(--self->refs==1&&loginVisitPending){self->complete();}return 0;};api.base.has_one_ref=[](cef_base_ref_counted_t* b)->int{return ((LoginVisitor*)b)->refs==1;};api.base.has_at_least_one_ref=[](cef_base_ref_counted_t* b)->int{return ((LoginVisitor*)b)->refs>0;};
   api.visit=[](cef_cookie_visitor_t* visitor,const cef_cookie_t* cookie,int,int,int*)->int{
    if(utf8(&cookie->name)=="mygrain_session"&&utf8(&cookie->domain)=="openclaw.blackcarburning.com"&&utf8(&cookie->path)=="/"&&cookie->httponly&&cookie->secure&&cookie->has_expires){auto* self=(LoginVisitor*)visitor;self->found={utf8(&cookie->value),cookie->expires.val/1000000.0-11644473600.0};}return 1;
   };
  }
- ~LoginVisitor(){if(!(found==lastLogin)&&found.save())lastLogin=found;loginVisitPending=false;}
+ void complete(){if(!(found==lastLogin)&&found.save())lastLogin=found;loginVisitPending=false;}
 };
-void rememberLogin(cef_cookie_manager_t* manager){if(!manager||!loginImported||loginVisitPending)return;loginVisitPending=true;auto* visitor=new LoginVisitor;String url("https://openclaw.blackcarburning.com/");manager->visit_url_cookies(manager,url,1,&visitor->api);visitor->api.base.release(&visitor->api.base);}
+LoginVisitor loginVisitor; // Static callback storage outlives every asynchronous CEF request.
+void rememberLogin(cef_cookie_manager_t* manager){if(!manager||!loginImported||loginVisitPending)return;loginVisitPending=true;loginVisitor.found={};loginVisitor.api.base.add_ref(&loginVisitor.api.base);String url("https://openclaw.blackcarburning.com/");if(!manager->visit_url_cookies(manager,url,1,&loginVisitor.api))loginVisitPending=false;}

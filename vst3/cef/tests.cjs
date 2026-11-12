@@ -51,6 +51,7 @@ async function run(state,signedOutOnly=false){
  await until(()=>/187\d{2}\.[a-f0-9]{32}/.test(log),'native code');code=log.match(/187\d{2}\.[a-f0-9]{32}/)[0];
  await until(async()=>{try{const r=await fetch('http://127.0.0.1:19381/json/version');return r.ok;}catch{return false;}},'real CEF debugger',45000);
  browser=await chromium.connectOverCDP('http://127.0.0.1:19381');const c=browser.contexts()[0];const auth={signedIn:false,posts:0};await fixture(c,auth);const p=c.pages()[0];
+ await p.waitForURL(u=>u.href.startsWith(origin+'/mygrain/'));
  const savedCookies=await c.cookies(origin);assert.equal(savedCookies.some(x=>x.name==='mygrain_session'&&x.value===fixtureToken),!!state,'session imported into a fresh isolated helper');
  p.on('dialog',()=>{});
  const response=await p.goto(origin+'/mygrain/?mygrain_cef=1&account=login&cef_fixture='+Date.now()+'#daw='+code);assert.equal(response.headers()['x-mygrain-isolated-test'],'cef-project');

@@ -185,6 +185,13 @@ int run(int argc,char** argv){
  String childPath(subprocess.fileSystemRepresentation);cef_string_utf16_set(childPath.value.str,childPath.value.length,&settings.browser_subprocess_path,1);
 #endif
  if(!cef_initialize(&args,&settings,&app.api,nullptr)){mapping.data->status.store(4);return 67;}
+ cef_window_info_t window{};window.size=sizeof(window);window.windowless_rendering_enabled=1;window.runtime_style=CEF_RUNTIME_STYLE_ALLOY;
+ cef_browser_settings_t options{};options.size=sizeof(options);options.windowless_frame_rate=30;options.background_color=0xff131825;
+ String url("about:blank");browser=cef_browser_host_create_browser_sync(&window,&client.api,url,&options,nullptr,nullptr);
+ if(!browser){mapping.data->status.store(5);cef_shutdown();return 68;}
+ // CefAudioHandler captures/suppresses the speaker path. Do not explicitly mute
+ // the browser: that also silences the PCM needed by widget/media previews.
+ auto* host=browser->get_host(browser);mapping.data->status.store(1);
  bool managerReady=false;
  // Callback objects outlive initialization; no captured stack references.
  cookieReady.api.on_complete=[](cef_completion_callback_t*){loginImported=true;};
@@ -193,16 +200,10 @@ int run(int argc,char** argv){
  waitCookie();managerReady=loginImported;
  lastLogin=RememberedLogin::read();
  if(cookies&&managerReady&&lastLogin.valid()){
-  cef_cookie_t value{};String name("mygrain_session"),token(lastLogin.token),cookiePath("/"),cookieUrl("https://openclaw.blackcarburning.com/");value.name=name.value;value.value=token.value;value.path=cookiePath.value;value.secure=value.httponly=value.has_expires=1;value.expires.val=int64_t((lastLogin.expires+11644473600.0)*1000000.0);
+  cef_cookie_t value{};value.size=sizeof(value);value.same_site=CEF_COOKIE_SAME_SITE_LAX_MODE;String name("mygrain_session"),token(lastLogin.token),cookiePath("/"),cookieUrl("https://openclaw.blackcarburning.com/");value.name=name.value;value.value=token.value;value.path=cookiePath.value;value.secure=value.httponly=value.has_expires=1;value.expires.val=int64_t((lastLogin.expires+11644473600.0)*1000000.0);
   loginImported=false;cookieSet.api.on_complete=[](cef_set_cookie_callback_t*,int){loginImported=true;};if(!cookies->set_cookie(cookies,cookieUrl,&value,cookieSet.get()))loginImported=true;waitCookie();
  }
- cef_window_info_t window{};window.size=sizeof(window);window.windowless_rendering_enabled=1;window.runtime_style=CEF_RUNTIME_STYLE_ALLOY;
- cef_browser_settings_t options{};options.size=sizeof(options);options.windowless_frame_rate=30;options.background_color=0xff131825;
- String url(target);browser=cef_browser_host_create_browser_sync(&window,&client.api,url,&options,nullptr,nullptr);
- if(!browser){mapping.data->status.store(5);cef_shutdown();return 68;}
- // CefAudioHandler captures/suppresses the speaker path. Do not explicitly mute
- // the browser: that also silences the PCM needed by widget/media previews.
- auto* host=browser->get_host(browser);mapping.data->status.store(1);
+ auto* initialFrame=browser->get_main_frame(browser);if(initialFrame){String initial(target);initialFrame->load_url(initialFrame,initial);initialFrame->base.release(&initialFrame->base);}
  auto nextLoginCheck=std::chrono::steady_clock::now();
  uint32_t width=mapping.data->width.load(),height=mapping.data->height.load();bool quitting=false;
  while(!closed){
