@@ -24,7 +24,7 @@ async function fixture(context,auth={signedIn:true,posts:0}){
  });
 }
 let child,browser,code,log='',exit=null;const raw=path.resolve(out,'cef-native.f32'),control=raw+'.control';
-function command(c){fs.writeFileSync(control,c);}
+let commandSerial=0;function command(c){fs.writeFileSync(control,c+'\n'+(++commandSerial));}
 async function acknowledged(c,marker){const count=(log.match(new RegExp(marker,'g'))||[]).length;command(c);await until(()=>(log.match(new RegExp(marker,'g'))||[]).length>count,'native acknowledgement '+c,10000);await delay(80);}
 async function toolbar(){await acknowledged('cef-toolbar','CEF_TOOLBAR=');return log.split('CEF_TOOLBAR=').pop().split('\n')[0];}
 async function run(state){
@@ -78,7 +78,7 @@ function rms(){const bytes=fs.readFileSync(raw);let power=0,n=0;for(let at=Math.
 
  assert.equal((await diag()).project.auto.enabled,true);assert.equal((await diag()).project.auto.interval,60);
  await delay(400);assert.match(await toolbar(),/Auto-save: On/);
- await acknowledged('cef-auto','CEF_CONTROL=');await p.waitForFunction(()=>!mygrainDawBridge.diagnostics().project.auto.enabled);await delay(400);assert.match(await toolbar(),/Auto-save: Off/);
+ await acknowledged('cef-auto','CEF_CONTROL=');await p.waitForFunction(()=>!mygrainDawBridge.diagnostics().project.auto.enabled);await delay(400);const pausedToolbar=await toolbar();assert.match(pausedToolbar,/Auto-save: Off/);assert.match(pausedToolbar,/Automatic storage paused;/);
  await acknowledged('cef-interval 14','CEF_CONTROL=');assert.equal((await diag()).project.auto.interval,60,'invalid interval must be rejected');
  await acknowledged('cef-interval 15','CEF_CONTROL=');await p.waitForFunction(()=>mygrainDawBridge.diagnostics().project.auto.interval===15);
  await acknowledged('cef-auto','CEF_CONTROL=');await p.waitForFunction(()=>mygrainDawBridge.diagnostics().project.auto.enabled);await delay(400);assert.match(await toolbar(),/Auto-save: On/);
@@ -86,7 +86,7 @@ function rms(){const bytes=fs.readFileSync(raw);let power=0,n=0;for(let at=Math.
  // Verify the actual native editor input route, not just DevTools input.
  await p.evaluate(()=>{window.cefNativeClick=0;const b=document.createElement('button');b.id='cef-native-input-probe';b.textContent='Native input test';b.style.cssText='position:fixed;left:20px;top:90px;width:200px;height:40px;z-index:2147483647';b.onclick=()=>window.cefNativeClick++;document.body.append(b);});
  await delay(500);command('cef-click 60 110');await p.waitForFunction(()=>window.cefNativeClick===1,null,{timeout:10000});await p.locator('#cef-native-input-probe').evaluate(b=>b.remove());
- command('screenshot');await until(()=>fs.existsSync(raw+(process.platform==='win32'?'.bmp':'.png')),'native surface screenshot');
+ await acknowledged('screenshot','CEF_SCREENSHOT=');
 
  await p.evaluate(async()=>{stopAllPerformancePlayback({silent:true});clearAllPerformanceSoloStates({silent:true,skipSave:true});applyGlobalBpm(120);syncPatternLengthControls(16,{skipSave:true});setFxMuted(true,{silent:true});setFilterEnabled('lpf',false);setFilterEnabled('hpf',false);setDrumMachineEnabled(false,{silent:true,skipSave:true});
   const b=audioContext.createBuffer(2,audioContext.sampleRate*4,audioContext.sampleRate);for(let c=0;c<2;c++)for(let i=0;i<b.length;i++)b.getChannelData(c)[i]=.15*Math.cos(2*Math.PI*(c?223:110)*i/b.sampleRate);bastardLoopBuffer=b;bastardLoopSourceBpm=120;bastardLoopMetadata={bpm:120,summary:'CEF isolated auto-save source',durationSeconds:4};setBastardLoopEnabled(true,{silent:true,skipSave:true});setLoopLayerSolo('bastarda',{silent:true,skipSave:true});
@@ -104,7 +104,7 @@ function rms(){const bytes=fs.readFileSync(raw);let power=0,n=0;for(let at=Math.
  const skipped=(await diag()).project.stats.skipped;await p.waitForFunction(n=>mygrainDawBridge.diagnostics().project.stats.skipped>n,skipped,{timeout:35000});
  await delay(400);assert.match(await toolbar(),/unchanged/);
  await acknowledged('cef-store','CEF_CONTROL=');await p.waitForFunction(n=>mygrainDawBridge.diagnostics().project.stats.count>n,first.stats.count,{timeout:45000});
- command('screenshot');await delay(800);fs.copyFileSync(raw+(process.platform==='win32'?'.bmp':'.png'),path.join(out,'native-toolbar'+(process.platform==='win32'?'.bmp':'.png')));
+ await acknowledged('screenshot','CEF_SCREENSHOT=');fs.copyFileSync(raw+(process.platform==='win32'?'.bmp':'.png'),path.join(out,'native-toolbar'+(process.platform==='win32'?'.bmp':'.png')));
  await audit('before-close');command('close-editor');await delay(500);const count=(await diag()).project.stats.count;await p.evaluate(()=>{bastardLoopMetadata.summary='CEF updated while native editor closed';});
  await p.waitForFunction(n=>mygrainDawBridge.diagnostics().project.stats.count>n,count,{timeout:35000});await audit('after-close');assert(rms()>.0001,'audio continues with editor closed');
  const expected=await p.evaluate(()=>({frames:bastardLoopBuffer.length,first:bastardLoopBuffer.getChannelData(0)[100],summary:bastardLoopMetadata.summary}));

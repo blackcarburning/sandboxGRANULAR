@@ -71,8 +71,8 @@ int main(int argc,char**argv){@autoreleasepool{
   [[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:.02]];
   if(!printed){for(const auto& item:std::filesystem::directory_iterator(std::filesystem::temp_directory_path())){if(priorDisplays.count(item.path())||item.path().filename().u8string().rfind("mygrain-cef-",0)!=0)continue;mygrain::cef::Mapping display;if(display.open((item.path()/"display.ipc").u8string(),false)){std::string url=display.data->url;auto pos=url.find("#daw=");if(pos!=std::string::npos){std::cout<<"CODE="<<url.substr(pos+5)<<std::endl;printed=true;break;}}}}
 
-  std::ifstream control(std::string(argv[2])+".control");std::string command;std::getline(control,command);
-  if(command!=previous){previous=command;
+  std::ifstream control(std::string(argv[2])+".control");std::string command,sequence;std::getline(control,command);std::getline(control,sequence);
+  const auto stamp=command+"\n"+sequence;if(stamp!=previous){previous=stamp;
    if(command=="quit")break;
    if(command=="arm-plugin")[button(window.contentView,106) performClick:nil];
    if(command=="stop-plugin")[button(window.contentView,104) performClick:nil];
@@ -93,7 +93,7 @@ int main(int argc,char**argv){@autoreleasepool{
    if(command=="save-project"){MemoryStream state;if(component->getState(&state)!=kResultOk||!checkProjectState(factory,info,host,component,state))std::abort();std::ofstream saved(std::string(argv[2])+".project.bin",std::ios::binary);saved.write(state.getData(),state.getSize());saved.close();std::cout<<"PROJECT_DIRTY_UI="<<projectDirty.calls.load()<<" PROJECT_SAVED="<<state.getSize()<<std::endl;}
    if(command=="screenshot"){
     auto* bitmap=[window.contentView bitmapImageRepForCachingDisplayInRect:window.contentView.bounds];[window.contentView cacheDisplayInRect:window.contentView.bounds toBitmapImageRep:bitmap];
-    [[bitmap representationUsingType:NSBitmapImageFileTypePNG properties:@{}] writeToFile:[NSString stringWithUTF8String:(std::string(argv[2])+".png").c_str()] atomically:YES];
+    [[bitmap representationUsingType:NSBitmapImageFileTypePNG properties:@{}] writeToFile:[NSString stringWithUTF8String:(std::string(argv[2])+".png").c_str()] atomically:YES];std::cout<<"CEF_SCREENSHOT=done"<<std::endl;
    }
   }
  }}
