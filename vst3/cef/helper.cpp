@@ -13,6 +13,9 @@
 #include <chrono>
 #include <thread>
 #include <iostream>
+#ifdef _WIN32
+#include <shellapi.h>
+#endif
 #ifndef _WIN32
 #include <signal.h>
 #endif
@@ -50,6 +53,7 @@ struct String {
 };
 std::string utf8(const cef_string_t* value){if(!value)return {};cef_string_utf8_t s{};cef_string_utf16_to_utf8(value->str,value->length,&s);std::string out(s.str,s.length);cef_string_utf8_clear(&s);return out;}
 std::string quote(const std::string& s){std::string o="\"";for(unsigned char c:s){if(c=='"'||c=='\\')o+='\\';if(c>=32)o+=char(c);}return o+'"';}
+std::string pathString(const std::filesystem::path& p){const auto value=p.u8string();return std::string(value.begin(),value.end());}
 void script(const std::string& s){auto* f=browser->get_main_frame(browser);if(f){String code(s),origin("https://openclaw.blackcarburning.com/mygrain/");f->execute_java_script(f,code,origin,0);f->base.release(&f->base);}}
 Object<cef_app_t> app;
 Object<cef_client_t> client;
@@ -122,14 +126,14 @@ int run(int argc,char** argv){
  target=mapping.data->url;
  if(target.rfind("https://openclaw.blackcarburning.com/mygrain/",0)!=0)return 66;
  const uint32_t pid=uint32_t(std::stoul(argv[2]));
- std::filesystem::create_directories(argv[3]);
+ auto profile=std::filesystem::absolute(std::filesystem::u8path(argv[3]));std::filesystem::create_directories(profile);
 #ifdef __APPLE__
  [MyGrainCEFApplication sharedApplication];[NSApp setActivationPolicy:NSApplicationActivationPolicyAccessory];
 #endif
  cef_settings_t settings{};settings.size=sizeof(settings);settings.no_sandbox=1;settings.windowless_rendering_enabled=1;settings.persist_session_cookies=1;
- String cache(std::filesystem::absolute(argv[3]).u8string());cef_string_utf16_set(cache.value.str,cache.value.length,&settings.root_cache_path,1);cef_string_utf16_set(cache.value.str,cache.value.length,&settings.cache_path,1);
+ String cache(pathString(profile));cef_string_utf16_set(cache.value.str,cache.value.length,&settings.root_cache_path,1);cef_string_utf16_set(cache.value.str,cache.value.length,&settings.cache_path,1);
  settings.log_severity=LOGSEVERITY_ERROR;
- String log((std::filesystem::absolute(argv[3])/"cef.log").u8string());cef_string_utf16_set(log.value.str,log.value.length,&settings.log_file,1);
+ String log(pathString(profile/"cef.log"));cef_string_utf16_set(log.value.str,log.value.length,&settings.log_file,1);
  if(argc>4)settings.remote_debugging_port=std::stoi(argv[4]); // Test harness only; no debug listener in released plugin launches.
 #ifdef __APPLE__
  NSString* subprocess=[NSBundle.mainBundle.bundlePath stringByAppendingPathComponent:@"Contents/Frameworks/MyGrainCEF Helper.app/Contents/MacOS/MyGrainCEF Helper"];
@@ -157,6 +161,11 @@ int run(int argc,char** argv){
 }
 }
 int main(int argc,char**argv){
+#ifdef _WIN32
+ // CEF and filesystem paths use UTF-8, including non-ASCII Windows user folders.
+ int count=0;auto** wide=CommandLineToArgvW(GetCommandLineW(),&count);std::vector<std::string> strings;std::vector<char*> pointers;
+ if(!wide)return 64;for(int i=0;i<count;i++){int n=WideCharToMultiByte(CP_UTF8,0,wide[i],-1,nullptr,0,nullptr,nullptr);std::string s(n,'\0');WideCharToMultiByte(CP_UTF8,0,wide[i],-1,s.data(),n,nullptr,nullptr);s.pop_back();strings.push_back(std::move(s));}LocalFree(wide);for(auto& s:strings)pointers.push_back(s.data());pointers.push_back(nullptr);argc=count;argv=pointers.data();
+#endif
 #ifdef __APPLE__
  @autoreleasepool{return run(argc,argv);}
 #else
