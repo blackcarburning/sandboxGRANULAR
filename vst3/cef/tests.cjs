@@ -41,6 +41,7 @@ async function run(state){
   command('cef-native-key 110 78');await p.waitForFunction(()=>document.querySelector('#mygrainLoginUsername').value==='n');
   command('cef-host-focus 1');await delay(100);
   for(const ch of 'ative-user8')await key(ch.charCodeAt(0));
+  await key(97,0,4);for(const ch of 'native-user8')await key(ch.charCodeAt(0)); // Ctrl/Cmd+A uses Chromium's focused frame.
   await key(0,1);await key(55); // Backspace then 7.
   await p.waitForFunction(()=>document.querySelector('#mygrainLoginUsername').value==='native-user7');
   command('cef-host-focus 0');await delay(100);await key(88);await delay(150);
@@ -55,7 +56,7 @@ async function run(state){
   await p.screenshot({path:path.join(out,'native-login.png')});
   await Promise.all([p.waitForEvent('framenavigated',{predicate:f=>f===p.mainFrame(),timeout:15000}),key(13,4)]);
   await until(()=>auth.posts===1,'synthetic native login');
-  fs.writeFileSync(path.join(out,'native-login-results.json'),JSON.stringify({nativeTyping:true,vst3Keyboard:true,editing:true,tab:true,focusRelease:true,noDuplicate:true,loginSubmitted:true}));
+  fs.writeFileSync(path.join(out,'native-login-results.json'),JSON.stringify({nativeTyping:true,vst3Keyboard:true,editing:true,selectAllShortcut:true,tab:true,focusRelease:true,noDuplicate:true,loginSubmitted:true}));
  }
 
  await p.waitForFunction(()=>window.mygrainDawBridge&&document.documentElement.dataset.mygrainStartup==='ready',null,{timeout:90000}).catch(async error=>{fs.writeFileSync(path.join(out,'startup-diagnostic.json'),JSON.stringify(await p.evaluate(()=>({url:location.href,build:document.querySelector('.build-badge')?.textContent,status:document.documentElement.dataset,body:document.body.innerText.slice(0,15000)})),null,2));throw error;});

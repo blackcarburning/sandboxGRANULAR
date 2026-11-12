@@ -50,6 +50,8 @@ inline int nativeKey(int vk){
 }
 inline char16_t keyText(char16_t character,int vk){
  if(character)return character;
+ if(vk>='A'&&vk<='Z')return char16_t(vk+32);
+ if(vk>='0'&&vk<='9')return char16_t(vk);
 #ifdef __APPLE__
  switch(vk){case 8:return 127;case 9:return 9;case 13:return 13;case 27:return 27;case 37:return 0xf702;case 38:return 0xf700;case 39:return 0xf703;case 40:return 0xf701;case 46:return 0xf728;case 36:return 0xf729;case 35:return 0xf72b;case 33:return 0xf72c;case 34:return 0xf72d;default:break;}
 #endif
