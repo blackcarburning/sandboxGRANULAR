@@ -38,6 +38,8 @@ async function close(){command('quit');if(browser){await browser.close().catch((
 function rms(){const bytes=fs.readFileSync(raw);let power=0,n=0;for(let at=Math.max(0,bytes.length-48000*8);at+4<=bytes.length;at+=4){const v=bytes.readFloatLE(at);assert(Number.isFinite(v));power+=v*v;n++;}return Math.sqrt(power/Math.max(1,n));}
 (async()=>{try{
  const p=await run();command('stop');const diag=()=>p.evaluate(()=>mygrainDawBridge.diagnostics());
+ const audit=async label=>{const value=await p.evaluate(async()=>{const a=audioContext.createAnalyser();a.fftSize=2048;finalAmplifierNode.connect(a);await new Promise(r=>setTimeout(r,150));const v=new Float32Array(2048);a.getFloatTimeDomainData(v);finalAmplifierNode.disconnect(a);return {audio:{state:audioContext.state,time:audioContext.currentTime,rate:audioContext.sampleRate,rms:Math.sqrt(v.reduce((sum,x)=>sum+x*x,0)/v.length)},visibility:document.visibilityState,bridge:mygrainDawBridge.diagnostics(),status:document.querySelector('#dawBridgeStatus')?.textContent};});value.nativeRms=rms();fs.writeFileSync(path.join(out,label+'.json'),JSON.stringify(value,null,2));};
+
  assert.equal((await diag()).project.auto.enabled,true);assert.equal((await diag()).project.auto.interval,60);
  // Verify the actual native editor input route, not just DevTools input.
  await p.evaluate(()=>{window.cefNativeClick=0;const b=document.createElement('button');b.id='cef-native-input-probe';b.textContent='Native input test';b.style.cssText='position:fixed;left:20px;top:90px;width:200px;height:40px;z-index:2147483647';b.onclick=()=>window.cefNativeClick++;document.body.append(b);});
@@ -50,8 +52,8 @@ function rms(){const bytes=fs.readFileSync(raw);let power=0,n=0;for(let at=Math.
  });
  command('arm-plugin');await delay(250);command('play');await p.waitForFunction(()=>mygrainDawBridge.diagnostics().clock.running,null,{timeout:25000});await delay(1200);assert(rms()>.0001,'real native output must be audible');
  await p.waitForFunction(()=>mygrainDawBridge.diagnostics().project.stats.count>=1,null,{timeout:45000});const first=(await diag()).project;assert(first.stats.snapshotBytes>100000,'real source WAV must be stored');assert.equal(first.auto.interval,15);
- command('close-editor');await delay(500);const count=first.stats.count;await p.evaluate(()=>{bastardLoopMetadata.summary='CEF updated while native editor closed';});
- await p.waitForFunction(n=>mygrainDawBridge.diagnostics().project.stats.count>n,count,{timeout:35000});assert(rms()>.0001,'audio continues with editor closed');
+ await audit('before-close');command('close-editor');await delay(500);const count=first.stats.count;await p.evaluate(()=>{bastardLoopMetadata.summary='CEF updated while native editor closed';});
+ await p.waitForFunction(n=>mygrainDawBridge.diagnostics().project.stats.count>n,count,{timeout:35000});await audit('after-close');assert(rms()>.0001,'audio continues with editor closed');
  const expected=await p.evaluate(()=>({frames:bastardLoopBuffer.length,first:bastardLoopBuffer.getChannelData(0)[100],summary:bastardLoopMetadata.summary}));
  command('save-project');await until(()=>/PROJECT_SAVED=/.test(log),'DAW project saved');assert.match(log,/PROJECT_STATE_CHECKS_OK/);assert.match(log,/PROJECT_DIRTY_UI=/);const state=path.join(out,'saved-project.bin');fs.copyFileSync(raw+'.project.bin',state);
  // Reopen is the same running CEF instance, not an empty new browser.

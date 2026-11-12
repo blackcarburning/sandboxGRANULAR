@@ -169,7 +169,12 @@ int main(int argc,char**argv){
  if(!wide)return 64;for(int i=0;i<count;i++){int n=WideCharToMultiByte(CP_UTF8,0,wide[i],-1,nullptr,0,nullptr,nullptr);std::string s(n,'\0');WideCharToMultiByte(CP_UTF8,0,wide[i],-1,s.data(),n,nullptr,nullptr);s.pop_back();strings.push_back(std::move(s));}LocalFree(wide);for(auto& s:strings)pointers.push_back(s.data());pointers.push_back(nullptr);argc=count;argv=pointers.data();
 #endif
 #ifdef __APPLE__
- @autoreleasepool{return run(argc,argv);}
+ @autoreleasepool{
+  // Browser output is intentionally muted: declare user-requested real-time work
+  // explicitly, rather than relying on audible speakers to prevent App Nap.
+  id activity=[[[NSProcessInfo processInfo] beginActivityWithOptions:NSActivityUserInitiatedAllowingIdleSystemSleep|NSActivityLatencyCritical reason:@"MyGrain CEF real-time DAW audio and project storage"] retain];
+  int result=run(argc,argv);[[NSProcessInfo processInfo] endActivity:activity];[activity release];return result;
+ }
 #else
  try{return run(argc,argv);}catch(...){if(mapping.data)mapping.data->status.store(6);return 69;}
 #endif

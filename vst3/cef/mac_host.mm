@@ -24,6 +24,7 @@ using namespace Steinberg;using namespace Steinberg::Vst;
 static NSButton* button(NSView* view,NSInteger tag){for(NSView* child in view.subviews){if([child isKindOfClass:[NSButton class]]&&child.tag==tag)return (NSButton*)child;if(auto* result=button(child,tag))return result;}return nil;}
 int main(int argc,char**argv){@autoreleasepool{
  if(argc<3)return 2;[NSApplication sharedApplication];
+ id activity=[[[NSProcessInfo processInfo] beginActivityWithOptions:NSActivityUserInitiatedAllowingIdleSystemSleep|NSActivityLatencyCritical reason:@"Native real-time audio test"] retain];
  NSString* path=[NSString stringWithUTF8String:argv[1]];NSBundle* bundle=[NSBundle bundleWithPath:path];
  void* module=dlopen(bundle.executablePath.fileSystemRepresentation,RTLD_NOW|RTLD_LOCAL);if(!module){std::cerr<<dlerror()<<std::endl;return 3;}
  auto entry=(bool(*)(CFBundleRef))dlsym(module,"bundleEntry");auto exit=(bool(*)())dlsym(module,"bundleExit");auto get=(IPluginFactory*(PLUGIN_API*)())dlsym(module,"GetPluginFactory");
@@ -45,6 +46,7 @@ int main(int argc,char**argv){@autoreleasepool{
  NSWindow* window=[[NSWindow alloc] initWithContentRect:NSMakeRect(0,0,1240,756) styleMask:NSWindowStyleMaskTitled backing:NSBackingStoreBuffered defer:NO];
  IPlugView* view=controller->createView(ViewType::kEditor);if(!view||view->attached(window.contentView,kPlatformTypeNSView)!=kResultOk)return 10;
  if(!button(window.contentView,102)||!button(window.contentView,106))return 11;
+ [window makeKeyAndOrderFront:nil];[NSApp activateIgnoringOtherApps:YES];
  
  std::atomic<bool> playing{true};std::atomic<bool> running{true};std::atomic<int> mode{0};
  std::thread audio([&]{
@@ -94,5 +96,5 @@ int main(int argc,char**argv){@autoreleasepool{
  if(view){view->removed();view->release();}[window release];processor->setProcessing(false);component->setActive(false);controller->release();processor->release();component->terminate();component->release();factory->release();
  } // Drain AppKit event autoreleases before unloading Objective-C class code.
  exit();CFRelease(ref);dlclose(module);
- std::cout<<"NATIVE_HOST_OK"<<std::endl;return 0;
+ [[NSProcessInfo processInfo] endActivity:activity];[activity release];std::cout<<"NATIVE_HOST_OK"<<std::endl;return 0;
 }}
