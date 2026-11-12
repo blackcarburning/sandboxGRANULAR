@@ -88,7 +88,8 @@ int main(int argc,char**argv){@autoreleasepool{
   }
  }}
  running=false;audio.join();
- if(projectDirty.wrongThread.load()||!projectDirty.calls.load())return 15;
+ // Restoring an unedited DAW state must not mark a fresh instance dirty.
+ if(projectDirty.wrongThread.load()||(!projectDirty.calls.load()&&argc<=4))return 15;
  std::cout<<"PROJECT_DIRTY_UI="<<projectDirty.calls.load()<<std::endl;
  MemoryStream state;if(component->getState(&state)!=kResultOk||state.getSize()<48)return 12;state.seek(0,IBStream::kIBSeekSet,nullptr);if(component->setState(&state)!=kResultOk)return 13;
  if(!checkProjectState(factory,info,host,component,state))return 14;

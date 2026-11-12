@@ -47,11 +47,12 @@ CEF Alloy windowless rendering; private bounded shared-memory RGB frames and
 input ring. Rendering/copying never happens in the native audio callback.
 CEF alone owns Chromium processes, timers and its UI message loop. Background
 timer/renderer throttling is disabled, and closing the native surface never calls
-CEF was_hidden(): macOS can suspend Web Audio despite timer switches.
+CEF was_hidden(). macOS helpers declare user-requested real-time activity
+(with idle system sleep allowed), independent of speaker audibility/App Nap.
 Software painting avoids binding a DAW host's graphics device to Chromium's GPU.
 Mouse, wheel, keyboard, native save dialogs and browser select popups are routed
-through the surface. International IME/composition and physical DAWs require
-additional target-device coverage. New browser-window popups are blocked; the
+through the surface. Native OS-file drag/drop and international IME/composition are not integrated;
+use file pickers/click controls. Physical DAWs require target-device coverage. New browser-window popups are blocked; the
 current app uses in-page editors. Only the trusted hosted origin is granted
 loopback-network permission; mic/camera permissions are not auto-granted.
 

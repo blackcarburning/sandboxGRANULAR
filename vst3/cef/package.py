@@ -39,6 +39,7 @@ Profiles are per-instance and temporary. Sign in for each new instance.
 The hosted app needs internet. Prepared Rendered audio can play offline/native
 without the browser; refresh its render after sound changes. Live needs real-time
 playback and retains Bridge timing/buffering limits. No new DAW automation.
+Native OS-file drag/drop and international IME are not integrated; use file pickers.
 
 This is a separate plugin. MYGRAIN Bridge 0.8.0 and MYGRAIN FX 0.4.0 are unchanged.
 Keep all CEF runtime/helper/resources/credits in the bundle. CEF runtime or bridge
