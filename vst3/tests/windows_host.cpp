@@ -18,6 +18,7 @@
 #include <vector>
 #ifdef MYGRAIN_CEF_HOST
 #include "../cef/ipc.h"
+#include "../cef/toolbar.h"
 #include <filesystem>
 #include <set>
 #endif
@@ -133,12 +134,16 @@ int main(int argc,char**argv){
 #ifdef MYGRAIN_CEF_HOST
   if(cmd=="reopen-editor"&&!view){view=controller->createView(ViewType::kEditor);if(!view||view->attached(parent,kPlatformTypeHWND)!=kResultOk)return 21;child=FindWindowExW(parent,nullptr,L"MyGrainCEFView010",nullptr);}
   if(cmd=="cef-reload")SendMessageW(child,WM_COMMAND,101,0);
-  if(cmd=="cef-store")SendMessageW(child,WM_COMMAND,102,0);
+  if(cmd=="cef-store"){SendMessageW(GetDlgItem(child,102),BM_CLICK,0,0);std::cout<<"CEF_CONTROL=store"<<std::endl;}
+  if(cmd=="cef-auto"){SendMessageW(GetDlgItem(child,220),BM_CLICK,0,0);std::cout<<"CEF_CONTROL=auto"<<std::endl;}
+  if(cmd.rfind("cef-interval ",0)==0){const auto text=cmd.substr(13);SetWindowTextW(GetDlgItem(child,221),std::wstring(text.begin(),text.end()).c_str());SendMessageW(GetDlgItem(child,222),BM_CLICK,0,0);std::cout<<"CEF_CONTROL=interval"<<std::endl;}
+  if(cmd=="cef-toolbar"){std::cout<<"CEF_TOOLBAR=";for(int id:{106,220,221,230,231}){wchar_t text[2048]{};GetWindowTextW(GetDlgItem(child,id),text,2048);std::wstring wide(text);std::cout<<id<<":"<<std::string(wide.begin(),wide.end())<<"|";}std::cout<<std::endl;}
+  if(cmd=="cef-size-small"||cmd=="cef-size-normal"){ViewRect size(0,0,cmd=="cef-size-small"?800:1240,860);view->onSize(&size);RECT last{},client{};GetWindowRect(GetDlgItem(child,222),&last);MapWindowPoints(nullptr,child,(POINT*)&last,2);GetClientRect(child,&client);if(last.right>client.right||last.left<0)return 25;std::cout<<"CEF_SIZE="<<client.right<<std::endl;}
   if(cmd.rfind("cef-host-focus ",0)==0){const bool focus=cmd.back()=='1';if(view->onFocus(focus)!=kResultTrue)return 24;std::cout<<"CEF_FOCUS="<<focus<<std::endl;}
   if(cmd.rfind("cef-host-key ",0)==0){std::istringstream keys(cmd.substr(13));int ch=0,code=0,mod=0;if(keys>>ch>>code>>mod){auto a=view->onKeyDown(char16(ch),code,mod),b=view->onKeyUp(char16(ch),code,mod);std::cout<<"CEF_KEY="<<ch<<":"<<a<<":"<<b<<std::endl;}}
   if(cmd.rfind("cef-native-key ",0)==0){std::istringstream keys(cmd.substr(15));int ch=0,vk=0;if(keys>>ch>>vk){SendMessageW(child,WM_KEYDOWN,vk,0);if(ch)SendMessageW(child,WM_CHAR,ch,0);SendMessageW(child,WM_KEYUP,vk,0);}}
 
-  if(cmd.rfind("cef-click ",0)==0){std::istringstream point(cmd.substr(10));int x=0,y=0;if(point>>x>>y){SetFocus(child);SendMessageW(child,WM_LBUTTONDOWN,MK_LBUTTON,MAKELPARAM(x,y+68));SendMessageW(child,WM_LBUTTONUP,0,MAKELPARAM(x,y+68));}}
+  if(cmd.rfind("cef-click ",0)==0){std::istringstream point(cmd.substr(10));int x=0,y=0;if(point>>x>>y){SetFocus(child);SendMessageW(child,WM_LBUTTONDOWN,MK_LBUTTON,MAKELPARAM(x,y+mygrain::cef::toolbarHeight));SendMessageW(child,WM_LBUTTONUP,0,MAKELPARAM(x,y+mygrain::cef::toolbarHeight));}}
 #endif
 if(cmd.rfind("remote-pot-drag-",0)==0){const auto from=std::stoul(cmd.substr(16,1)),to=std::stoul(cmd.substr(18,1));auto row=GetDlgItem(child,400+from);SendMessageW(row,WM_LBUTTONDOWN,MK_LBUTTON,MAKELPARAM(20,10));SendMessageW(row,WM_MOUSEMOVE,MK_LBUTTON,MAKELPARAM(20,10+(int(to)-int(from))*35));SendMessageW(row,WM_LBUTTONUP,0,MAKELPARAM(20,10+(int(to)-int(from))*35));}if(cmd=="remote-interval15"){SetWindowTextW(GetDlgItem(child,221),L"15");SendMessageW(child,WM_COMMAND,222,0);}if(cmd.rfind("remote-",0)==0){if(cmd=="remote-status"){std::cout<<"REMOTE_BUTTONS=";for(int id:{201,202,203,204,300,324})std::cout<<id<<":"<<IsWindowEnabled(GetDlgItem(child,id))<<",";std::cout<<std::endl;}unsigned id=0;if(cmd=="remote-sparse")id=201;else if(cmd=="remote-mega")id=202;else if(cmd=="remote-render")id=203;else if(cmd=="remote-store")id=204;else if(cmd=="remote-pot")id=210;else if(cmd=="remote-stir")id=211;else if(cmd=="remote-big-stir")id=212;else if(cmd=="remote-auto")id=220;else if(cmd=="remote-interval")id=222;else if(cmd.rfind("remote-pot-power-",0)==0)id=500+std::stoul(cmd.substr(17));else if(cmd.rfind("remote-pot-up-",0)==0)id=600+std::stoul(cmd.substr(14));else if(cmd.rfind("remote-pot-down-",0)==0)id=700+std::stoul(cmd.substr(16));else if(cmd.rfind("remote-pot-jump-",0)==0)id=400+std::stoul(cmd.substr(16));else if(cmd.rfind("remote-layer-",0)==0)id=300+std::stoul(cmd.substr(13));if(id)SendMessageW(child,WM_COMMAND,id,0);}if(cmd=="close-editor"){if(view){view->removed();view->release();view=nullptr;}}else if(cmd=="save-project")saveProject=true;else if(cmd=="stop")playing=false;else if(cmd=="play")playing=true;else if(cmd=="seek")seek=true;else if(cmd=="rewind"){playing=false;seek=true;}else if(cmd=="loop")cycling=true;else if(cmd=="linear")cycling=false;else if(cmd=="loop-no-metadata"){cycling=true;cycleMetadata=false;}else if(cmd=="cycle-metadata")cycleMetadata=true;else if(cmd=="offline")offline=true;else if(cmd=="offline-setup"){offline=true;reconfigure=true;}else if(cmd=="realtime-setup"||cmd=="routing-change"){offline=false;reconfigure=true;}else if(cmd=="state-roundtrip"){stateRoundtrip=true;reconfigure=true;}else if(cmd=="realtime")offline=false;else if(cmd=="arm-plugin")SendMessageW(child,WM_COMMAND,106,0);else if(cmd=="stop-plugin")SendMessageW(child,WM_COMMAND,104,0);else if(cmd=="play-plugin")SendMessageW(child,WM_COMMAND,103,0);else if(cmd=="screenshot"){
 

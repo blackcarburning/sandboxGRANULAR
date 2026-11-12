@@ -15,6 +15,7 @@
 #ifdef MYGRAIN_CEF
 #include "../cef/session.h"
 #include "../cef/keyboard.h"
+#include "../cef/toolbar.h"
 #endif
 #ifdef _WIN32
 #include <windows.h>
@@ -265,7 +266,7 @@ public:
 #endif
 BEGIN_FACTORY_DEF("MYGRAIN","https://openclaw.blackcarburning.com/mygrain/","mailto:claw@blackcarburning.com")
 #ifdef MYGRAIN_CEF
-DEF_CLASS2(INLINE_UID(0xa44b25e1,0x3de64853,0xa16cc639,0x21c9d4b2),PClassInfo::kManyInstances,kVstAudioEffectClass,"MyGrain CEF",0,"Instrument|Synth","0.1.1",kVstVersionString,mygrain::Bridge::create)
+DEF_CLASS2(INLINE_UID(0xa44b25e1,0x3de64853,0xa16cc639,0x21c9d4b2),PClassInfo::kManyInstances,kVstAudioEffectClass,"MyGrain CEF",0,"Instrument|Synth","0.1.2",kVstVersionString,mygrain::Bridge::create)
 #elif defined(MYGRAIN_FX)
 DEF_CLASS2(INLINE_UID(0x80192c74,0x1fca4fa0,0xa638de42,0xf66c7d18),PClassInfo::kManyInstances,kVstAudioEffectClass,"MYGRAIN FX",0,"Fx|Filter","0.4.0",kVstVersionString,mygrain::Bridge::create)
 #else

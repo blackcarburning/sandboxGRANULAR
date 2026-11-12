@@ -1,4 +1,4 @@
-# MyGrain CEF 0.1.1 preview
+# MyGrain CEF 0.1.2 preview
 
 Separate VST3 instrument, name **MyGrain CEF**, class ID
 `A44B25E13DE64853A16CC63921C9D4B2`. Never replaces MYGRAIN Bridge 0.8.0 or
@@ -101,3 +101,23 @@ native input and the VST3 ABI, including Tab, Backspace, punctuation, focus loss
 no duplicate native delivery, and Enter submission to isolated mocked auth.
 No production account requests or credentials are used. Existing audio, closed-
 editor automatic storage, reload, fresh recall and clean-unload gates remain.
+
+## 0.1.2 native toolbar and automatic-store visibility
+
+Native controls match the app palette: blue actions, green armed/auto-save states
+and red Stop, rounded gradients and visible keyboard focus. The toolbar adapts
+to the minimum 800px editor width without clipping the interval controls.
+Auto-save explicitly displays On/Off. Every (s) accepts 15–3600; Apply commits
+through the existing acknowledged remote protocol (action 12). Invalid values
+do not change the stored interval. Editing a value is not overwritten by timer
+updates; acknowledged project changes resync the field when it is not edited.
+
+Two persistent info lines show transport/disarmed state plus the app's activity
+(including deferral/error messages), last completed time/duration, payload and
+full snapshot sizes, completed/unchanged counts and next check/paused/storing.
+The disk boundary is explicit: save the DAW project normally. Auto-save still
+runs while the editor is closed and persists its preferences in project state.
+Native Windows/macOS release tests exercise the actual toggle, invalid/valid
+interval, Apply, manual store, unchanged skips, minimum width, status labels and
+closed-editor store, alongside the existing input/audio/reload/recall gates.
+No synthesis, source, Song renderer, PCM protocol or stored-patch format changes.

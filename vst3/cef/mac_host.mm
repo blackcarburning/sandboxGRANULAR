@@ -20,6 +20,7 @@ using namespace Steinberg;using namespace Steinberg::Vst;
 #include "../tests/project_state_checks.h"
 #include "ipc.h"
 #include "keyboard.h"
+#include "toolbar.h"
 #include <filesystem>
 #include <set>
 static NSButton* button(NSView* view,NSInteger tag){for(NSView* child in view.subviews){if([child isKindOfClass:[NSButton class]]&&child.tag==tag)return (NSButton*)child;if(auto* result=button(child,tag))return result;}return nil;}
@@ -44,7 +45,7 @@ int main(int argc,char**argv){@autoreleasepool{
  if(processor->setupProcessing(setup)!=kResultOk)return 9;
  if(fx)component->activateBus(kAudio,kInput,0,true);component->activateBus(kAudio,kOutput,0,true);component->setActive(true);processor->setProcessing(true);
  std::set<std::filesystem::path> priorDisplays;for(const auto& item:std::filesystem::directory_iterator(std::filesystem::temp_directory_path()))priorDisplays.insert(item.path());
- NSWindow* window=[[NSWindow alloc] initWithContentRect:NSMakeRect(0,0,1240,756) styleMask:NSWindowStyleMaskTitled backing:NSBackingStoreBuffered defer:NO];
+ NSWindow* window=[[NSWindow alloc] initWithContentRect:NSMakeRect(0,0,1240,860) styleMask:NSWindowStyleMaskTitled backing:NSBackingStoreBuffered defer:NO];
  IPlugView* view=controller->createView(ViewType::kEditor);if(!view||view->attached(window.contentView,kPlatformTypeNSView)!=kResultOk)return 10;
  if(!button(window.contentView,102)||!button(window.contentView,106))return 11;
  [window makeKeyAndOrderFront:nil];[NSApp activateIgnoringOtherApps:YES];
@@ -76,12 +77,16 @@ int main(int argc,char**argv){@autoreleasepool{
    if(command=="arm-plugin")[button(window.contentView,106) performClick:nil];
    if(command=="stop-plugin")[button(window.contentView,104) performClick:nil];
    if(command=="cef-reload")[button(window.contentView,101) performClick:nil];
-   if(command=="cef-store")[button(window.contentView,102) performClick:nil];
+   if(command=="cef-store"){[button(window.contentView,102) performClick:nil];std::cout<<"CEF_CONTROL=store"<<std::endl;}
+   if(command=="cef-auto"){[button(window.contentView,220) performClick:nil];std::cout<<"CEF_CONTROL=auto"<<std::endl;}
+   if(command.rfind("cef-interval ",0)==0){auto* field=(NSTextField*)[window.contentView viewWithTag:221];field.stringValue=[NSString stringWithUTF8String:command.substr(13).c_str()];[button(window.contentView,222) performClick:nil];std::cout<<"CEF_CONTROL=interval"<<std::endl;}
+   if(command=="cef-toolbar"){std::cout<<"CEF_TOOLBAR=";for(int tag:{106,220,221,230,231}){NSView* field=[window.contentView viewWithTag:tag];NSString* text=[field isKindOfClass:[NSButton class]]?((NSButton*)field).title:((NSTextField*)field).stringValue;std::cout<<tag<<":"<<text.UTF8String<<"|";}std::cout<<std::endl;}
+   if(command=="cef-size-small"||command=="cef-size-normal"){ViewRect size(0,0,command=="cef-size-small"?800:1240,860);view->onSize(&size);NSView* surface=window.contentView.subviews.firstObject;NSView* last=[surface viewWithTag:222];if(NSMaxX(last.frame)>surface.bounds.size.width||NSMinX(last.frame)<0)return 25;std::cout<<"CEF_SIZE="<<int(surface.bounds.size.width)<<std::endl;}
    if(command.rfind("cef-host-focus ",0)==0){const bool focused=command.back()=='1';if(view->onFocus(focused)!=kResultTrue)return 24;std::cout<<"CEF_FOCUS="<<focused<<std::endl;}
    if(command.rfind("cef-host-key ",0)==0){std::istringstream keys(command.substr(13));int ch=0,code=0,mod=0;if(keys>>ch>>code>>mod){auto a=view->onKeyDown(char16(ch),code,mod),b=view->onKeyUp(char16(ch),code,mod);std::cout<<"CEF_KEY="<<ch<<":"<<a<<":"<<b<<std::endl;}}
    if(command.rfind("cef-native-key ",0)==0){std::istringstream keys(command.substr(15));int ch=0,vk=0;if(keys>>ch>>vk){NSView* surface=window.contentView.subviews.firstObject;unichar c=ch;NSString* text=[NSString stringWithCharacters:&c length:ch?1:0];for(NSEventType type:{NSEventTypeKeyDown,NSEventTypeKeyUp}){NSEvent* event=[NSEvent keyEventWithType:type location:NSZeroPoint modifierFlags:0 timestamp:NSProcessInfo.processInfo.systemUptime windowNumber:window.windowNumber context:nil characters:text charactersIgnoringModifiers:text isARepeat:NO keyCode:mygrain::cef::nativeKey(vk)];if(type==NSEventTypeKeyDown)[surface keyDown:event];else [surface keyUp:event];}}}
 
-   if(command.rfind("cef-click ",0)==0){std::istringstream point(command.substr(10));int x=0,y=0;if(point>>x>>y){NSView* surface=window.contentView.subviews.firstObject;NSPoint location=[surface convertPoint:NSMakePoint(x,y+68) toView:nil];for(NSEventType type:{NSEventTypeLeftMouseDown,NSEventTypeLeftMouseUp}){NSEvent* event=[NSEvent mouseEventWithType:type location:location modifierFlags:0 timestamp:NSProcessInfo.processInfo.systemUptime windowNumber:window.windowNumber context:nil eventNumber:0 clickCount:1 pressure:1];if(type==NSEventTypeLeftMouseDown)[surface mouseDown:event];else [surface mouseUp:event];}}}
+   if(command.rfind("cef-click ",0)==0){std::istringstream point(command.substr(10));int x=0,y=0;if(point>>x>>y){NSView* surface=window.contentView.subviews.firstObject;NSPoint location=[surface convertPoint:NSMakePoint(x,y+mygrain::cef::toolbarHeight) toView:nil];for(NSEventType type:{NSEventTypeLeftMouseDown,NSEventTypeLeftMouseUp}){NSEvent* event=[NSEvent mouseEventWithType:type location:location modifierFlags:0 timestamp:NSProcessInfo.processInfo.systemUptime windowNumber:window.windowNumber context:nil eventNumber:0 clickCount:1 pressure:1];if(type==NSEventTypeLeftMouseDown)[surface mouseDown:event];else [surface mouseUp:event];}}}
    if(command=="play")playing=true;if(command=="stop")playing=false;
    if(command=="close-editor"&&view){view->removed();view->release();view=nullptr;}
    if(command=="reopen-editor"&&!view){view=controller->createView(ViewType::kEditor);if(!view||view->attached(window.contentView,kPlatformTypeNSView)!=kResultOk)std::abort();}
