@@ -59,7 +59,7 @@ jobs:
           @"
           MyGrain CEF 0.1.3 preview - Windows x64
           Source commit: $env:GITHUB_SHA
-          Current hosted-app public fixture: v2026.11.12.BAKER.1 + CEF preview routing; isolated account routes, no production writes.
+          Current hosted-app public fixture: v2026.11.12.LAYOUT.1 + CEF preview routing; isolated account routes, no production writes.
           SDK validator: 47 passed, 0 failed against the shipped native plugin.
           Native Windows runner: CEF 156, native login typing via VST3 callbacks and window input, focus release, editing keys, remembered session across fresh helpers and logout, native filename/confirmation/cancel dialogs and real WAV/Loop Store export payloads, stopped/disarmed WAV/widget/inline previews at native DAW output, native PCM output, native toolbar auto-save toggle/interval/manual store/status/minimum width and unchanged skip, automatic patch storage with editor closed, UI dirty notification, store-before-reload, fresh-instance editable source/patch/preferences recall, clean unload.
           Physical DAWs, driver/device recording alignment, performance under multiple plugin instances and international IME are not tested.
@@ -123,7 +123,7 @@ jobs:
           cat > "$RUNNER_TEMP/release/VERIFICATION.txt" <<EOF
           MyGrain CEF 0.1.3 preview - macOS 13+, universal arm64 + x86_64
           Source commit: $GITHUB_SHA
-          Current hosted-app public fixture: v2026.11.12.BAKER.1 + CEF preview routing; isolated account routes, no production writes.
+          Current hosted-app public fixture: v2026.11.12.LAYOUT.1 + CEF preview routing; isolated account routes, no production writes.
           SDK validator: 47 passed, 0 failed against the shipped native plugin.
           Native Apple Silicon macOS runner: CEF 156, native login typing via VST3 callbacks and window input, focus release, editing keys, remembered session across fresh helpers and logout, native filename/confirmation/cancel dialogs and real WAV/Loop Store export payloads, stopped/disarmed WAV/widget/inline previews at native DAW output, native PCM output, native toolbar auto-save toggle/interval/manual store/status/minimum width and unchanged skip, automatic patch storage with editor closed, UI dirty notification, store-before-reload, fresh-instance editable source/patch/preferences recall, clean unload.
           Universal plugin/helper/Chromium framework inspected; ad-hoc code signatures verified deep/strict. Not Developer-ID signed/notarized.

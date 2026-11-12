@@ -1,5 +1,5 @@
 {
-  "build": "v2026.11.12.BAKER.1 + CEF preview routing",
+  "build": "v2026.11.12.LAYOUT.1 + CEF preview routing",
   "zipSha256": "c501bd0e3eb226dda66fa96071fe7e1bd7072dc175cc015cb3fabcdd760d750c",
   "files": {
     "acoustic-fx-dsp.js": "2d9ebe7b10ae1ea2e45d48fc8739d5db398f6678aec74420bd381faad0863453",

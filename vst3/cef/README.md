@@ -108,7 +108,7 @@ no duplicate native delivery, and Enter submission to isolated mocked auth.
 No production account requests or credentials are used. Existing audio, closed-
 editor automatic storage, reload, fresh recall and clean-unload gates remain.
 
-## 0.1.3 native toolbar and automatic-store visibility
+## 0.1.2 native toolbar and automatic-store visibility
 
 Native controls match the app palette: blue actions, green armed/auto-save states
 and red Stop, rounded gradients and visible keyboard focus. The toolbar adapts
