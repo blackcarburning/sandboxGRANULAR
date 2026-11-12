@@ -132,7 +132,7 @@ function rms(){const bytes=fs.readFileSync(raw);let power=0,n=0;for(let at=Math.
  // dialog and inspect the actual authenticated request body at an isolated sink.
  await p.evaluate(()=>{applyGlobalBpm(240);syncPerformanceExportBars(1,{skipSave:true});});
  for(const [selector,name] of [['#performanceRepoExportBtn','cef-native-wav'],['#performanceLoopStoreAddBtn','cef-native-loop']]){
-  await p.evaluate(selector=>document.querySelector(selector).click(),selector);
+  await p.evaluate(selector=>{setTimeout(()=>document.querySelector(selector).click(),0);},selector);
   if(selector==='#performanceRepoExportBtn'){
    await until(async()=>{await acknowledged('cef-dialog-state','CEF_DIALOG=');return Number(log.split('CEF_DIALOG=').pop().split('\n')[0])===2;},'native editable-patch confirmation',15000);
    await dialogReply('',true);
@@ -142,7 +142,7 @@ function rms(){const bytes=fs.readFileSync(raw);let power=0,n=0;for(let at=Math.
   await p.waitForFunction(selector=>!document.querySelector(selector).disabled,selector,{timeout:45000});
  }
  const uploadCount=uploads.length;
- await p.evaluate(()=>document.querySelector('#performanceLoopStoreAddBtn').click());
+ await p.evaluate(()=>{setTimeout(()=>document.querySelector('#performanceLoopStoreAddBtn').click(),0);});
  await until(async()=>{await acknowledged('cef-dialog-state','CEF_DIALOG=');return Number(log.split('CEF_DIALOG=').pop().split('\n')[0])===3;},'cancellable repository prompt',45000);
  await dialogReply('',false);await p.waitForFunction(()=>!document.querySelector('#performanceLoopStoreAddBtn').disabled);assert.equal(uploads.length,uploadCount,'cancelled export cannot upload');
  await p.evaluate(()=>applyGlobalBpm(120));
