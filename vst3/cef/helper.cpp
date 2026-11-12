@@ -109,7 +109,7 @@ void command(const Event& e,cef_browser_host_t* host){
  case Store:script("window.mygrainDawBridge?.storeProject()");break;
  case Reload:
   // Store first and wait for the acknowledged revision. Never reload after a failed/busy store.
-  script("(async()=>{const b=window.mygrainDawBridge;if(!b?.connected){location.replace("+quote(target)+");return;}const p=()=>b.diagnostics().project;const before=p();if(!before.ready||before.busy||before.storing){alert('Finish the current project operation before reloading.');return;}await b.storeProject();const until=Date.now()+125000;while(Date.now()<until){const d=p();if(!d.busy&&!d.storing){if(d.stats.count>before.stats.count){location.replace("+quote(target)+");return;}break;}await new Promise(r=>setTimeout(r,100));}alert('Reload paused: the patch was not stored successfully. Your current app and previous snapshot are retained.');})()");break;
+  script("(async()=>{const refresh=()=>{const u=new URL("+quote(target)+");u.searchParams.set('cef_reload',String(Date.now()));location.replace(u.href);};const b=window.mygrainDawBridge;if(!b){refresh();return;}if(!b.connected){alert('Reconnect to the DAW before reloading so the current patch can be stored.');return;}const p=()=>b.diagnostics().project;const before=p();if(!before.ready||before.busy||before.storing){alert('Finish the current project operation before reloading.');return;}await b.storeProject();const until=Date.now()+125000;while(Date.now()<until){const d=p();if(!d.busy&&!d.storing){if(d.stats.count>before.stats.count){refresh();return;}break;}await new Promise(r=>setTimeout(r,100));}alert('Reload paused: the patch was not stored successfully. Your current app and previous snapshot are retained.');})()");break;
  }
 }
 int run(int argc,char** argv){
