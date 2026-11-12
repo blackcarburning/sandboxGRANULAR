@@ -1,8 +1,8 @@
-# MyGrain CEF 0.1.2 preview
+# MyGrain CEF 0.1.3 preview
 
 Separate VST3 instrument, name **MyGrain CEF**, class ID
 `A44B25E13DE64853A16CC63921C9D4B2`. Never replaces MYGRAIN Bridge 0.8.0 or
-MYGRAIN FX 0.4.0. No synthesis, source, Song renderer or PCM protocol changes.
+MYGRAIN FX 0.4.0. No synthesis, source, Song-renderer or existing Bridge PCM-protocol changes.
 
 ## Ownership and updates
 
@@ -21,11 +21,17 @@ an editor resumes the same running app; it must not silently restart playback.
 Reload intentionally interrupts live playback. App updates normally need no
 plugin rebuild. Bridge protocol changes and CEF security/runtime upgrades can.
 
-Profiles are per-instance and temporary (including browser login and local UI
-preferences), cleaned on normal unload. Sign in for each new plugin instance.
-Patch/required audio and auto-store preferences are restored from the DAW state,
-not from shared browser localStorage. No login cookie or capability is embedded
-in that state. Account services still require an internet connection.
+Browser profiles remain per-instance and temporary, including local UI/patch state.
+Only the trusted origin's host-only Secure/HttpOnly `mygrain_session` cookie is
+remembered across plugin unloads in a separate per-OS-user login store. It uses
+Windows user-bound DPAPI in LocalAppData; macOS uses a user-private 0700 directory
+and 0600 file under Library/Application Support/MyGrain CEF. No password, account
+cookie or capability is written into plugin/DAW project state. The server's
+existing 90-day expiry/revocation still applies. Log out to forget the session.
+A later new instance uses the last login; already-open helpers do not swap users.
+An unchanged old helper cannot overwrite a newer remembered login. Browser
+profiles are never shared, avoiding Chromium singleton/profile locking between
+simultaneous instances. Account services still require an internet connection.
 
 ## Auto-save boundary
 
@@ -102,7 +108,7 @@ no duplicate native delivery, and Enter submission to isolated mocked auth.
 No production account requests or credentials are used. Existing audio, closed-
 editor automatic storage, reload, fresh recall and clean-unload gates remain.
 
-## 0.1.2 native toolbar and automatic-store visibility
+## 0.1.3 native toolbar and automatic-store visibility
 
 Native controls match the app palette: blue actions, green armed/auto-save states
 and red Stop, rounded gradients and visible keyboard focus. The toolbar adapts
@@ -121,3 +127,34 @@ Native Windows/macOS release tests exercise the actual toggle, invalid/valid
 interval, Apply, manual store, unchanged skips, minimum width, status labels and
 closed-editor store, alongside the existing input/audio/reload/recall gates.
 No synthesis, source, Song renderer, PCM protocol or stored-patch format changes.
+
+## 0.1.3 sessions, repository dialogs and preview output
+
+Native helper-owned modeless prompt/confirm/alert dialogs preserve synchronous
+JavaScript semantics and allow named WAV/Loop Store exports. OK, Cancel and page
+navigation complete or cancel the original CEF callback; no export is auto-approved.
+Only the trusted hosted origin can request these dialogs.
+
+CefAudioHandler captures browser audio (and suppresses system-speaker playback)
+into a separate fixed-size single-producer/single-consumer preview ring. The native
+callback mixes it after the existing Bridge engine. It has no locks, allocation,
+CEF calls or network I/O; resamples to the host rate, sanitizes nonfinite samples,
+drops overflow/stale buffers and discards previews during offline bounce. Browsers
+are not explicitly muted, which would also mute the captured preview PCM.
+
+The helper adds `mygrain_cef=1`. Only that embedded mode enables the capture
+worklet's idle passthrough, so inline auditions reach the preview ring while the
+DAW stream is disarmed/stopped. During an active live epoch, the worklet remains
+silent and the existing scheduled network PCM is the only main-patch output.
+Normal external Bridge tabs are unchanged. DSP/export buffers, Song preparation,
+render compatibility and saved state formats are unchanged: this is native output
+routing, not a synthesis/rendering change. Preview audio requires the DAW to call
+process(), generally via track monitoring even while transport is stopped.
+
+Release tests use real native dialogs and actual renderer/export payloads at an
+isolated upload sink, stopped/disarmed WAV/media and decoded Loop previews,
+independent widget contexts and inline main-bus audition at native PCM output.
+They log in with synthetic credentials, unload fully, recover the session in a
+fresh isolated helper, then log out and verify it stays forgotten after another
+unload. The diagnostic native-dialog driver is enabled only by the explicitly
+requested loopback DevTools port. No production accounts/repositories are used.

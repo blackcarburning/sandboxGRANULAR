@@ -8,13 +8,20 @@
 #include "include/capi/cef_permission_handler_capi.h"
 #include "include/capi/cef_download_handler_capi.h"
 #include "include/capi/cef_frame_capi.h"
+#include "include/capi/cef_jsdialog_handler_capi.h"
+#include "include/capi/cef_cookie_capi.h"
 #include "include/cef_api_hash.h"
 #include <filesystem>
 #include <chrono>
 #include <thread>
 #include <iostream>
+#include <iomanip>
+#include <fstream>
+#include <sstream>
 #ifdef _WIN32
 #include <shellapi.h>
+#include <shlobj.h>
+#include <wincrypt.h>
 #endif
 #ifndef _WIN32
 #include <signal.h>
@@ -29,12 +36,17 @@
 - (void)setHandlingSendEvent:(BOOL)value{handling_=value;}
 - (void)sendEvent:(NSEvent*)event{BOOL prior=handling_;handling_=YES;[super sendEvent:event];handling_=prior;}
 @end
+@interface MyGrainDialogAction : NSObject
+- (void)accept:(id)sender;
+- (void)cancel:(id)sender;
+@end
 #endif
 namespace {
 using namespace mygrain::cef;
 Mapping mapping;
 cef_browser_t* browser=nullptr;bool closed=false;
 std::string target;
+bool diagnosticInput=false;int audioChannels=2;
 std::vector<uint8_t> mainPixels,popupPixels;uint32_t mainWidth=0,mainHeight=0;cef_rect_t popupRect{};bool popupVisible=false;
 void publish(){
  if(mainPixels.empty())return;
@@ -62,6 +74,12 @@ Object<cef_life_span_handler_t> life;
 Object<cef_load_handler_t> load;
 Object<cef_permission_handler_t> permissions;
 Object<cef_download_handler_t> downloads;
+#include "login.h"
+#include "dialogs.h"
+Object<cef_jsdialog_handler_t> dialogs;
+Object<cef_audio_handler_t> audio;
+Object<cef_completion_callback_t> cookieReady;
+Object<cef_set_cookie_callback_t> cookieSet;
 void setup(){
  app.api.on_before_command_line_processing=[](cef_app_t*,const cef_string_t*,cef_command_line_t* cmd){
   // Closing a DAW editor is not permission to suspend audio or the auto-store timer.
@@ -73,6 +91,18 @@ void setup(){
  client.api.get_load_handler=[](cef_client_t*){return load.get();};
  client.api.get_permission_handler=[](cef_client_t*){return permissions.get();};
  client.api.get_download_handler=[](cef_client_t*){return downloads.get();};
+ client.api.get_jsdialog_handler=[](cef_client_t*){return dialogs.get();};
+ client.api.get_audio_handler=[](cef_client_t*){return audio.get();};
+ audio.api.get_audio_parameters=[](cef_audio_handler_t*,cef_browser_t*,cef_audio_parameters_t* params)->int{params->channel_layout=CEF_CHANNEL_LAYOUT_STEREO;params->sample_rate=48000;params->frames_per_buffer=480;return 1;};
+ audio.api.on_audio_stream_started=[](cef_audio_handler_t*,cef_browser_t*,const cef_audio_parameters_t* params,int channels){audioChannels=channels;mapping.data->preview.rate.store(params->sample_rate,std::memory_order_release);};
+ audio.api.on_audio_stream_packet=[](cef_audio_handler_t*,cef_browser_t*,const float** data,int frames,int64_t){mapping.data->preview.push(data,audioChannels,frames);};
+ audio.api.on_audio_stream_stopped=[](cef_audio_handler_t*,cef_browser_t*){};
+ audio.api.on_audio_stream_error=[](cef_audio_handler_t*,cef_browser_t*,const cef_string_t*){mapping.data->status.store(7);};
+ dialogs.api.on_jsdialog=[](cef_jsdialog_handler_t*,cef_browser_t*,const cef_string_t* origin,cef_jsdialog_type_t type,const cef_string_t* message,const cef_string_t* initial,cef_jsdialog_callback_t* callback,int* suppress)->int{
+  if(utf8(origin).rfind("https://openclaw.blackcarburning.com/",0)!=0){*suppress=1;return 0;}
+  showDialog(type,utf8(message),utf8(initial),callback);return 1;
+ };
+ dialogs.api.on_reset_dialog_state=[](cef_jsdialog_handler_t*,cef_browser_t*){if(dialogCallback)dismissDialog(false,false);};
  render.api.get_view_rect=[](cef_render_handler_t*,cef_browser_t*,cef_rect_t* rect){rect->x=rect->y=0;rect->width=mapping.data->width.load();rect->height=mapping.data->height.load();};
  render.api.on_paint=[](cef_render_handler_t*,cef_browser_t*,cef_paint_element_type_t type,size_t,const cef_rect_t*,const void* buffer,int width,int height){
   if(width<1||height<1||width>int(maxWidth)||height>int(maxHeight))return;
@@ -121,6 +151,7 @@ void command(const Event& e,cef_browser_host_t* host){
   }
   cef_key_event_t key{};key.size=sizeof(key);key.type=e.type==Char?KEYEVENT_CHAR:e.type==KeyUp?KEYEVENT_KEYUP:KEYEVENT_RAWKEYDOWN;key.windows_key_code=e.a;key.native_key_code=e.b;key.character=key.unmodified_character=e.type==Char?char16_t(e.a):char16_t(e.x);key.modifiers=e.modifiers;host->send_key_event(host,&key);break;}
  case Store:script("window.mygrainDawBridge?.storeProject()");break;
+ case TestDialog:if(diagnosticInput)testDialogReply(e.a!=0,mapping.data->dialogInput);break;
  case Reload:
   // Store first and wait for the acknowledged revision. Never reload after a failed/busy store.
   script("(async()=>{const refresh=()=>{const u=new URL("+quote(target)+");u.searchParams.set('cef_reload',String(Date.now()));location.replace(u.href);};const b=window.mygrainDawBridge;if(!b){refresh();return;}if(!b.connected){alert('Reconnect to the DAW before reloading so the current patch can be stored.');return;}const p=()=>b.diagnostics().project;const before=p();if(!before.ready||before.busy||before.storing){alert('Finish the current project operation before reloading.');return;}await b.storeProject();const until=Date.now()+125000;while(Date.now()<until){const d=p();if(!d.busy&&!d.storing){if(d.stats.count>before.stats.count){refresh();return;}break;}await new Promise(r=>setTimeout(r,100));}alert('Reload paused: the patch was not stored successfully. Your current app and previous snapshot are retained.');})()");break;
@@ -148,20 +179,38 @@ int run(int argc,char** argv){
  String cache(pathString(profile));cef_string_utf16_set(cache.value.str,cache.value.length,&settings.root_cache_path,1);cef_string_utf16_set(cache.value.str,cache.value.length,&settings.cache_path,1);
  settings.log_severity=LOGSEVERITY_ERROR;
  String log(pathString(profile/"cef.log"));cef_string_utf16_set(log.value.str,log.value.length,&settings.log_file,1);
- if(argc>4)settings.remote_debugging_port=std::stoi(argv[4]); // Test harness only; no debug listener in released plugin launches.
+ if(argc>4){settings.remote_debugging_port=std::stoi(argv[4]);diagnosticInput=settings.remote_debugging_port!=0;} // Test harness only.
 #ifdef __APPLE__
  NSString* subprocess=[NSBundle.mainBundle.bundlePath stringByAppendingPathComponent:@"Contents/Frameworks/MyGrainCEF Helper.app/Contents/MacOS/MyGrainCEF Helper"];
  String childPath(subprocess.fileSystemRepresentation);cef_string_utf16_set(childPath.value.str,childPath.value.length,&settings.browser_subprocess_path,1);
 #endif
  if(!cef_initialize(&args,&settings,&app.api,nullptr)){mapping.data->status.store(4);return 67;}
+ bool managerReady=false;
+ // Callback objects outlive initialization; no captured stack references.
+ cookieReady.api.on_complete=[](cef_completion_callback_t*){loginImported=true;};
+ auto* cookies=cef_cookie_manager_get_global_manager(cookieReady.get());
+ auto waitCookie=[&](){const auto end=std::chrono::steady_clock::now()+std::chrono::seconds(3);while(!loginImported&&std::chrono::steady_clock::now()<end){cef_do_message_loop_work();std::this_thread::sleep_for(std::chrono::milliseconds(5));}};
+ waitCookie();managerReady=loginImported;
+ lastLogin=RememberedLogin::read();
+ if(cookies&&managerReady&&lastLogin.valid()){
+  cef_cookie_t value{};String name("mygrain_session"),token(lastLogin.token),cookiePath("/"),cookieUrl("https://openclaw.blackcarburning.com/");value.name=name.value;value.value=token.value;value.path=cookiePath.value;value.secure=value.httponly=value.has_expires=1;value.expires.val=int64_t((lastLogin.expires+11644473600.0)*1000000.0);
+  loginImported=false;cookieSet.api.on_complete=[](cef_set_cookie_callback_t*,int){loginImported=true;};if(!cookies->set_cookie(cookies,cookieUrl,&value,cookieSet.get()))loginImported=true;waitCookie();
+ }
  cef_window_info_t window{};window.size=sizeof(window);window.windowless_rendering_enabled=1;window.runtime_style=CEF_RUNTIME_STYLE_ALLOY;
  cef_browser_settings_t options{};options.size=sizeof(options);options.windowless_frame_rate=30;options.background_color=0xff131825;
  String url(target);browser=cef_browser_host_create_browser_sync(&window,&client.api,url,&options,nullptr,nullptr);
  if(!browser){mapping.data->status.store(5);cef_shutdown();return 68;}
- auto* host=browser->get_host(browser);host->set_audio_muted(host,1);mapping.data->status.store(1);
+ // CefAudioHandler captures/suppresses the speaker path. Do not explicitly mute
+ // the browser: that also silences the PCM needed by widget/media previews.
+ auto* host=browser->get_host(browser);mapping.data->status.store(1);
+ auto nextLoginCheck=std::chrono::steady_clock::now();
  uint32_t width=mapping.data->width.load(),height=mapping.data->height.load();bool quitting=false;
  while(!closed){
   cef_do_message_loop_work();
+#ifdef _WIN32
+  MSG message;while(PeekMessageW(&message,nullptr,0,0,PM_REMOVE)){if(!dialogWindow||!IsDialogMessageW(dialogWindow,&message)){TranslateMessage(&message);DispatchMessageW(&message);}}
+#endif
+  if(!quitting&&std::chrono::steady_clock::now()>=nextLoginCheck){rememberLogin(cookies);nextLoginCheck=std::chrono::steady_clock::now()+std::chrono::milliseconds(250);}
   if(!quitting&&(mapping.data->quit.load()||!parentAlive(pid))){quitting=true;host->close_browser(host,1);}
   if(!quitting){
    auto w=mapping.data->width.load(),h=mapping.data->height.load();if(w!=width||h!=height){width=w;height=h;host->was_resized(host);}
@@ -172,10 +221,19 @@ int run(int argc,char** argv){
   }
   std::this_thread::sleep_for(std::chrono::milliseconds(5));
  }
+ if(dialogCallback)dismissDialog(false,false);
+ rememberLogin(cookies);const auto cookieEnd=std::chrono::steady_clock::now()+std::chrono::milliseconds(500);while(loginVisitPending&&std::chrono::steady_clock::now()<cookieEnd)cef_do_message_loop_work();
+ if(cookies)cookies->base.release(&cookies->base);
  host->base.release(&host->base);browser->base.release(&browser->base);browser=nullptr;
  cef_shutdown();cef_string_utf16_clear(&settings.cache_path);cef_string_utf16_clear(&settings.root_cache_path);cef_string_utf16_clear(&settings.log_file);cef_string_utf16_clear(&settings.browser_subprocess_path);return 0;
 }
 }
+#ifdef __APPLE__
+@implementation MyGrainDialogAction
+- (void)accept:(id)sender{dismissDialog(true);}
+- (void)cancel:(id)sender{dismissDialog(false);}
+@end
+#endif
 int main(int argc,char**argv){
 #ifdef _WIN32
  // CEF and filesystem paths use UTF-8, including non-ASCII Windows user folders.

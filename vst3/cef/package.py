@@ -3,7 +3,7 @@
 import argparse,hashlib,json,pathlib,zipfile,stat
 p=argparse.ArgumentParser();p.add_argument('--bundle',type=pathlib.Path,required=True);p.add_argument('--platform',choices=['windows','macos'],required=True);p.add_argument('--verification',type=pathlib.Path,required=True);p.add_argument('--sdk',type=pathlib.Path,required=True);p.add_argument('--output',type=pathlib.Path,required=True);a=p.parse_args()
 source=pathlib.Path(__file__).parent;app=source.parents[1];assert a.bundle.name=='MyGrain CEF.vst3'
-info=json.loads((a.bundle/'Contents/Resources/moduleinfo.json').read_text());assert info['Version']=='0.1.2' and info['Classes'][0]['CID']=='A44B25E13DE64853A16CC63921C9D4B2'
+info=json.loads((a.bundle/'Contents/Resources/moduleinfo.json').read_text());assert info['Version']=='0.1.3' and info['Classes'][0]['CID']=='A44B25E13DE64853A16CC63921C9D4B2'
 files={};modes={};links={}
 for file in a.bundle.rglob('*'):
  if file.is_symlink():links[file.relative_to(a.bundle.parent).as_posix()]=str(file.readlink()).encode();continue
@@ -17,11 +17,15 @@ else:
  assert files['MyGrain CEF.vst3/Contents/MacOS/MyGrain CEF'][:4]==b'\xca\xfe\xba\xbe'
  files['Install MyGrain CEF.command']=(source/'Install-MyGrain-CEF.command').read_bytes();modes['Install MyGrain CEF.command']=0o755
  install='macOS 13+. Close the DAW. From the extracted folder run ./"Install MyGrain CEF.command" (or bash "./Install MyGrain CEF.command"). Installs only this plugin in your user VST3 folder. Ad-hoc signed, not Developer-ID signed/notarized.'
-files['README-FIRST.txt']=('''MyGrain CEF 0.1.2 preview - '''+a.platform+'''\n\n'''+install+'''
+files['README-FIRST.txt']=('''MyGrain CEF 0.1.3 preview - '''+a.platform+'''\n\n'''+install+'''
 
 Add MyGrain CEF as an INSTRUMENT, open its window and sign in. The app is
 embedded; no external Chrome window or connection-code copying is needed.
-Press Start MYGRAIN if asked. Arm follows the DAW; Stop disarms.
+Press Start MYGRAIN if asked. Arm follows the DAW; Stop disarms the main stream.
+WAV/widget/inline previews play through the DAW output while stopped/disarmed;
+enable track monitoring if your DAW suspends processing. Previews are not added
+to native offline bounce. WAV Repository and Loop Store exports support native
+filename/confirmation dialogs; Cancel saves nothing.
 
 AUTO-SAVE IS RETAINED: On by default, check every 60 seconds (15-3600 adjustable).
 Use Auto-save: On/Off, or set Every (s) and Apply in the native toolbar.
@@ -38,7 +42,9 @@ Auto-store preferences are retained in that patch snapshot.
 The current hosted app loads on a new instance. Store + reload app safely stores
 before refreshing/reconnecting to the current app; this interrupts Live audio.
 Closing/reopening the window resumes the existing app, without restarting it.
-Profiles are per-instance and temporary. Sign in for each new instance.
+Profiles remain private to each instance. Sign in once; the authenticated session
+is remembered locally across new instances until logout or server expiry. No
+password or login token is embedded in your DAW project.
 The hosted app needs internet. Prepared Rendered audio can play offline/native
 without the browser; refresh its render after sound changes. Live needs real-time
 playback and retains Bridge timing/buffering limits. No new DAW automation.

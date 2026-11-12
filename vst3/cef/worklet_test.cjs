@@ -1,0 +1,6 @@
+'use strict';
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),path=require('node:path');
+let Processor;const context={AudioWorkletProcessor:class{constructor(){this.port={onmessage:null,postMessage(){}};}},currentFrame:0,sampleRate:48000,registerProcessor:(name,p)=>Processor=p};vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../../daw-bridge-worklet.js'),'utf8'),context);
+const input=[[new Float32Array(128).fill(.1),new Float32Array(128).fill(-.2)]];
+for(const embedded of [false,true]){const capture=new Processor({processorOptions:{cefPreview:embedded}}),output=()=>[[new Float32Array(128),new Float32Array(128)]];let out=output();capture.process(input,out);assert(Math.abs(out[0][0][64]-(embedded?.1:0))<1e-6);capture.port.onmessage({data:{type:'start',epoch:1,startFrame:0}});out=output();capture.process(input,out);assert(out[0][0].every(v=>v===0),'active main stream must not be duplicated into previews');capture.port.onmessage({data:{type:'stop'}});out=output();capture.process(input,out);assert(Math.abs(out[0][1][64]-(embedded?-.2:0))<1e-6);}
+console.log('PASS legacy silent monitoring and embedded idle audition without live-stream duplication');

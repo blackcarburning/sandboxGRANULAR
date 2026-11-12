@@ -119,11 +119,14 @@ int main(int argc,char**argv){
   }
  });
  const auto end=std::chrono::steady_clock::now()+std::chrono::seconds(argc>3?std::atoi(argv[3]):50);
+ #ifdef MYGRAIN_CEF_HOST
+ mygrain::cef::Mapping commandDisplay;
+#endif
  bool printed=false;std::string previous;
  while(running&&std::chrono::steady_clock::now()<end){
   MSG message;while(PeekMessageW(&message,nullptr,0,0,PM_REMOVE)){TranslateMessage(&message);DispatchMessageW(&message);}
 #ifdef MYGRAIN_CEF_HOST
-  if(!printed){for(const auto& entry:std::filesystem::directory_iterator(std::filesystem::temp_directory_path())){if(priorDisplays.count(entry.path())||entry.path().filename().u8string().rfind("mygrain-cef-",0)!=0)continue;mygrain::cef::Mapping display;if(display.open((entry.path()/"display.ipc").u8string(),false)){std::string url=display.data->url;auto pos=url.find("#daw=");if(pos!=std::string::npos){std::cout<<url.substr(pos+5)<<std::endl;printed=true;break;}}}}
+  if(!printed){for(const auto& entry:std::filesystem::directory_iterator(std::filesystem::temp_directory_path())){if(priorDisplays.count(entry.path())||entry.path().filename().u8string().rfind("mygrain-cef-",0)!=0)continue;auto& display=commandDisplay;if(display.open((entry.path()/"display.ipc").u8string(),false)){std::string url=display.data->url;auto pos=url.find("#daw=");if(pos!=std::string::npos){std::cout<<url.substr(pos+5)<<std::endl;printed=true;break;}}}}
 #else
   if(!printed&&OpenClipboard(parent)){
    if(auto memory=GetClipboardData(CF_UNICODETEXT)){if(auto* text=(const wchar_t*)GlobalLock(memory)){std::wstring wide(text);GlobalUnlock(memory);std::string code(wide.begin(),wide.end());if(code.size()==38&&code.find('.')==5){std::cout<<code<<std::endl;printed=true;}}}CloseClipboard();
@@ -133,11 +136,17 @@ int main(int argc,char**argv){
   const auto stamp=cmd+"\n"+sequence;if(stamp!=previous){previous=stamp;
 #ifdef MYGRAIN_CEF_HOST
   if(cmd=="reopen-editor"&&!view){view=controller->createView(ViewType::kEditor);if(!view||view->attached(parent,kPlatformTypeHWND)!=kResultOk)return 21;child=FindWindowExW(parent,nullptr,L"MyGrainCEFView010",nullptr);}
+  if(cmd=="stop-plugin")std::cout<<"CEF_STOPPED=done"<<std::endl;
   if(cmd=="cef-reload")SendMessageW(child,WM_COMMAND,101,0);
   if(cmd=="cef-store"){SendMessageW(GetDlgItem(child,102),BM_CLICK,0,0);std::cout<<"CEF_CONTROL=store"<<std::endl;}
   if(cmd=="cef-auto"){SendMessageW(GetDlgItem(child,220),BM_CLICK,0,0);std::cout<<"CEF_CONTROL=auto"<<std::endl;}
   if(cmd.rfind("cef-interval ",0)==0){const auto text=cmd.substr(13);SetWindowTextW(GetDlgItem(child,221),std::wstring(text.begin(),text.end()).c_str());SendMessageW(GetDlgItem(child,222),BM_CLICK,0,0);std::cout<<"CEF_CONTROL=interval"<<std::endl;}
-  if(cmd=="cef-toolbar"){std::cout<<"CEF_TOOLBAR=";for(int id:{106,220,221,230,231}){wchar_t text[2048]{};GetWindowTextW(GetDlgItem(child,id),text,2048);std::wstring wide(text);std::cout<<id<<":"<<std::string(wide.begin(),wide.end())<<"|";}std::cout<<std::endl;}
+  if(cmd.rfind("cef-dialog-",0)==0&&commandDisplay.data){
+    auto* shared=commandDisplay.data;
+    if(cmd=="cef-dialog-state")std::cout<<"CEF_DIALOG="<<shared->dialogKind.load()<<std::endl;
+    else{const bool accept=cmd.rfind("cef-dialog-ok ",0)==0;const auto text=accept?cmd.substr(14):std::string();std::memset(shared->dialogInput,0,sizeof(shared->dialogInput));std::memcpy(shared->dialogInput,text.data(),std::min(text.size(),sizeof(shared->dialogInput)-1));commandDisplay.push({mygrain::cef::TestDialog,0,0,accept?1:0});std::cout<<"CEF_DIALOG_REPLY=sent"<<std::endl;}
+   }
+   if(cmd=="cef-toolbar"){std::cout<<"CEF_TOOLBAR=";for(int id:{106,220,221,230,231}){wchar_t text[2048]{};GetWindowTextW(GetDlgItem(child,id),text,2048);std::wstring wide(text);std::cout<<id<<":"<<std::string(wide.begin(),wide.end())<<"|";}std::cout<<std::endl;}
   if(cmd=="cef-size-small"||cmd=="cef-size-normal"){ViewRect size(0,0,cmd=="cef-size-small"?800:1240,860);view->onSize(&size);RECT last{},client{};GetWindowRect(GetDlgItem(child,222),&last);MapWindowPoints(nullptr,child,(POINT*)&last,2);GetClientRect(child,&client);if(last.right>client.right||last.left<0)return 25;std::cout<<"CEF_SIZE="<<client.right<<std::endl;}
   if(cmd.rfind("cef-host-focus ",0)==0){const bool focus=cmd.back()=='1';if(view->onFocus(focus)!=kResultTrue)return 24;std::cout<<"CEF_FOCUS="<<focus<<std::endl;}
   if(cmd.rfind("cef-host-key ",0)==0){std::istringstream keys(cmd.substr(13));int ch=0,code=0,mod=0;if(keys>>ch>>code>>mod){auto a=view->onKeyDown(char16(ch),code,mod),b=view->onKeyUp(char16(ch),code,mod);std::cout<<"CEF_KEY="<<ch<<":"<<a<<":"<<b<<std::endl;}}

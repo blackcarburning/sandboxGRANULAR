@@ -1,5 +1,5 @@
 #pragma once
-// Private per-instance display/input transport. Never used by the audio callback.
+// Private per-instance display/input transport and separate lock-free preview PCM.
 // CEF owns its own process and main loop, not the DAW's application singleton.
 #include <atomic>
 #include <cstdint>
@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <vector>
 #include <new>
+#include "preview.h"
 #ifdef _WIN32
 #include <windows.h>
 #else
@@ -19,17 +20,19 @@
 namespace mygrain::cef {
 constexpr uint32_t magic=0x3146434d, maxWidth=2048,maxHeight=1600,queueSize=512;
 constexpr size_t frameBytes=size_t(maxWidth)*maxHeight*4;
-enum EventType : uint32_t {Move=1,Down,Up,Wheel,KeyDown,KeyUp,Char,Focus,Reload,Store};
+enum EventType : uint32_t {Move=1,Down,Up,Wheel,KeyDown,KeyUp,Char,Focus,Reload,Store,TestDialog};
 // Modifiers use the stable CEF EVENTFLAG_* values.
 struct Event {uint32_t type=0;int32_t x=0,y=0,a=0,b=0;uint32_t modifiers=0;};
 struct Shared {
- uint32_t signature=magic,version=1;
+ uint32_t signature=magic,version=2;
  std::atomic<uint32_t> quit{0},width{1240},height{756},shown{1},status{0};
  char url[1024]{};
  std::atomic<uint32_t> painting{0};
  std::atomic<uint32_t> frame{0},published{0},reading{3};
  uint32_t frameWidth[3]{},frameHeight[3]{};
  std::atomic<uint32_t> write{0},read{0};Event events[queueSize]{};
+ PreviewAudio preview;
+ std::atomic<uint32_t> dialogKind{0};char dialogInput[2049]{};
  uint8_t pixels[3][frameBytes];
 };
 static_assert(std::atomic<uint32_t>::is_always_lock_free,"IPC requires lock-free uint32");
@@ -61,7 +64,7 @@ public:
   auto* p=mmap(nullptr,sizeof(Shared),PROT_READ|PROT_WRITE,MAP_SHARED,fd,0);if(p==MAP_FAILED)return false;data=(Shared*)p;
 #endif
   if(create&&data)new(data)Shared;
-  return data&&data->signature==magic&&data->version==1;
+  return data&&data->signature==magic&&data->version==2;
  }
  void close(){
 #ifdef _WIN32

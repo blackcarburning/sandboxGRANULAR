@@ -100,6 +100,7 @@ public:
 #ifdef MYGRAIN_CEF
     // Component-owned, not view-owned: audio and automatic stores survive removed().
     cef::Session embedded;
+    cef::PreviewReader previewReader;
 #endif
     Timer* projectTimer=nullptr;
     uint32_t notifiedProject=0;
@@ -228,10 +229,16 @@ public:
             double* l=output&&output->numChannels>0?output->channelBuffers64[0]:nullptr;
             double* r=output&&output->numChannels>1?output->channelBuffers64[1]:nullptr;
             engine.process(l,r,data.numSamples,host,input&&input->numChannels>0&&!(input->silenceFlags&1u)?input->channelBuffers64[0]:nullptr,input&&input->numChannels>1&&!(input->silenceFlags&2u)?input->channelBuffers64[1]:nullptr);
+#ifdef MYGRAIN_CEF
+            if(auto* audio=embedded.audio.load(std::memory_order_acquire))previewReader.mix(*audio,l,r,data.numSamples,host.rate,host.offline);
+#endif
         }else{
             float* l=output&&output->numChannels>0?output->channelBuffers32[0]:nullptr;
             float* r=output&&output->numChannels>1?output->channelBuffers32[1]:nullptr;
             engine.process(l,r,data.numSamples,host,input&&input->numChannels>0&&!(input->silenceFlags&1u)?input->channelBuffers32[0]:nullptr,input&&input->numChannels>1&&!(input->silenceFlags&2u)?input->channelBuffers32[1]:nullptr);
+#ifdef MYGRAIN_CEF
+            if(auto* audio=embedded.audio.load(std::memory_order_acquire))previewReader.mix(*audio,l,r,data.numSamples,host.rate,host.offline);
+#endif
         }
         float leftPeak=0,rightPeak=0;
         if(output&&output->numChannels>0){
@@ -266,7 +273,7 @@ public:
 #endif
 BEGIN_FACTORY_DEF("MYGRAIN","https://openclaw.blackcarburning.com/mygrain/","mailto:claw@blackcarburning.com")
 #ifdef MYGRAIN_CEF
-DEF_CLASS2(INLINE_UID(0xa44b25e1,0x3de64853,0xa16cc639,0x21c9d4b2),PClassInfo::kManyInstances,kVstAudioEffectClass,"MyGrain CEF",0,"Instrument|Synth","0.1.2",kVstVersionString,mygrain::Bridge::create)
+DEF_CLASS2(INLINE_UID(0xa44b25e1,0x3de64853,0xa16cc639,0x21c9d4b2),PClassInfo::kManyInstances,kVstAudioEffectClass,"MyGrain CEF",0,"Instrument|Synth","0.1.3",kVstVersionString,mygrain::Bridge::create)
 #elif defined(MYGRAIN_FX)
 DEF_CLASS2(INLINE_UID(0x80192c74,0x1fca4fa0,0xa638de42,0xf66c7d18),PClassInfo::kManyInstances,kVstAudioEffectClass,"MYGRAIN FX",0,"Fx|Filter","0.4.0",kVstVersionString,mygrain::Bridge::create)
 #else

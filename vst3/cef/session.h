@@ -23,7 +23,7 @@ class Session {
 #endif
  std::filesystem::path root;
 public:
- Mapping ipc;bool attempted=false;std::string error;
+ Mapping ipc;std::atomic<PreviewAudio*> audio{nullptr};bool attempted=false;std::string error;
  ~Session(){stop();}
  bool running(){
 #ifdef _WIN32
@@ -33,6 +33,7 @@ public:
 #endif
  }
  void stop(){
+  audio.store(nullptr,std::memory_order_release);
   if(ipc.data)ipc.data->quit.store(1);
   const auto end=std::chrono::steady_clock::now()+std::chrono::seconds(3);while(running()&&std::chrono::steady_clock::now()<end)std::this_thread::sleep_for(std::chrono::milliseconds(10));
 #ifdef _WIN32
@@ -53,8 +54,10 @@ public:
    chmod(root.c_str(),0700);
 #endif
    const auto file=(root/"display.ipc").u8string(),profile=(root/"profile").u8string();
-   if(url.size()>=sizeof(Shared::url)||!ipc.open(file,true)){error="Could not create CEF display transport.";return false;}
-   std::memcpy(ipc.data->url,url.c_str(),url.size()+1);
+   auto browserUrl=url;const auto fragment=browserUrl.find('#');browserUrl.insert(fragment==std::string::npos?browserUrl.size():fragment,browserUrl.find('?')==std::string::npos?"?mygrain_cef=1":"&mygrain_cef=1");
+   if(browserUrl.size()>=sizeof(Shared::url)||!ipc.open(file,true)){error="Could not create CEF display transport.";return false;}
+   std::memcpy(ipc.data->url,browserUrl.c_str(),browserUrl.size()+1);
+   audio.store(&ipc.data->preview,std::memory_order_release);
 #ifdef _WIN32
    const auto exe=wide(executable);auto args=L"\""+exe+L"\" \""+wide(file)+L"\" "+std::to_wstring(GetCurrentProcessId())+L" \""+wide(profile)+L"\"";
    wchar_t debug[16]{};if(GetEnvironmentVariableW(L"MYGRAIN_CEF_DEBUG_PORT",debug,16)){const int port=_wtoi(debug);if(port>=1024&&port<=65535)args+=L" "+std::to_wstring(port);}

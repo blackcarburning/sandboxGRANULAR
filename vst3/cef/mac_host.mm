@@ -66,20 +66,26 @@ int main(int argc,char**argv){@autoreleasepool{
    next+=std::chrono::nanoseconds(2666667);std::this_thread::sleep_until(next);
   }
  });
- bool printed=false;std::string previous;const auto deadline=std::chrono::steady_clock::now()+std::chrono::seconds(argc>3?std::atoi(argv[3]):300);
+ mygrain::cef::Mapping commandDisplay;bool printed=false;std::string previous;const auto deadline=std::chrono::steady_clock::now()+std::chrono::seconds(argc>3?std::atoi(argv[3]):300);
  while(running&&std::chrono::steady_clock::now()<deadline){@autoreleasepool{
   [[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:.02]];
-  if(!printed){for(const auto& item:std::filesystem::directory_iterator(std::filesystem::temp_directory_path())){if(priorDisplays.count(item.path())||item.path().filename().u8string().rfind("mygrain-cef-",0)!=0)continue;mygrain::cef::Mapping display;if(display.open((item.path()/"display.ipc").u8string(),false)){std::string url=display.data->url;auto pos=url.find("#daw=");if(pos!=std::string::npos){std::cout<<"CODE="<<url.substr(pos+5)<<std::endl;printed=true;break;}}}}
+  if(!printed){for(const auto& item:std::filesystem::directory_iterator(std::filesystem::temp_directory_path())){if(priorDisplays.count(item.path())||item.path().filename().u8string().rfind("mygrain-cef-",0)!=0)continue;auto& display=commandDisplay;if(display.open((item.path()/"display.ipc").u8string(),false)){std::string url=display.data->url;auto pos=url.find("#daw=");if(pos!=std::string::npos){std::cout<<"CODE="<<url.substr(pos+5)<<std::endl;printed=true;break;}}}}
 
   std::ifstream control(std::string(argv[2])+".control");std::string command,sequence;std::getline(control,command);std::getline(control,sequence);
   const auto stamp=command+"\n"+sequence;if(stamp!=previous){previous=stamp;
    if(command=="quit")break;
    if(command=="arm-plugin")[button(window.contentView,106) performClick:nil];
    if(command=="stop-plugin")[button(window.contentView,104) performClick:nil];
+   if(command=="stop-plugin")std::cout<<"CEF_STOPPED=done"<<std::endl;
    if(command=="cef-reload")[button(window.contentView,101) performClick:nil];
    if(command=="cef-store"){[button(window.contentView,102) performClick:nil];std::cout<<"CEF_CONTROL=store"<<std::endl;}
    if(command=="cef-auto"){[button(window.contentView,220) performClick:nil];std::cout<<"CEF_CONTROL=auto"<<std::endl;}
    if(command.rfind("cef-interval ",0)==0){auto* field=(NSTextField*)[window.contentView viewWithTag:221];field.stringValue=[NSString stringWithUTF8String:command.substr(13).c_str()];[button(window.contentView,222) performClick:nil];std::cout<<"CEF_CONTROL=interval"<<std::endl;}
+   if(command.rfind("cef-dialog-",0)==0&&commandDisplay.data){
+    auto* shared=commandDisplay.data;
+    if(command=="cef-dialog-state")std::cout<<"CEF_DIALOG="<<shared->dialogKind.load()<<std::endl;
+    else{const bool accept=command.rfind("cef-dialog-ok ",0)==0;const auto text=accept?command.substr(14):std::string();std::memset(shared->dialogInput,0,sizeof(shared->dialogInput));std::memcpy(shared->dialogInput,text.data(),std::min(text.size(),sizeof(shared->dialogInput)-1));commandDisplay.push({mygrain::cef::TestDialog,0,0,accept?1:0});std::cout<<"CEF_DIALOG_REPLY=sent"<<std::endl;}
+   }
    if(command=="cef-toolbar"){std::cout<<"CEF_TOOLBAR=";for(int tag:{106,220,221,230,231}){NSView* field=[window.contentView viewWithTag:tag];NSString* text=[field isKindOfClass:[NSButton class]]?((NSButton*)field).title:((NSTextField*)field).stringValue;std::cout<<tag<<":"<<text.UTF8String<<"|";}std::cout<<std::endl;}
    if(command=="cef-size-small"||command=="cef-size-normal"){ViewRect size(0,0,command=="cef-size-small"?800:1240,860);view->onSize(&size);NSView* surface=window.contentView.subviews.firstObject;NSView* last=[surface viewWithTag:222];if(NSMaxX(last.frame)>surface.bounds.size.width||NSMinX(last.frame)<0)return 25;std::cout<<"CEF_SIZE="<<int(surface.bounds.size.width)<<std::endl;}
    if(command.rfind("cef-host-focus ",0)==0){const bool focused=command.back()=='1';if(view->onFocus(focused)!=kResultTrue)return 24;std::cout<<"CEF_FOCUS="<<focused<<std::endl;}
