@@ -113,7 +113,7 @@ void command(const Event& e,cef_browser_host_t* host){
 #endif
   // The windowless helper has no native Edit menu. Route explicit editing
   // shortcuts to Chromium's focused frame (including password-manager paste).
-  if(shortcut&&e.type==KeyDown){
+  if(shortcut&&!(e.modifiers&8)&&e.type==KeyDown){
    auto* frame=browser->get_focused_frame(browser);if(frame){bool handled=true;
     switch(e.a){case 'A':frame->select_all(frame);break;case 'C':frame->copy(frame);break;case 'X':frame->cut(frame);break;case 'V':frame->paste(frame);break;case 'Z':if(e.modifiers&2)frame->redo(frame);else frame->undo(frame);break;case 'Y':frame->redo(frame);break;default:handled=false;break;}
     frame->base.release(&frame->base);if(handled)break;

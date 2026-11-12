@@ -41,7 +41,9 @@ async function run(state){
   command('cef-native-key 110 78');await p.waitForFunction(()=>document.querySelector('#mygrainLoginUsername').value==='n');
   command('cef-host-focus 1');await delay(100);
   for(const ch of 'ative-user8')await key(ch.charCodeAt(0));
+  await p.waitForFunction(()=>document.querySelector('#mygrainLoginUsername').value==='native-user8');
   await key(97,0,4);for(const ch of 'native-user8')await key(ch.charCodeAt(0)); // Ctrl/Cmd+A uses Chromium's focused frame.
+  await p.waitForFunction(()=>document.querySelector('#mygrainLoginUsername').value==='native-user8');
   await key(0,1);await key(55); // Backspace then 7.
   await p.waitForFunction(()=>document.querySelector('#mygrainLoginUsername').value==='native-user7');
   command('cef-host-focus 0');await delay(100);await key(88);await delay(150);
@@ -95,4 +97,4 @@ function rms(){const bytes=fs.readFileSync(raw);let power=0,n=0;for(let at=Math.
  await p.screenshot({path:path.join(out,'cef-embedded-app.png')});await close();
  fs.writeFileSync(control,'');const q=await run(state);assert.equal(await q.evaluate(()=>bastardLoopMetadata.summary),expected.summary);assert.equal(await q.evaluate(()=>bastardLoopBuffer.length),expected.frames);assert(Math.abs(await q.evaluate(()=>bastardLoopBuffer.getChannelData(0)[100])-expected.first)<.00005);assert.equal((await q.evaluate(()=>mygrainDawBridge.diagnostics())).project.auto.interval,15);await close();
  fs.writeFileSync(path.join(out,'cef-results.json'),JSON.stringify({first,expected,autoSaveWhileClosed:true,reloadRecall:true,freshNativeRecall:true,nativeAudio:true,nativeSurfaceInput:true},null,2));console.log('PASS real CEF, native PCM, closed-editor auto-save, safe reload, fresh DAW recall and clean unload');
-}finally{for(const entry of fs.readdirSync(require('node:os').tmpdir()))if(entry.startsWith('mygrain-cef-')){const file=path.join(require('node:os').tmpdir(),entry,'profile','cef.log');if(fs.existsSync(file))fs.copyFileSync(file,path.join(out,entry+'-cef.log'));}if(exit===null&&child){command('quit');await delay(1000);child.kill();}if(browser)await browser.close().catch(()=>{});}})().catch(e=>{console.error(e);process.exitCode=1;});
+}catch(error){if(browser){const p=browser.contexts()[0]?.pages()[0];if(p){await p.screenshot({path:path.join(out,'failed-native-input.png')}).catch(()=>{});const value=await p.evaluate(()=>({focused:document.activeElement?.id,username:document.querySelector('#mygrainLoginUsername')?.value,passwordLength:document.querySelector('#mygrainLoginPassword')?.value.length,url:location.href})).catch(()=>null);fs.writeFileSync(path.join(out,'failed-native-input.json'),JSON.stringify(value,null,2));}}throw error;}finally{for(const entry of fs.readdirSync(require('node:os').tmpdir()))if(entry.startsWith('mygrain-cef-')){const file=path.join(require('node:os').tmpdir(),entry,'profile','cef.log');if(fs.existsSync(file))fs.copyFileSync(file,path.join(out,entry+'-cef.log'));}if(exit===null&&child){command('quit');await delay(1000);child.kill();}if(browser)await browser.close().catch(()=>{});}})().catch(e=>{console.error(e);process.exitCode=1;});

@@ -63,7 +63,15 @@ inline bool hostKey(Mapping& ipc,bool up,char16_t character,int code,int flags){
  if(!ipc.push({up?KeyUp:KeyDown,int(keyText(character,vk)),0,vk,nativeKey(vk),modifiers}))return false;
  // CEF OSR needs the text event in addition to the physical key event.
  // Unicode arrives from the host's layout; never derive passwords via ASCII key codes.
- if(!up&&character&&character!=127&&!(modifiers&(4|128)))ipc.push({Char,0,0,int(character),nativeKey(vk),modifiers});
+ char16_t text=character;
+#ifdef __APPLE__
+ // Blink's macOS deletion commands require CHAR as well as key-down.
+ if(vk==8||vk==46)text=keyText(character,vk);
+ const bool characterEvent=text&&(text<0xf700||vk==46);
+#else
+ const bool characterEvent=text&&text!=127;
+#endif
+ if(!up&&characterEvent&&!(modifiers&128)&&!((modifiers&4)&&!(modifiers&8)))ipc.push({Char,0,0,int(text),nativeKey(vk),modifiers});
  return true;
 }
 }
