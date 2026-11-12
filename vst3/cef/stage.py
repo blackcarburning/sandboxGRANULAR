@@ -21,6 +21,7 @@ else:
  info={'CFBundleExecutable':'MyGrainCEF','CFBundleIdentifier':'com.blackcarburning.mygrain.cef.browser','CFBundleName':'MyGrain CEF Browser','CFBundlePackageType':'APPL','CFBundleVersion':'0.1.0','LSUIElement':True,'NSHighResolutionCapable':True,'LSMinimumSystemVersion':'12.0'}
  (content/'Info.plist').write_bytes(plistlib.dumps(info))
  helper=frameworks/'MyGrainCEF Helper.app/Contents';(helper/'MacOS').mkdir(parents=True,exist_ok=True);shutil.copy2(a.helper,helper/'MacOS/MyGrainCEF Helper')
+ subprocess.run(['install_name_tool','-change','@executable_path/../Frameworks/Chromium Embedded Framework.framework/Chromium Embedded Framework','@executable_path/../../../Chromium Embedded Framework.framework/Chromium Embedded Framework',str(helper/'MacOS/MyGrainCEF Helper')],check=True)
  info.update(CFBundleExecutable='MyGrainCEF Helper',CFBundleIdentifier='com.blackcarburning.mygrain.cef.browser.helper',CFBundleName='MyGrain CEF Helper');(helper/'Info.plist').write_bytes(plistlib.dumps(info))
 licenses=bundle/'Contents/Resources/CEF-LICENSES';licenses.mkdir(parents=True,exist_ok=True)
 shutil.copy2(a.sdk/'LICENSE.txt',licenses/'CEF-LICENSE.txt')
