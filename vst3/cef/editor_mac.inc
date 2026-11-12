@@ -86,10 +86,10 @@ BridgeView::BridgeView(Bridge& b):owner(b){owner.addRef();rect=ViewRect(0,0,1240
 BridgeView::~BridgeView(){removed();owner.release();}
 tresult PLUGIN_API BridgeView::attached(void* parent,FIDString type){
  if(isPlatformTypeSupported(type)!=kResultTrue||!parent||native)return kResultFalse;owner.enable();
- auto* view=[[MGCefSurface010 alloc] initWithFrame:NSMakeRect(0,0,rect.getWidth(),rect.getHeight())];view->owner=&owner;view.wantsLayer=YES;native=view;
+ auto* view=[[MGCefSurface010 alloc] initWithFrame:NSMakeRect(0,0,rect.getWidth(),rect.getHeight())];view->owner=&owner;view.wantsLayer=YES;view.appearance=[NSAppearance appearanceNamed:NSAppearanceNameDarkAqua];native=view;
  for(auto item:mygrain::cef::toolbarItems){
   NSControl* control=nil;
-  if(item.id==221){auto* field=[[NSTextField alloc] initWithFrame:NSZeroRect];field.stringValue=@"60";field.alignment=NSTextAlignmentCenter;field.font=[NSFont systemFontOfSize:13 weight:NSFontWeightSemibold];field.backgroundColor=mgToolbarColor(0x122434);field.textColor=mgToolbarColor(0xf0f8ff);field.bezelStyle=NSTextFieldRoundedBezel;field.target=view;field.action=@selector(action:);view->interval=field;control=field;[field setAccessibilityLabel:@"Automatic save interval in seconds (15 to 3600)"];}
+  if(item.id==221){auto* field=[[NSTextField alloc] initWithFrame:NSZeroRect];field.stringValue=@"60";field.alignment=NSTextAlignmentCenter;field.font=[NSFont systemFontOfSize:13 weight:NSFontWeightSemibold];field.drawsBackground=YES;field.backgroundColor=mgToolbarColor(0x122434);field.textColor=mgToolbarColor(0xf0f8ff);field.bezelStyle=NSTextFieldRoundedBezel;field.target=view;field.action=@selector(action:);view->interval=field;control=field;[field setAccessibilityLabel:@"Automatic save interval in seconds (15 to 3600)"];}
   else if(item.id==223){control=[[NSTextField labelWithString:@"Every (s)"] retain];((NSTextField*)control).textColor=mgToolbarColor(0xa6bdd2);((NSTextField*)control).alignment=NSTextAlignmentCenter;}
   else{auto* b=[[MGCefToolbarButton alloc] initWithFrame:NSZeroRect];b.title=[NSString stringWithUTF8String:item.title];b.target=view;b.action=@selector(action:);b.bordered=NO;b.focusRingType=NSFocusRingTypeNone;control=b;}
   control.tag=item.id;[view addSubview:control];[control release];
