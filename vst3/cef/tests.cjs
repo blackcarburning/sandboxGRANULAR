@@ -53,7 +53,7 @@ async function run(state,signedOutOnly=false){
  browser=await chromium.connectOverCDP('http://127.0.0.1:19381');const c=browser.contexts()[0];const auth={signedIn:false,posts:0};await fixture(c,auth);const p=c.pages()[0];
  const savedCookies=await c.cookies(origin);assert.equal(savedCookies.some(x=>x.name==='mygrain_session'&&x.value===fixtureToken),!!state,'session imported into a fresh isolated helper');
  p.on('dialog',()=>{});
- const response=await p.goto(origin+'/mygrain/?mygrain_cef=1&cef_fixture='+Date.now()+'#daw='+code);assert.equal(response.headers()['x-mygrain-isolated-test'],'cef-project');
+ const response=await p.goto(origin+'/mygrain/?mygrain_cef=1&account=login&cef_fixture='+Date.now()+'#daw='+code);assert.equal(response.headers()['x-mygrain-isolated-test'],'cef-project');
  p.on('pageerror',e=>fs.appendFileSync(path.join(out,'page-errors.txt'),e.stack+'\n'));
  if(signedOutOnly){await p.locator('#mygrainLoginUsername').waitFor({state:'visible'});return p;}
  if(!state){
