@@ -98,9 +98,13 @@ jobs:
           npm install --no-save playwright-core
           python3 vst3/cef/unpack_test_app.py "$RUNNER_TEMP/test-app"
           MYGRAIN_CEF_APP_PATH="$RUNNER_TEMP/test-app" node vst3/cef/tests.cjs "$RUNNER_TEMP/plugin/cef-mac-host" "$RUNNER_TEMP/release/MyGrain CEF.vst3" "$RUNNER_TEMP/release/evidence"
+          tar -czf "$RUNNER_TEMP/release/mygrain-cef-macos-validated.tgz" -C "$RUNNER_TEMP/release" 'MyGrain CEF.vst3' validator.txt evidence
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: mygrain-cef-macos-preview
-          path: ${{ runner.temp }}/release/
+          path: |
+            ${{ runner.temp }}/release/mygrain-cef-macos-validated.tgz
+            ${{ runner.temp }}/release/validator.txt
+            ${{ runner.temp }}/release/evidence/
           retention-days: 14
