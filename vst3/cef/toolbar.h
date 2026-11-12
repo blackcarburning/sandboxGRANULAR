@@ -7,7 +7,7 @@ struct ToolbarItem {int id,width;const char* title;};
 constexpr ToolbarItem toolbarItems[]={{106,174,"Arm - follow DAW"},{104,68,"Stop"},{102,106,"Store now"},{220,142,"Auto-save: On"},{101,174,"Store + reload app"},{223,64,"Every (s)"},{221,62,"60"},{222,66,"Apply"}};
 inline double toolbarScale(double width){return std::min(1.,std::max(.7,(width-24)/1012));}
 inline std::string toolbarActivity(const RemoteState& remote,bool armed,bool playing){
-    const std::string transport=!armed?"Output disarmed - click Arm, then Play in your DAW":playing?"Following DAW playback":"Armed - waiting for DAW Play";
+    const std::string transport=!armed?"DAW sync disarmed - Arm, then DAW Play (previews still work)":playing?"Following DAW playback":"Armed - waiting for DAW Play";
     if(remote.companion.supported){
         const auto& c=remote.companion;
         const auto activity=remote.busy||remote.text.rfind("Could not finish",0)==0?remote.text:
