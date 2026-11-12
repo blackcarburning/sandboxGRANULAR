@@ -35,20 +35,22 @@ async function run(state){
  p.on('pageerror',e=>fs.appendFileSync(path.join(out,'page-errors.txt'),e.stack+'\n'));
  if(!state){
   const click=async selector=>{const box=await p.locator(selector).boundingBox();assert(box);command(`cef-click ${Math.round(box.x+box.width/2)} ${Math.round(box.y+box.height/2)}`);await delay(150);};
-  const key=async(ch,code=0,mod=0)=>{command(`cef-host-key ${ch} ${code} ${mod}`);await delay(70);};
+  const acknowledged=async(c,marker)=>{const count=(log.match(new RegExp(marker,'g'))||[]).length;command(c);await until(()=>(log.match(new RegExp(marker,'g'))||[]).length>count,'native input acknowledgement '+c,10000);await delay(30);};
+  const key=(ch,code=0,mod=0)=>acknowledged(`cef-host-key ${ch} ${code} ${mod}`,'CEF_KEY=');
+  const focus=state=>acknowledged('cef-host-focus '+state,'CEF_FOCUS=');
   await p.locator('#mygrainLoginUsername').waitFor({state:'visible'});await click('#mygrainLoginUsername');
   // Native window fallback before any host keyboard callback is delivered.
   command('cef-native-key 110 78');await p.waitForFunction(()=>document.querySelector('#mygrainLoginUsername').value==='n');
-  command('cef-host-focus 1');await delay(100);
+  await focus(1);
   for(const ch of 'ative-user8')await key(ch.charCodeAt(0));
   await p.waitForFunction(()=>document.querySelector('#mygrainLoginUsername').value==='native-user8');
   await key(97,0,4);for(const ch of 'native-user8')await key(ch.charCodeAt(0)); // Ctrl/Cmd+A uses Chromium's focused frame.
   await p.waitForFunction(()=>document.querySelector('#mygrainLoginUsername').value==='native-user8');
   await key(0,1);await key(55); // Backspace then 7.
   await p.waitForFunction(()=>document.querySelector('#mygrainLoginUsername').value==='native-user7');
-  command('cef-host-focus 0');await delay(100);await key(88);await delay(150);
+  await focus(0);await key(88);await delay(150);
   assert.equal(await p.locator('#mygrainLoginUsername').inputValue(),'native-user7','blurred plugin must not consume host keys');
-  command('cef-host-focus 1');await delay(100);await key(9,2); // Tab, not a mouse/CDP focus command.
+  await focus(1);await key(9,2); // Tab, not a mouse/CDP focus command.
   await p.waitForFunction(()=>document.activeElement.id==='mygrainLoginPassword');
   for(const ch of 'Aa7!@-z')await key(ch.charCodeAt(0));
   await p.waitForFunction(()=>document.querySelector('#mygrainLoginPassword').value==='Aa7!@-z');

@@ -134,7 +134,7 @@ int main(int argc,char**argv){
   if(cmd=="reopen-editor"&&!view){view=controller->createView(ViewType::kEditor);if(!view||view->attached(parent,kPlatformTypeHWND)!=kResultOk)return 21;child=FindWindowExW(parent,nullptr,L"MyGrainCEFView010",nullptr);}
   if(cmd=="cef-reload")SendMessageW(child,WM_COMMAND,101,0);
   if(cmd=="cef-store")SendMessageW(child,WM_COMMAND,102,0);
-  if(cmd.rfind("cef-host-focus ",0)==0){const bool focus=cmd.back()=='1';if(view->onFocus(focus)!=kResultTrue)return 24;}
+  if(cmd.rfind("cef-host-focus ",0)==0){const bool focus=cmd.back()=='1';if(view->onFocus(focus)!=kResultTrue)return 24;std::cout<<"CEF_FOCUS="<<focus<<std::endl;}
   if(cmd.rfind("cef-host-key ",0)==0){std::istringstream keys(cmd.substr(13));int ch=0,code=0,mod=0;if(keys>>ch>>code>>mod){auto a=view->onKeyDown(char16(ch),code,mod),b=view->onKeyUp(char16(ch),code,mod);std::cout<<"CEF_KEY="<<ch<<":"<<a<<":"<<b<<std::endl;}}
   if(cmd.rfind("cef-native-key ",0)==0){std::istringstream keys(cmd.substr(15));int ch=0,vk=0;if(keys>>ch>>vk){SendMessageW(child,WM_KEYDOWN,vk,0);if(ch)SendMessageW(child,WM_CHAR,ch,0);SendMessageW(child,WM_KEYUP,vk,0);}}
 

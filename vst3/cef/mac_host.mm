@@ -77,7 +77,7 @@ int main(int argc,char**argv){@autoreleasepool{
    if(command=="stop-plugin")[button(window.contentView,104) performClick:nil];
    if(command=="cef-reload")[button(window.contentView,101) performClick:nil];
    if(command=="cef-store")[button(window.contentView,102) performClick:nil];
-   if(command.rfind("cef-host-focus ",0)==0){if(view->onFocus(command.back()=='1')!=kResultTrue)return 24;}
+   if(command.rfind("cef-host-focus ",0)==0){const bool focused=command.back()=='1';if(view->onFocus(focused)!=kResultTrue)return 24;std::cout<<"CEF_FOCUS="<<focused<<std::endl;}
    if(command.rfind("cef-host-key ",0)==0){std::istringstream keys(command.substr(13));int ch=0,code=0,mod=0;if(keys>>ch>>code>>mod){auto a=view->onKeyDown(char16(ch),code,mod),b=view->onKeyUp(char16(ch),code,mod);std::cout<<"CEF_KEY="<<ch<<":"<<a<<":"<<b<<std::endl;}}
    if(command.rfind("cef-native-key ",0)==0){std::istringstream keys(command.substr(15));int ch=0,vk=0;if(keys>>ch>>vk){NSView* surface=window.contentView.subviews.firstObject;unichar c=ch;NSString* text=[NSString stringWithCharacters:&c length:ch?1:0];for(NSEventType type:{NSEventTypeKeyDown,NSEventTypeKeyUp}){NSEvent* event=[NSEvent keyEventWithType:type location:NSZeroPoint modifierFlags:0 timestamp:NSProcessInfo.processInfo.systemUptime windowNumber:window.windowNumber context:nil characters:text charactersIgnoringModifiers:text isARepeat:NO keyCode:mygrain::cef::nativeKey(vk)];if(type==NSEventTypeKeyDown)[surface keyDown:event];else [surface keyUp:event];}}}
 
