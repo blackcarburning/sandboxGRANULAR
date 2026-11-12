@@ -32,6 +32,14 @@ using namespace mygrain::cef;
 Mapping mapping;
 cef_browser_t* browser=nullptr;bool closed=false;
 std::string target;
+std::vector<uint8_t> mainPixels,popupPixels;uint32_t mainWidth=0,mainHeight=0;cef_rect_t popupRect{};bool popupVisible=false;
+void publish(){
+ if(mainPixels.empty())return;
+ if(!popupVisible||popupPixels.empty()){mapping.paint(mainPixels.data(),mainWidth,mainHeight);return;}
+ auto display=mainPixels;
+ for(int y=0;y<popupRect.height;y++){int dy=y+popupRect.y;if(dy<0||dy>=int(mainHeight))continue;int left=std::max(0,popupRect.x),right=std::min(int(mainWidth),popupRect.x+popupRect.width);if(right>left)std::memcpy(display.data()+(size_t(dy)*mainWidth+left)*4,popupPixels.data()+(size_t(y)*popupRect.width+left-popupRect.x)*4,size_t(right-left)*4);}
+ mapping.paint(display.data(),mainWidth,mainHeight);
+}
 template<class T>struct Object {
  T api{};std::atomic<int> refs{1};
  Object(){api.base.size=sizeof(T);api.base.add_ref=[](cef_base_ref_counted_t* b){((Object*)b)->refs.fetch_add(1);};api.base.release=[](cef_base_ref_counted_t* b)->int{((Object*)b)->refs.fetch_sub(1);return 0;};api.base.has_one_ref=[](cef_base_ref_counted_t* b)->int{return ((Object*)b)->refs.load()==1;};api.base.has_at_least_one_ref=[](cef_base_ref_counted_t* b)->int{return ((Object*)b)->refs.load()>0;};}
@@ -62,7 +70,11 @@ void setup(){
  client.api.get_permission_handler=[](cef_client_t*){return permissions.get();};
  client.api.get_download_handler=[](cef_client_t*){return downloads.get();};
  render.api.get_view_rect=[](cef_render_handler_t*,cef_browser_t*,cef_rect_t* rect){rect->x=rect->y=0;rect->width=mapping.data->width.load();rect->height=mapping.data->height.load();};
- render.api.on_paint=[](cef_render_handler_t*,cef_browser_t*,cef_paint_element_type_t type,size_t,const cef_rect_t*,const void* buffer,int width,int height){if(type==PET_VIEW)mapping.paint(buffer,width,height);};
+ render.api.on_paint=[](cef_render_handler_t*,cef_browser_t*,cef_paint_element_type_t type,size_t,const cef_rect_t*,const void* buffer,int width,int height){
+  if(width<1||height<1||width>int(maxWidth)||height>int(maxHeight))return;
+  const auto* bytes=(const uint8_t*)buffer;if(type==PET_VIEW){mainWidth=width;mainHeight=height;mainPixels.assign(bytes,bytes+size_t(width)*height*4);}else if(type==PET_POPUP&&width==popupRect.width&&height==popupRect.height)popupPixels.assign(bytes,bytes+size_t(width)*height*4);publish();};
+ render.api.on_popup_show=[](cef_render_handler_t*,cef_browser_t*,int show){popupVisible=show;if(!show)popupPixels.clear();publish();};
+ render.api.on_popup_size=[](cef_render_handler_t*,cef_browser_t*,const cef_rect_t* rect){popupRect=*rect;popupPixels.clear();};
  life.api.on_before_close=[](cef_life_span_handler_t*,cef_browser_t*){closed=true;};
  life.api.on_before_popup=[](cef_life_span_handler_t*,cef_browser_t*,cef_frame_t*,int,const cef_string_t*,const cef_string_t*,cef_window_open_disposition_t,int,const cef_popup_features_t*,cef_window_info_t*,cef_client_t**,cef_browser_settings_t*,cef_dictionary_value_t**,int*)->int{return 1;};
  load.api.on_load_end=[](cef_load_handler_t*,cef_browser_t*,cef_frame_t* frame,int http){if(frame->is_main(frame)){mapping.data->status.store(http==200?2:3);}};
@@ -119,6 +131,10 @@ int run(int argc,char** argv){
  settings.log_severity=LOGSEVERITY_ERROR;
  String log((std::filesystem::absolute(argv[3])/"cef.log").u8string());cef_string_utf16_set(log.value.str,log.value.length,&settings.log_file,1);
  if(argc>4)settings.remote_debugging_port=std::stoi(argv[4]); // Test harness only; no debug listener in released plugin launches.
+#ifdef __APPLE__
+ NSString* subprocess=[NSBundle.mainBundle.bundlePath stringByAppendingPathComponent:@"Contents/Frameworks/MyGrainCEF Helper.app/Contents/MacOS/MyGrainCEF Helper"];
+ String childPath(subprocess.fileSystemRepresentation);cef_string_utf16_set(childPath.value.str,childPath.value.length,&settings.browser_subprocess_path,1);
+#endif
  if(!cef_initialize(&args,&settings,&app.api,nullptr)){mapping.data->status.store(4);return 67;}
  cef_window_info_t window{};window.size=sizeof(window);window.windowless_rendering_enabled=1;window.runtime_style=CEF_RUNTIME_STYLE_ALLOY;
  cef_browser_settings_t options{};options.size=sizeof(options);options.windowless_frame_rate=30;options.background_color=0xff131825;
@@ -137,7 +153,7 @@ int run(int argc,char** argv){
   std::this_thread::sleep_for(std::chrono::milliseconds(5));
  }
  host->base.release(&host->base);browser->base.release(&browser->base);browser=nullptr;
- cef_shutdown();cef_string_utf16_clear(&settings.cache_path);cef_string_utf16_clear(&settings.root_cache_path);return 0;
+ cef_shutdown();cef_string_utf16_clear(&settings.cache_path);cef_string_utf16_clear(&settings.root_cache_path);cef_string_utf16_clear(&settings.log_file);cef_string_utf16_clear(&settings.browser_subprocess_path);return 0;
 }
 }
 int main(int argc,char**argv){

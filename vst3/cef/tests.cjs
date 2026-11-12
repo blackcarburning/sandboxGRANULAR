@@ -27,7 +27,7 @@ async function run(state){
  await until(()=>/187\d{2}\.[a-f0-9]{32}/.test(log),'native code');code=log.match(/187\d{2}\.[a-f0-9]{32}/)[0];
  await until(async()=>{try{const r=await fetch('http://127.0.0.1:19381/json/version');return r.ok;}catch{return false;}},'real CEF debugger',45000);
  browser=await chromium.connectOverCDP('http://127.0.0.1:19381');const c=browser.contexts()[0];await fixture(c);const p=c.pages()[0];
- const response=await p.goto(origin+'/mygrain/#daw='+code);assert.equal(response.headers()['x-mygrain-isolated-test'],'cef-project');
+ const response=await p.goto(origin+'/mygrain/?cef_fixture='+Date.now()+'#daw='+code);assert.equal(response.headers()['x-mygrain-isolated-test'],'cef-project');
  await p.waitForFunction(()=>window.mygrainDawBridge&&document.documentElement.dataset.mygrainStartup==='ready',null,{timeout:90000});
  if(await p.locator('#start-btn').isVisible())await p.locator('#start-btn').click();
  await p.waitForFunction(()=>mygrainDawBridge.connected&&mygrainDawBridge.diagnostics().project.ready&&isAudioGraphReady()&&!engineStarting&&!stateSaveSuspended&&!mygrainCardHistory.busy,null,{timeout:90000});

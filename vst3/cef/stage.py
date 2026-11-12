@@ -24,7 +24,7 @@ else:
  info.update(CFBundleExecutable='MyGrainCEF Helper',CFBundleIdentifier='com.blackcarburning.mygrain.cef.browser.helper',CFBundleName='MyGrain CEF Helper');(helper/'Info.plist').write_bytes(plistlib.dumps(info))
 licenses=bundle/'Contents/Resources/CEF-LICENSES';licenses.mkdir(parents=True,exist_ok=True)
 shutil.copy2(a.sdk/'LICENSE.txt',licenses/'CEF-LICENSE.txt')
-for name in ['chrome_credits.html','credits.html']:
+for name in ['CREDITS.html','chrome_credits.html','credits.html']:
  for source in a.sdk.rglob(name):
   if source.is_file():shutil.copy2(source,licenses/source.name);break
 print(bundle.resolve())
