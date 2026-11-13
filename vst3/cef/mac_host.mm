@@ -98,6 +98,7 @@ int main(int argc,char**argv){@autoreleasepool{
     if(command=="cef-dialog-state")std::cout<<"CEF_DIALOG="<<shared->dialogKind.load()<<std::endl;
     else{const bool accept=command.rfind("cef-dialog-ok ",0)==0;const auto text=accept?command.substr(14):std::string();std::memset(shared->dialogInput,0,sizeof(shared->dialogInput));std::memcpy(shared->dialogInput,text.data(),std::min(text.size(),sizeof(shared->dialogInput)-1));commandDisplay.push({mygrain::cef::TestDialog,0,0,accept?1:0});std::cout<<"CEF_DIALOG_REPLY=sent"<<std::endl;}
    }
+   if(command=="cef-ready")std::cout<<"CEF_READY="<<(button(window.contentView,220).enabled?1:0)<<std::endl;
    if(command=="cef-toolbar"){std::cout<<"CEF_TOOLBAR=";for(int tag:{106,220,221,230,231}){NSView* field=[window.contentView viewWithTag:tag];NSString* text=[field isKindOfClass:[NSButton class]]?((NSButton*)field).title:((NSTextField*)field).stringValue;std::cout<<tag<<":"<<text.UTF8String<<"|";}std::cout<<std::endl;}
    if(command=="cef-size-small"||command=="cef-size-normal"){ViewRect size(0,0,command=="cef-size-small"?800:1240,860);view->onSize(&size);NSView* surface=window.contentView.subviews.firstObject;NSView* last=[surface viewWithTag:222];if(NSMaxX(last.frame)>surface.bounds.size.width||NSMinX(last.frame)<0)return 25;std::cout<<"CEF_SIZE="<<int(surface.bounds.size.width)<<std::endl;}
    if(command.rfind("cef-host-focus ",0)==0){const bool focused=command.back()=='1';if(view->onFocus(focused)!=kResultTrue)return 24;std::cout<<"CEF_FOCUS="<<focused<<std::endl;}

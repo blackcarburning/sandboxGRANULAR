@@ -171,6 +171,7 @@ if(pos!=std::string::npos){std::cout<<url.substr(pos+(url.compare(pos,4,"#fx=")=
     if(cmd=="cef-dialog-state")std::cout<<"CEF_DIALOG="<<shared->dialogKind.load()<<std::endl;
     else{const bool accept=cmd.rfind("cef-dialog-ok ",0)==0;const auto text=accept?cmd.substr(14):std::string();std::memset(shared->dialogInput,0,sizeof(shared->dialogInput));std::memcpy(shared->dialogInput,text.data(),std::min(text.size(),sizeof(shared->dialogInput)-1));commandDisplay.push({mygrain::cef::TestDialog,0,0,accept?1:0});std::cout<<"CEF_DIALOG_REPLY=sent"<<std::endl;}
    }
+   if(cmd=="cef-ready")std::cout<<"CEF_READY="<<(IsWindowEnabled(GetDlgItem(child,220))?1:0)<<std::endl;
    if(cmd=="cef-toolbar"){std::cout<<"CEF_TOOLBAR=";for(int id:{106,220,221,230,231}){wchar_t text[2048]{};GetWindowTextW(GetDlgItem(child,id),text,2048);std::wstring wide(text);std::cout<<id<<":"<<std::string(wide.begin(),wide.end())<<"|";}std::cout<<std::endl;}
   if(cmd=="cef-size-small"||cmd=="cef-size-normal"){ViewRect size(0,0,cmd=="cef-size-small"?800:1240,860);view->onSize(&size);RECT last{},client{};GetWindowRect(GetDlgItem(child,222),&last);MapWindowPoints(nullptr,child,(POINT*)&last,2);GetClientRect(child,&client);if(last.right>client.right||last.left<0)return 25;std::cout<<"CEF_SIZE="<<client.right<<std::endl;}
   if(cmd.rfind("cef-host-focus ",0)==0){const bool focus=cmd.back()=='1';if(view->onFocus(focus)!=kResultTrue)return 24;std::cout<<"CEF_FOCUS="<<focus<<std::endl;}

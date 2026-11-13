@@ -59,7 +59,7 @@ async function fixture(context,auth={signedIn:true,posts:0}){
 }
 let child,browser,code,log='',exit=null;const raw=path.resolve(out,'cef-native.f32'),control=raw+'.control';
 let commandSerial=0;function command(c){fs.writeFileSync(control,c+'\n'+(++commandSerial));}
-async function acknowledged(c,marker){const count=(log.match(new RegExp(marker,'g'))||[]).length;command(c);await until(()=>(log.match(new RegExp(marker,'g'))||[]).length>count,'native acknowledgement '+c,10000);await delay(80);}
+async function acknowledged(c,marker){if(fx&&(/^(cef-auto|cef-store)$/.test(c)||c.startsWith('cef-interval '))){await until(async()=>{await acknowledged('cef-ready','CEF_READY=');return log.split('CEF_READY=').pop().split('\n')[0].trim()==='1';},'enabled native toolbar before '+c,60000);}const count=(log.match(new RegExp(marker,'g'))||[]).length;command(c);await until(()=>(log.match(new RegExp(marker,'g'))||[]).length>count,'native acknowledgement '+c,10000);await delay(80);}
 async function toolbar(){await acknowledged('cef-toolbar','CEF_TOOLBAR=');return log.split('CEF_TOOLBAR=').pop().split('\n')[0];}
 async function run(state,signedOutOnly=false){
  log='';exit=null;const argv=[bundle,raw,'300'];if(state)argv.push(state);
