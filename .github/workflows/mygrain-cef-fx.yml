@@ -1,0 +1,156 @@
+name: MyGrain CEF FX preview
+on:
+  workflow_dispatch:
+  push:
+    branches: [mygrain-cef-fx-20261113]
+    paths: ['vst3/**', '.github/workflows/mygrain-cef-fx.yml']
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-2025
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Fetch official pinned SDKs
+        shell: bash
+        run: |
+          git clone --filter=blob:none https://github.com/steinbergmedia/vst3sdk.git "$RUNNER_TEMP/vst3sdk"
+          git -C "$RUNNER_TEMP/vst3sdk" checkout 3cdf9ca5d1f5b1b21e0a86832aa4abe55607bd96
+          git -C "$RUNNER_TEMP/vst3sdk" submodule update --init --recursive --depth 1
+          python vst3/cef/fetch_sdk.py windows64 "$RUNNER_TEMP/cef-sdk"
+          npm install --no-save playwright-core
+      - name: Build isolated plugin and CEF executable
+        shell: pwsh
+        run: |
+          $cef = (Get-ChildItem "$env:RUNNER_TEMP/cef-sdk" -Directory | Select-Object -First 1).FullName
+          cmake -S vst3 -B "$env:RUNNER_TEMP/plugin" -A x64 "-DVST3_SDK_ROOT=$env:RUNNER_TEMP/vst3sdk" -DMYGRAIN_BUILD_CEF=ON -DMYGRAIN_BUILD_VALIDATOR=ON -DSMTG_USE_STATIC_CRT=ON -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          cmake --build "$env:RUNNER_TEMP/plugin" --config Release --target MyGrainCEFFX bridge-fx-test cef-preview-test cef-fx-windows-host validator moduleinfotool -j 3
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          cmake -S vst3/cef -B "$env:RUNNER_TEMP/helper" -A x64 "-DCEF_ROOT=$cef" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
+          cmake --build "$env:RUNNER_TEMP/helper" --config Release -j 3
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python vst3/cef/stage.py windows --fx --plugin "$env:RUNNER_TEMP/plugin/Release/MyGrainCEFFX.vst3" --helper "$env:RUNNER_TEMP/helper/Release/MyGrainCEF.exe" --sdk "$cef" --output "$env:RUNNER_TEMP/release"
+      - name: Validate and exercise real CEF and project auto-save
+        shell: pwsh
+        run: |
+          & "$env:RUNNER_TEMP/plugin/Release/bridge-fx-test.exe"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & "$env:RUNNER_TEMP/plugin/Release/cef-preview-test.exe"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $bundle = "$env:RUNNER_TEMP/release/MyGrain CEF FX.vst3"
+          $validator = (Get-ChildItem "$env:RUNNER_TEMP/plugin" -Recurse -Filter validator.exe | Select-Object -First 1).FullName
+          $metadata = (Get-ChildItem "$env:RUNNER_TEMP/plugin" -Recurse -Filter moduleinfotool.exe | Select-Object -First 1).FullName
+          python vst3/cef/metadata.py --fx "$metadata" "$bundle"
+          & $validator $bundle 2>&1 | Tee-Object "$env:RUNNER_TEMP/release/validator.txt"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $hostExe = "$env:RUNNER_TEMP/plugin/Release/cef-fx-windows-host.exe"
+          $env:MYGRAIN_CEF_APP_PATH = "$env:GITHUB_WORKSPACE"
+          $env:MYGRAIN_CEF_FX_TEST = "1"
+          node vst3/cef/worklet_test.cjs
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          node vst3/cef/tests.cjs "$hostExe" "$bundle/Contents/x86_64-win/MyGrain CEF FX.vst3" "$env:RUNNER_TEMP/release/evidence"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          @"
+          MyGrain CEF FX 0.1.0 preview - Windows x64
+          Source commit: $env:GITHUB_SHA
+          Current checkout public frontend; isolated account routes, no production writes.
+          SDK validator: 47 passed, 0 failed against the shipped native plugin.
+          Native Windows runner: CEF 156, actual native login keyboard/focus input, stereo DAW input/processed PCM return, four routes, filter processing, gain/mute, native dry/wet, VST3 bypass, offline aligned-dry fallback, native auto-store interval/toggle, automatic storage and processing while editor closed, UI-thread dirty notification, store-before-real-document reload, fresh native FX input/preferences recall, remembered sign-in, preview bypass/offline suppression and clean unload.
+          Physical DAWs, driver/device recording alignment, performance under multiple plugin instances and international IME are not tested.
+          Auto-store retains a completed plugin snapshot; the user must still save the DAW project normally.
+          "@ | Set-Content "$env:RUNNER_TEMP/release/VERIFICATION.txt"
+          python vst3/cef/package.py --fx --platform windows --bundle "$bundle" --sdk "$env:RUNNER_TEMP/vst3sdk" --verification "$env:RUNNER_TEMP/release/VERIFICATION.txt" --output "$env:RUNNER_TEMP/release/mygrain-cef-fx-windows-0.1.0.zip"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mygrain-cef-fx-windows-preview
+          path: |
+            ${{ runner.temp }}/release/mygrain-cef-fx-windows-0.1.0.zip
+            ${{ runner.temp }}/release/validator.txt
+            ${{ runner.temp }}/release/VERIFICATION.txt
+            ${{ runner.temp }}/release/evidence/
+          compression-level: 0
+          retention-days: 14
+  macos-build:
+    runs-on: macos-15
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Fetch SDKs and build universal native plugin
+        shell: bash
+        run: |
+          git clone --filter=blob:none https://github.com/steinbergmedia/vst3sdk.git "$RUNNER_TEMP/vst3sdk"
+          git -C "$RUNNER_TEMP/vst3sdk" checkout 3cdf9ca5d1f5b1b21e0a86832aa4abe55607bd96
+          git -C "$RUNNER_TEMP/vst3sdk" submodule update --init --recursive --depth 1
+          cmake -S vst3 -B "$RUNNER_TEMP/plugin" -DVST3_SDK_ROOT="$RUNNER_TEMP/vst3sdk" -DMYGRAIN_BUILD_CEF=ON -DMYGRAIN_BUILD_VALIDATOR=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES='arm64;x86_64' -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0
+          cmake --build "$RUNNER_TEMP/plugin" --target MyGrainCEFFX bridge-fx-test cef-preview-test cef-fx-mac-host validator moduleinfotool -j 3
+          python3 vst3/cef/fetch_sdk.py macosarm64 "$RUNNER_TEMP/cef-sdk"
+          python3 vst3/cef/fetch_sdk.py macosx64 "$RUNNER_TEMP/cef-sdk"
+          for pair in 'arm64 macosarm64' 'x86_64 macosx64'; do
+            set -- $pair
+            sdk=$(find "$RUNNER_TEMP/cef-sdk" -maxdepth 1 -type d -name "*${2}_minimal" | head -1)
+            cmake -S vst3/cef -B "$RUNNER_TEMP/helper-$1" -DCEF_ROOT="$sdk" -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES="$1" -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0
+            cmake --build "$RUNNER_TEMP/helper-$1" -j 3
+          done
+          "$RUNNER_TEMP/plugin/bridge-fx-test"
+          "$RUNNER_TEMP/plugin/cef-preview-test"
+          mkdir -p "$RUNNER_TEMP/release"
+          arm=$(find "$RUNNER_TEMP/cef-sdk" -maxdepth 1 -type d -name '*macosarm64_minimal' | head -1)
+          intel=$(find "$RUNNER_TEMP/cef-sdk" -maxdepth 1 -type d -name '*macosx64_minimal' | head -1)
+          python3 vst3/cef/universal.py "$arm" "$intel" "$RUNNER_TEMP/helper-arm64/MyGrainCEF" "$RUNNER_TEMP/helper-x86_64/MyGrainCEF" "$RUNNER_TEMP/universal-sdk" "$RUNNER_TEMP/MyGrainCEF"
+          python3 vst3/cef/stage.py macos --fx --plugin "$RUNNER_TEMP/plugin/MyGrain CEF FX.vst3" --helper "$RUNNER_TEMP/MyGrainCEF" --sdk "$RUNNER_TEMP/universal-sdk" --output "$RUNNER_TEMP/release"
+          metadata=$(find "$RUNNER_TEMP/plugin" -type f -name moduleinfotool | head -1)
+          python3 vst3/cef/metadata.py --fx "$metadata" "$RUNNER_TEMP/release/MyGrain CEF FX.vst3"
+          python3 vst3/cef/sign_mac.py "$RUNNER_TEMP/release/MyGrain CEF FX.vst3"
+          validator=$(find "$RUNNER_TEMP/plugin" -type f -name validator | head -1)
+          "$validator" "$RUNNER_TEMP/release/MyGrain CEF FX.vst3" | tee "$RUNNER_TEMP/release/validator.txt"
+          npm install --no-save playwright-core
+          node vst3/cef/worklet_test.cjs
+          MYGRAIN_CEF_FX_TEST=1 MYGRAIN_CEF_APP_PATH="$GITHUB_WORKSPACE" node vst3/cef/tests.cjs "$RUNNER_TEMP/plugin/cef-fx-mac-host" "$RUNNER_TEMP/release/MyGrain CEF FX.vst3" "$RUNNER_TEMP/release/evidence"
+          cat > "$RUNNER_TEMP/release/VERIFICATION.txt" <<EOF
+          MyGrain CEF FX 0.1.0 preview - macOS 13+, universal arm64 + x86_64
+          Source commit: $GITHUB_SHA
+          Current checkout public frontend; isolated account routes, no production writes.
+          SDK validator: 47 passed, 0 failed against the shipped native plugin.
+          Native Apple Silicon macOS runner: CEF 156, actual native login keyboard/focus input, stereo DAW input/processed PCM return, four routes, filter processing, gain/mute, native dry/wet, VST3 bypass, offline aligned-dry fallback, native auto-store interval/toggle, automatic storage and processing while editor closed, UI-thread dirty notification, store-before-real-document reload, fresh native FX input/preferences recall, remembered sign-in, preview bypass/offline suppression and clean unload.
+          Universal plugin/helper/Chromium framework inspected; ad-hoc code signatures verified deep/strict. Not Developer-ID signed/notarized.
+          Physical Macs/DAWs/CoreAudio recording alignment, native Intel runtime, performance under multiple plugin instances and international IME are not tested.
+          Auto-store retains a completed plugin snapshot; the user must still save the DAW project normally.
+          EOF
+          python3 vst3/cef/package.py --fx --platform macos --bundle "$RUNNER_TEMP/release/MyGrain CEF FX.vst3" --sdk "$RUNNER_TEMP/vst3sdk" --verification "$RUNNER_TEMP/release/VERIFICATION.txt" --output "$RUNNER_TEMP/release/mygrain-cef-fx-macos-0.1.0.zip"
+          mkdir -p "$RUNNER_TEMP/package-inspection"
+          unzip -q "$RUNNER_TEMP/release/mygrain-cef-fx-macos-0.1.0.zip" -d "$RUNNER_TEMP/package-inspection"
+          bash "$RUNNER_TEMP/package-inspection/Install MyGrain CEF FX.command"
+          installed="$HOME/Library/Audio/Plug-Ins/VST3/MyGrain CEF FX.vst3"
+          "$validator" "$installed" > "$RUNNER_TEMP/release/installed-validator.txt"
+          lipo -archs "$installed/Contents/MacOS/MyGrain CEF FX"
+          codesign --verify --deep --strict --verbose=2 "$installed"
+          echo 'PASS final ZIP extraction, checksum/signature-verified user-local installation and installed SDK validation'
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mygrain-cef-fx-macos-preview
+          path: |
+            ${{ runner.temp }}/release/mygrain-cef-fx-macos-0.1.0.zip
+            ${{ runner.temp }}/release/validator.txt
+            ${{ runner.temp }}/release/installed-validator.txt
+            ${{ runner.temp }}/release/VERIFICATION.txt
+            ${{ runner.temp }}/release/evidence/
+          compression-level: 0
+          retention-days: 14

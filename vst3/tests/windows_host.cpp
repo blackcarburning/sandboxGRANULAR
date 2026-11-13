@@ -1,4 +1,8 @@
 #include <sstream>
+#include <cmath>
+#ifdef MYGRAIN_CEF_FX_HOST
+#include "public.sdk/source/vst/hosting/parameterchanges.h"
+#endif
 // Test harness only; never shipped in the portable plugin ZIP.
 #include "pluginterfaces/base/ipluginbase.h"
 #include "pluginterfaces/vst/ivstcomponent.h"
@@ -49,6 +53,9 @@ int main(int argc,char**argv){
  ProjectDirtyHandler projectDirty;controller->setComponentHandler(&projectDirty);
  ProcessSetup setup{};setup.processMode=kRealtime;setup.symbolicSampleSize=kSample32;setup.maxSamplesPerBlock=128;setup.sampleRate=48000;
  if(processor->setupProcessing(setup)!=kResultOk)return 9;
+#ifdef MYGRAIN_CEF_FX_HOST
+ component->activateBus(kAudio,kInput,0,true);std::cout<<"LATENCY="<<processor->getLatencySamples()<<std::endl;
+#endif
  component->activateBus(kAudio,kOutput,0,true);component->setActive(true);processor->setProcessing(true);
 #ifdef MYGRAIN_CEF_HOST
  std::set<std::filesystem::path> priorDisplays;for(const auto& item:std::filesystem::directory_iterator(std::filesystem::temp_directory_path()))priorDisplays.insert(item.path());
@@ -69,6 +76,9 @@ int main(int argc,char**argv){
  SendMessageW(child,WM_COMMAND,102,0);
 #endif
  std::atomic<bool> saveProject{false};
+#ifdef MYGRAIN_CEF_FX_HOST
+ std::atomic<bool> bypass{false},silentInput{false};
+#endif
  std::atomic<bool> running{true},playing{true},seek{false},offline{false},cycling{false},cycleMetadata{true},reconfigure{false},stateRoundtrip{false};std::atomic<uint64_t> blocks{0};
  const std::string control=std::string(argv[2])+".control";
  std::thread audio([&]{
@@ -76,6 +86,10 @@ int main(int argc,char**argv){
   float l[128]{},r[128]{};float* channels[2]{l,r};AudioBusBuffers output{};output.numChannels=2;output.channelBuffers32=channels;
   ProcessContext context{};context.sampleRate=48000;context.tempo=120;context.timeSigNumerator=4;context.timeSigDenominator=4;
   ProcessData data{};data.processMode=kRealtime;data.symbolicSampleSize=kSample32;data.numSamples=128;data.numOutputs=1;data.outputs=&output;data.processContext=&context;
+#ifdef MYGRAIN_CEF_FX_HOST
+  float il[128]{},ir[128]{};float* ins[]{il,ir};AudioBusBuffers input{};input.numChannels=2;input.channelBuffers32=ins;data.numInputs=1;data.inputs=&input;
+  ParameterChanges changes(1);
+#endif
   auto next=std::chrono::steady_clock::now();int64_t project=0;std::vector<char> priorArmedState;
   while(running){
    if(saveProject.exchange(false)){
@@ -112,6 +126,10 @@ int main(int argc,char**argv){
    context.state=ProcessContext::kTempoValid|ProcessContext::kProjectTimeMusicValid|ProcessContext::kTimeSigValid|(metadataNow?ProcessContext::kCycleValid:0)|(playNow?ProcessContext::kPlaying:0)|(cycleNow&&metadataNow?ProcessContext::kCycleActive:0);
    context.cycleStartMusic=0;context.cycleEndMusic=4;
    context.projectTimeSamples=project;context.projectTimeMusic=project*120./(60*48000);data.processMode=offlineNow?kOffline:kRealtime;
+#ifdef MYGRAIN_CEF_FX_HOST
+   for(int i=0;i<128;++i){const double t=(blocks.load()*128+i)/48000.;il[i]=float(.1*std::sin(2*3.141592653589793*173*t));ir[i]=float(.08*std::sin(2*3.141592653589793*317*t));}
+   input.silenceFlags=silentInput?3:0;changes.clearQueue();int32 param=0,point=0;auto* q=changes.addParameterData(100,param);q->addPoint(0,bypass?1:0,point);data.inputParameterChanges=&changes;
+#endif
    if(processor->process(data)!=kResultOk){std::cerr<<"Process failed"<<std::endl;running=false;break;}
    positions<<blocks*128<<","<<project<<","<<context.projectTimeMusic<<","<<playNow<<","<<offlineNow<<","<<cycleNow<<",128\n";
    for(int i=0;i<128;++i){file.write((char*)&l[i],4);file.write((char*)&r[i],4);}
@@ -126,7 +144,11 @@ int main(int argc,char**argv){
  while(running&&std::chrono::steady_clock::now()<end){
   MSG message;while(PeekMessageW(&message,nullptr,0,0,PM_REMOVE)){TranslateMessage(&message);DispatchMessageW(&message);}
 #ifdef MYGRAIN_CEF_HOST
-  if(!printed){for(const auto& entry:std::filesystem::directory_iterator(std::filesystem::temp_directory_path())){if(priorDisplays.count(entry.path())||entry.path().filename().u8string().rfind("mygrain-cef-",0)!=0)continue;auto& display=commandDisplay;if(display.open((entry.path()/"display.ipc").u8string(),false)){std::string url=display.data->url;auto pos=url.find("#daw=");if(pos!=std::string::npos){std::cout<<url.substr(pos+5)<<std::endl;printed=true;break;}}}}
+  if(!printed){for(const auto& entry:std::filesystem::directory_iterator(std::filesystem::temp_directory_path())){if(priorDisplays.count(entry.path())||entry.path().filename().u8string().rfind("mygrain-cef-",0)!=0)continue;auto& display=commandDisplay;if(display.open((entry.path()/"display.ipc").u8string(),false)){std::string url=display.data->url;auto pos=url.find("#daw=");
+#ifdef MYGRAIN_CEF_FX_HOST
+ pos=url.find("#fx=");
+#endif
+if(pos!=std::string::npos){std::cout<<url.substr(pos+(url.compare(pos,4,"#fx=")==0?4:5))<<std::endl;printed=true;break;}}}}
 #else
   if(!printed&&OpenClipboard(parent)){
    if(auto memory=GetClipboardData(CF_UNICODETEXT)){if(auto* text=(const wchar_t*)GlobalLock(memory)){std::wstring wide(text);GlobalUnlock(memory);std::string code(wide.begin(),wide.end());if(code.size()==38&&code.find('.')==5){std::cout<<code<<std::endl;printed=true;}}}CloseClipboard();
@@ -135,6 +157,9 @@ int main(int argc,char**argv){
   std::ifstream input(control);std::string cmd,sequence;if(input){std::getline(input,cmd);std::getline(input,sequence);}
   const auto stamp=cmd+"\n"+sequence;if(stamp!=previous){previous=stamp;
 #ifdef MYGRAIN_CEF_HOST
+#ifdef MYGRAIN_CEF_FX_HOST
+  if(cmd=="bypass")bypass=true;if(cmd=="wet")bypass=false;if(cmd=="silence")silentInput=true;if(cmd=="input")silentInput=false;
+#endif
   if(cmd=="reopen-editor"&&!view){view=controller->createView(ViewType::kEditor);if(!view||view->attached(parent,kPlatformTypeHWND)!=kResultOk)return 21;child=FindWindowExW(parent,nullptr,L"MyGrainCEFView010",nullptr);}
   if(cmd=="stop-plugin")std::cout<<"CEF_STOPPED=done"<<std::endl;
   if(cmd=="cef-reload")SendMessageW(child,WM_COMMAND,101,0);

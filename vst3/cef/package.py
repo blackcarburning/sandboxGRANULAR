@@ -1,21 +1,24 @@
 #!/usr/bin/env python3
 """Package validated runtime bytes only; do not build or change existing releases."""
 import argparse,hashlib,json,pathlib,zipfile,stat
-p=argparse.ArgumentParser();p.add_argument('--bundle',type=pathlib.Path,required=True);p.add_argument('--platform',choices=['windows','macos'],required=True);p.add_argument('--verification',type=pathlib.Path,required=True);p.add_argument('--sdk',type=pathlib.Path,required=True);p.add_argument('--output',type=pathlib.Path,required=True);a=p.parse_args()
-source=pathlib.Path(__file__).parent;app=source.parents[1];assert a.bundle.name=='MyGrain CEF.vst3'
-info=json.loads((a.bundle/'Contents/Resources/moduleinfo.json').read_text());assert info['Version']=='0.1.3' and info['Classes'][0]['CID']=='A44B25E13DE64853A16CC63921C9D4B2'
+p=argparse.ArgumentParser();p.add_argument('--bundle',type=pathlib.Path,required=True);p.add_argument('--platform',choices=['windows','macos'],required=True);p.add_argument('--verification',type=pathlib.Path,required=True);p.add_argument('--sdk',type=pathlib.Path,required=True);p.add_argument('--output',type=pathlib.Path,required=True);p.add_argument('--fx',action='store_true');a=p.parse_args()
+name='MyGrain CEF FX' if a.fx else 'MyGrain CEF'
+version='0.1.0' if a.fx else '0.1.3'
+cid='2642D59B6C824E319ADE03F7B8562C10' if a.fx else 'A44B25E13DE64853A16CC63921C9D4B2'
+source=pathlib.Path(__file__).parent;app=source.parents[1];assert a.bundle.name==name+'.vst3'
+info=json.loads((a.bundle/'Contents/Resources/moduleinfo.json').read_text());assert info['Version']==version and info['Classes'][0]['CID']==cid
 files={};modes={};links={}
 for file in a.bundle.rglob('*'):
  if file.is_symlink():links[file.relative_to(a.bundle.parent).as_posix()]=str(file.readlink()).encode();continue
  if not file.is_file():continue
  key=file.relative_to(a.bundle.parent).as_posix();files[key]=file.read_bytes();modes[key]=stat.S_IMODE(file.stat().st_mode)
 if a.platform=='windows':
- assert files['MyGrain CEF.vst3/Contents/x86_64-win/MyGrain CEF.vst3'][:2]==b'MZ'
+ assert files[name+'.vst3/Contents/x86_64-win/'+name+'.vst3'][:2]==b'MZ'
  assert any(k.endswith('/cef/libcef.dll') for k in files)
  install='Close the DAW. Copy the WHOLE MyGrain CEF.vst3 folder into C:\\Program Files\\Common Files\\VST3\\, then rescan VST3. Do not copy only the inner binary.'
 else:
- assert files['MyGrain CEF.vst3/Contents/MacOS/MyGrain CEF'][:4]==b'\xca\xfe\xba\xbe'
- files['Install MyGrain CEF.command']=(source/'Install-MyGrain-CEF.command').read_bytes();modes['Install MyGrain CEF.command']=0o755
+ assert files[name+'.vst3/Contents/MacOS/'+name][:4]==b'\xca\xfe\xba\xbe'
+ files['Install '+name+'.command']=(source/'Install-MyGrain-CEF.command').read_text().replace('MyGrain CEF',name).encode();modes['Install '+name+'.command']=0o755
  install='macOS 13+. Close the DAW. From the extracted folder run ./"Install MyGrain CEF.command" (or bash "./Install MyGrain CEF.command"). Installs only this plugin in your user VST3 folder. Ad-hoc signed, not Developer-ID signed/notarized.'
 files['README-FIRST.txt']=('''MyGrain CEF 0.1.3 preview - '''+a.platform+'''\n\n'''+install+'''
 
@@ -57,7 +60,9 @@ protocol upgrades may need a plugin update; normal app edits do not.
 Preview: see VERIFICATION.txt for measured tests and untested physical DAWs/devices.
 Setup: https://openclaw.blackcarburning.com/mygrain/cef-setup.html
 ''').encode()
-files['SETUP.html']=(app/'cef-setup.html').read_bytes();files['VERIFICATION.txt']=a.verification.read_bytes();files['LICENSES/Steinberg-VST3-SDK-MIT.txt']=(a.sdk/'LICENSE.txt').read_bytes()
+if a.fx:
+ files['README-FIRST.txt']=(source/'FX-README-FIRST.txt').read_bytes()
+files['SETUP.html']=(app/('cef-fx-setup.html' if a.fx else 'cef-setup.html')).read_bytes();files['VERIFICATION.txt']=a.verification.read_bytes();files['LICENSES/Steinberg-VST3-SDK-MIT.txt']=(a.sdk/'LICENSE.txt').read_bytes()
 if a.platform=='windows':
  for fn in ['/usr/share/doc/mingw-w64-common/copyright','/usr/share/doc/gcc-mingw-w64-base/copyright']:
   src=pathlib.Path(fn)

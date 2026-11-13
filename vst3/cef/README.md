@@ -158,3 +158,10 @@ They log in with synthetic credentials, unload fully, recover the session in a
 fresh isolated helper, then log out and verify it stays forgotten after another
 unload. The diagnostic native-dialog driver is enabled only by the explicitly
 requested loopback DevTools port. No production accounts/repositories are used.
+
+## Separate CEF FX variant
+
+For the embedded stereo effect counterpart to MYGRAIN FX 0.4.0, build
+`MyGrainCEFFX`. See [FX.md](FX.md), the separate `mygrain-cef-fx.yml` workflow and
+[CEF FX setup](https://openclaw.blackcarburning.com/mygrain/cef-fx-setup.html).
+Both CEF variants use the full private Chromium runtime, not an installed browser.

@@ -150,11 +150,11 @@ void command(const Event& e,cef_browser_host_t* host){
    }
   }
   cef_key_event_t key{};key.size=sizeof(key);key.type=e.type==Char?KEYEVENT_CHAR:e.type==KeyUp?KEYEVENT_KEYUP:KEYEVENT_RAWKEYDOWN;key.windows_key_code=e.a;key.native_key_code=e.b;key.character=key.unmodified_character=e.type==Char?char16_t(e.a):char16_t(e.x);key.modifiers=e.modifiers;host->send_key_event(host,&key);break;}
- case Store:script("window.mygrainDawBridge?.storeProject()");break;
+ case Store:script(target.find("#fx=")!=std::string::npos?"window.mygrainDawFx?.storeProject()":"window.mygrainDawBridge?.storeProject()");break;
  case TestDialog:if(diagnosticInput)testDialogReply(e.a!=0,mapping.data->dialogInput);break;
  case Reload:
   // Store first and wait for the acknowledged revision. Never reload after a failed/busy store.
-  script("(async()=>{const refresh=()=>{const u=new URL("+quote(target)+");u.searchParams.set('cef_reload',String(Date.now()));location.replace(u.href);};const b=window.mygrainDawBridge;if(!b){refresh();return;}if(!b.connected){alert('Reconnect to the DAW before reloading so the current patch can be stored.');return;}const p=()=>b.diagnostics().project;const before=p();if(!before.ready||before.busy||before.storing){alert('Finish the current project operation before reloading.');return;}await b.storeProject();const until=Date.now()+125000;while(Date.now()<until){const d=p();if(!d.busy&&!d.storing){if(d.stats.count>before.stats.count){refresh();return;}break;}await new Promise(r=>setTimeout(r,100));}alert('Reload paused: the patch was not stored successfully. Your current app and previous snapshot are retained.');})()");break;
+  script("(async()=>{const refresh=()=>{const u=new URL("+quote(target)+");u.searchParams.set('cef_reload',String(Date.now()));location.replace(u.href);};const b=window["+quote(target.find("#fx=")!=std::string::npos?"mygrainDawFx":"mygrainDawBridge")+"];if(!b){refresh();return;}if(!b.connected){alert('Reconnect to the DAW before reloading so the current patch can be stored.');return;}const p=()=>b.diagnostics().project;const before=p();if(!before.ready||before.busy||before.storing){alert('Finish the current project operation before reloading.');return;}await b.storeProject();const until=Date.now()+125000;while(Date.now()<until){const d=p();if(!d.busy&&!d.storing){if(d.stats.count>before.stats.count){refresh();return;}break;}await new Promise(r=>setTimeout(r,100));}alert('Reload paused: the patch was not stored successfully. Your current app and previous snapshot are retained.');})()");break;
  }
 }
 int run(int argc,char** argv){

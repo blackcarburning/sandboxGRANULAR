@@ -1,3 +1,8 @@
+#ifdef MYGRAIN_FX
+// Objective-C classes are process-global; coexist with the CEF instrument.
+#define MGCefToolbarButton MGCEFFXToolbarButton
+#define MGCefSurface010 MGCEFFXSurface010
+#endif
 // AppKit display and input only; CEF and its NSApplication live in the helper.
 static NSColor* mgToolbarColor(unsigned rgb){return [NSColor colorWithSRGBRed:((rgb>>16)&255)/255. green:((rgb>>8)&255)/255. blue:(rgb&255)/255. alpha:1];}
 @interface MGCefToolbarButton : NSButton

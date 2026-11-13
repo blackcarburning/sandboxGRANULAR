@@ -1,0 +1,38 @@
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
+module.exports=async function({p,run,close,command,acknowledged,toolbar,rms,delay,until,out,raw,control,loginPath}){
+ const results={},diag=()=>p.evaluate(()=>mygrainDawFx.diagnostics());
+ assert.equal(await p.evaluate(()=>mygrainDawBridge.connected),false);
+ assert.equal((await diag()).mutedMonitor,true);assert.equal((await diag()).clock.latencySamples,48000);
+ await p.evaluate(()=>{stopAllPerformancePlayback({silent:true});clearAllPerformanceSoloStates({silent:true,skipSave:true});setFxMuted(true,{silent:true});setFilterEnabled('lpf',false);setFilterEnabled('hpf',false);setDrumMachineEnabled(false,{silent:true,skipSave:true});});
+ await acknowledged('cef-interval 15','CEF_CONTROL=');await p.waitForFunction(()=>mygrainDawFx.diagnostics().project.auto.interval===15);
+ await acknowledged('cef-auto','CEF_CONTROL=');await p.waitForFunction(()=>!mygrainDawFx.diagnostics().project.auto.enabled);assert.match(await toolbar(),/Auto-save: Off/);
+ await acknowledged('cef-auto','CEF_CONTROL=');await p.waitForFunction(()=>mygrainDawFx.diagnostics().project.auto.enabled);
+ await acknowledged('cef-size-small','CEF_SIZE=');await acknowledged('cef-size-normal','CEF_SIZE=');
+ const route=async name=>{await p.locator('#dawFxRoute').selectOption(name);await delay(2600);results[name]=rms();assert(results[name]>.025&&results[name]<.085,'audible native stereo '+name+': '+results[name]);};
+ await p.locator('#dawFxRoute').selectOption('direct');command('arm-plugin');
+ await p.waitForFunction(()=>mygrainDawFx.diagnostics().clock.running,null,{timeout:25000});await delay(2600);const direct=rms();assert(direct>.04&&direct<.08,'no duplicated browser return: '+direct);results.direct=direct;
+ const slider=async(id,value)=>p.locator(id).evaluate((e,v)=>{e.value=String(v);e.dispatchEvent(new Event('input',{bubbles:true}));},value);
+ await slider('#dawFxGain',-6);await delay(2700);results.gain=rms();assert(results.gain/direct>.44&&results.gain/direct<.57,'-6dB gain reaches native callback');
+ await p.locator('#dawFxMute').click();await delay(2700);assert(rms()<.0001,'input mute produces silence after queued audio');
+ await slider('#dawFxMix',0);await delay(1700);results.dry=rms();assert(Math.abs(results.dry/direct-1)<.06,'native dry/wet dry ignores muted wet');
+ await slider('#dawFxMix',100);await delay(1700);assert(rms()<.0001);
+ command('bypass');await p.waitForFunction(()=>mygrainDawFx.diagnostics().clock.bypass);await delay(1700);results.bypass=rms();assert(Math.abs(results.bypass/direct-1)<.06,'VST3 bypass returns aligned dry');
+ command('wet');await p.waitForFunction(()=>!mygrainDawFx.diagnostics().clock.bypass);await p.locator('#dawFxMute').click();await slider('#dawFxGain',0);
+ for(const name of ['filters','master','final','direct'])await route(name);
+ // Actual filter processing, not only a connected/silent graph.
+ await p.locator('#dawFxRoute').selectOption('filters');await p.evaluate(()=>{setFilterEnabled('lpf',true);setSliderValue('lpfCutoff',90);setSliderValue('lpfQ',.707);updateEffects();});await delay(2800);results.filtered=rms();assert(results.filtered<direct*.5,'LPF must process DAW input');await p.evaluate(()=>setFilterEnabled('lpf',false));
+ await p.locator('#dawFxRoute').selectOption('direct');command('offline');await p.waitForFunction(()=>mygrainDawFx.diagnostics().clock.offline);await delay(1700);assert(Math.abs(rms()/direct-1)<.06,'offline is dry, not an obsolete cached effect');command('realtime');await p.waitForFunction(()=>mygrainDawFx.diagnostics().clock.running);
+ command('close-editor');await slider('#dawFxGain',-6);await delay(2700);assert(rms()<direct*.57,'FX continues while editor closed');
+ const before=(await diag()).project.stats.count;await p.waitForFunction(n=>mygrainDawFx.diagnostics().project.stats.count>n,before,{timeout:35000});results.closedEditorAutoStore=true;
+ command('reopen-editor');await delay(500);await acknowledged('cef-store','CEF_CONTROL=');const count=(await diag()).project.stats.count;await p.waitForFunction(n=>mygrainDawFx.diagnostics().project.stats.count>n,count,{timeout:45000});
+ command('save-project');await until(()=>fs.existsSync(raw+'.project.bin'),'native FX project file',10000);const state=path.join(out,'fx-saved-project.bin');fs.copyFileSync(raw+'.project.bin',state);assert.equal(fs.readFileSync(state).readUInt32LE(0),0x3158474d);
+ // Store + reload must select mygrainDawFx, not the disconnected instrument API.
+ const epoch=await p.evaluate(()=>performance.timeOrigin);command('cef-reload');await p.waitForEvent('framenavigated',{predicate:f=>f===p.mainFrame(),timeout:125000});await p.waitForFunction(()=>window.mygrainDawFx&&document.documentElement.dataset.mygrainStartup==='ready',null,{timeout:90000});if(await p.locator('#start-btn').isVisible())await p.locator('#start-btn').click();await p.waitForFunction(()=>mygrainDawFx.connected&&mygrainDawFx.diagnostics().project.ready&&!mygrainDawFx.diagnostics().project.busy,null,{timeout:90000});assert.notEqual(await p.evaluate(()=>performance.timeOrigin),epoch);assert.equal((await diag()).gainDb,-6);assert.equal((await diag()).route,'direct');assert.equal((await diag()).project.auto.interval,15);results.reloadRecall=true;
+ await acknowledged('screenshot','CEF_SCREENSHOT=');fs.copyFileSync(raw+(process.platform==='win32'?'.bmp':'.png'),path.join(out,'cef-fx-native'+(process.platform==='win32'?'.bmp':'.png')));await p.screenshot({path:path.join(out,'cef-fx-app.png')});await close();
+ fs.writeFileSync(control,'');const q=await run(state);const recalled=await q.evaluate(()=>mygrainDawFx.diagnostics());assert.equal(recalled.gainDb,-6);assert.equal(recalled.route,'direct');assert.equal(recalled.project.auto.interval,15);results.freshRecall=true;assert(fs.existsSync(loginPath));
+ command('stop-plugin');await q.waitForFunction(()=>!mygrainDawFx.diagnostics().clock.armed);await delay(1600);assert(Math.abs(rms()/direct-1)<.06,'Stop disarms to dry');
+ // Independent browser previews still reach the native callback, but not bypass/offline.
+ command('silence');await delay(1600);assert(rms()<.0001);await q.evaluate(async()=>{window.cefFxPreview=new AudioContext();await cefFxPreview.resume();const o=cefFxPreview.createOscillator(),g=cefFxPreview.createGain();g.gain.value=.08;o.connect(g);g.connect(cefFxPreview.destination);o.start();});await delay(1700);assert(rms()>.03);command('bypass');await q.waitForFunction(()=>mygrainDawFx.diagnostics().clock.bypass);await delay(1700);assert(rms()<.0001,'bypass suppresses browser preview bus');command('wet');await delay(1400);assert(rms()>.03);command('offline');await delay(1700);assert(rms()<.0001);await q.evaluate(()=>cefFxPreview.close());command('realtime');results.previewBypassAndOffline=true;
+ await close();fs.writeFileSync(path.join(out,'cef-fx-results.json'),JSON.stringify(results,null,2));console.log('PASS CEF FX native stereo input/return, gain/mute/routes/filter/mix/bypass/offline, closed editor storage, reload and fresh recall');
+};

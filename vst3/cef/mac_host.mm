@@ -1,4 +1,7 @@
 #include <sstream>
+#ifdef MYGRAIN_CEF_FX_HOST
+#include "public.sdk/source/vst/hosting/parameterchanges.h"
+#endif
 // Native macOS integration harness; excluded from release bundles.
 #import <Cocoa/Cocoa.h>
 #include "pluginterfaces/base/ipluginbase.h"
@@ -38,7 +41,7 @@ int main(int argc,char**argv){@autoreleasepool{
  HostApplication host;if(component->initialize(&host)!=kResultOk)return 7;
  IAudioProcessor* processor=nullptr;IEditController* controller=nullptr;
  if(component->queryInterface(IAudioProcessor::iid,(void**)&processor)!=kResultOk||component->queryInterface(IEditController::iid,(void**)&controller)!=kResultOk)return 8;
- const bool fx=false;
+ const bool fx=component->getBusCount(kAudio,kInput)==1;
  if(argc>4){std::ifstream file(argv[4],std::ios::binary);std::vector<char> bytes((std::istreambuf_iterator<char>(file)),{});MemoryStream saved(bytes.data(),bytes.size());if(component->setState(&saved)!=kResultOk)return 20;}
  ProjectDirtyHandler projectDirty;controller->setComponentHandler(&projectDirty);
  ProcessSetup setup{};setup.processMode=kRealtime;setup.symbolicSampleSize=kSample32;setup.maxSamplesPerBlock=128;setup.sampleRate=48000;
@@ -50,17 +53,26 @@ int main(int argc,char**argv){@autoreleasepool{
  if(!button(window.contentView,102)||!button(window.contentView,106))return 11;
  [window makeKeyAndOrderFront:nil];[NSApp activateIgnoringOtherApps:YES];
  
+ std::atomic<bool> bypass{false},silentInput{false};
  std::atomic<bool> playing{true};std::atomic<bool> running{true};std::atomic<int> mode{0};
  std::thread audio([&]{
   std::ofstream file(argv[2],std::ios::binary);float il[128]{},ir[128]{},l[128]{},r[128]{};float* inputs[]{il,ir};float* outputs[]{l,r};
   AudioBusBuffers input{},output{};input.numChannels=output.numChannels=2;input.channelBuffers32=inputs;output.channelBuffers32=outputs;
   ProcessContext context{};context.sampleRate=48000;context.tempo=120;context.timeSigNumerator=4;context.timeSigDenominator=4;
   ProcessData data{};data.symbolicSampleSize=kSample32;data.numSamples=128;data.numInputs=fx?1:0;data.inputs=fx?&input:nullptr;data.numOutputs=1;data.outputs=&output;data.processContext=&context;
+  uint64_t clock=0;
+#ifdef MYGRAIN_CEF_FX_HOST
+  ParameterChanges changes(1);
+#endif
   uint64_t frame=0;auto next=std::chrono::steady_clock::now();
   while(running){
    context.state=ProcessContext::kTempoValid|ProcessContext::kProjectTimeMusicValid|ProcessContext::kTimeSigValid|(playing?ProcessContext::kPlaying:0);
    context.projectTimeSamples=frame;context.projectTimeMusic=frame/24000.;data.processMode=mode.load()==1?kOffline:kRealtime;
-   for(int i=0;i<128;++i){il[i]=float(.1*std::sin(2*3.141592653589793*173*(frame+i)/48000.));ir[i]=float(.08*std::sin(2*3.141592653589793*317*(frame+i)/48000.));}
+   for(int i=0;i<128;++i){il[i]=float(.1*std::sin(2*3.141592653589793*173*(clock+i)/48000.));ir[i]=float(.08*std::sin(2*3.141592653589793*317*(clock+i)/48000.));}
+#ifdef MYGRAIN_CEF_FX_HOST
+   input.silenceFlags=silentInput?3:0;changes.clearQueue();int32 param=0,point=0;auto* q=changes.addParameterData(100,param);q->addPoint(0,bypass?1:0,point);data.inputParameterChanges=&changes;
+#endif
+   clock+=128;
    if(processor->process(data)!=kResultOk){running=false;break;}
    for(int i=0;i<128;++i){file.write((char*)&l[i],4);file.write((char*)&r[i],4);}if(playing)frame+=128;
    next+=std::chrono::nanoseconds(2666667);std::this_thread::sleep_until(next);
@@ -69,7 +81,7 @@ int main(int argc,char**argv){@autoreleasepool{
  mygrain::cef::Mapping commandDisplay;bool printed=false;std::string previous;const auto deadline=std::chrono::steady_clock::now()+std::chrono::seconds(argc>3?std::atoi(argv[3]):300);
  while(running&&std::chrono::steady_clock::now()<deadline){@autoreleasepool{
   [[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:.02]];
-  if(!printed){for(const auto& item:std::filesystem::directory_iterator(std::filesystem::temp_directory_path())){if(priorDisplays.count(item.path())||item.path().filename().u8string().rfind("mygrain-cef-",0)!=0)continue;auto& display=commandDisplay;if(display.open((item.path()/"display.ipc").u8string(),false)){std::string url=display.data->url;auto pos=url.find("#daw=");if(pos!=std::string::npos){std::cout<<"CODE="<<url.substr(pos+5)<<std::endl;printed=true;break;}}}}
+  if(!printed){for(const auto& item:std::filesystem::directory_iterator(std::filesystem::temp_directory_path())){if(priorDisplays.count(item.path())||item.path().filename().u8string().rfind("mygrain-cef-",0)!=0)continue;auto& display=commandDisplay;if(display.open((item.path()/"display.ipc").u8string(),false)){std::string url=display.data->url;auto pos=url.find(fx?"#fx=":"#daw=");if(pos!=std::string::npos){std::cout<<"CODE="<<url.substr(pos+(fx?4:5))<<std::endl;printed=true;break;}}}}
 
   std::ifstream control(std::string(argv[2])+".control");std::string command,sequence;std::getline(control,command);std::getline(control,sequence);
   const auto stamp=command+"\n"+sequence;if(stamp!=previous){previous=stamp;
@@ -93,6 +105,8 @@ int main(int argc,char**argv){@autoreleasepool{
    if(command.rfind("cef-native-key ",0)==0){std::istringstream keys(command.substr(15));int ch=0,vk=0;if(keys>>ch>>vk){NSView* surface=window.contentView.subviews.firstObject;unichar c=ch;NSString* text=[NSString stringWithCharacters:&c length:ch?1:0];for(NSEventType type:{NSEventTypeKeyDown,NSEventTypeKeyUp}){NSEvent* event=[NSEvent keyEventWithType:type location:NSZeroPoint modifierFlags:0 timestamp:NSProcessInfo.processInfo.systemUptime windowNumber:window.windowNumber context:nil characters:text charactersIgnoringModifiers:text isARepeat:NO keyCode:mygrain::cef::nativeKey(vk)];if(type==NSEventTypeKeyDown)[surface keyDown:event];else [surface keyUp:event];}}}
 
    if(command.rfind("cef-click ",0)==0){std::istringstream point(command.substr(10));int x=0,y=0;if(point>>x>>y){NSView* surface=window.contentView.subviews.firstObject;NSPoint location=[surface convertPoint:NSMakePoint(x,y+mygrain::cef::toolbarHeight) toView:nil];for(NSEventType type:{NSEventTypeLeftMouseDown,NSEventTypeLeftMouseUp}){NSEvent* event=[NSEvent mouseEventWithType:type location:location modifierFlags:0 timestamp:NSProcessInfo.processInfo.systemUptime windowNumber:window.windowNumber context:nil eventNumber:0 clickCount:1 pressure:1];if(type==NSEventTypeLeftMouseDown)[surface mouseDown:event];else [surface mouseUp:event];}}}
+   if(command=="bypass")bypass=true;if(command=="wet")bypass=false;if(command=="silence")silentInput=true;if(command=="input")silentInput=false;
+   if(command=="offline")mode=1;if(command=="realtime")mode=0;
    if(command=="play")playing=true;if(command=="stop")playing=false;
    if(command=="close-editor"&&view){view->removed();view->release();view=nullptr;}
    if(command=="reopen-editor"&&!view){view=controller->createView(ViewType::kEditor);if(!view||view->attached(window.contentView,kPlatformTypeNSView)!=kResultOk)std::abort();}

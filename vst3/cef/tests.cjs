@@ -6,6 +6,7 @@ fs.mkdirSync(out,{recursive:true});
 const loginPath=path.resolve(out,'private-login.dat');
 const fixtureToken='cef_fixture_session_7_abcdefghijklmnopqrstuvwxyz';
 const uploads=[];
+const fx=process.env.MYGRAIN_CEF_FX_TEST==='1',api=fx?'mygrainDawFx':'mygrainDawBridge',fragment=fx?'fx':'daw';
 function wavFixture(){const rate=48000,frames=rate*5,b=Buffer.alloc(44+frames*4);b.write('RIFF');b.writeUInt32LE(b.length-8,4);b.write('WAVEfmt ',8);b.writeUInt32LE(16,16);b.writeUInt16LE(1,20);b.writeUInt16LE(2,22);b.writeUInt32LE(rate,24);b.writeUInt32LE(rate*4,28);b.writeUInt16LE(4,32);b.writeUInt16LE(16,34);b.write('data',36);b.writeUInt32LE(frames*4,40);for(let i=0;i<frames;i++)for(let c=0;c<2;c++)b.writeInt16LE(Math.round(6500*Math.sin(2*Math.PI*(c?337:173)*i/rate)),44+i*4+c*2);return b;}
 const previewWav=wavFixture();
 
@@ -18,14 +19,15 @@ async function fixture(context,auth={signedIn:true,posts:0}){
  await context.addInitScript(source=>{
   const original=Worklet.prototype.addModule;
   Worklet.prototype.addModule=function(url,...args){
-   if(new URL(url,location.href).pathname==='/mygrain/daw-bridge-worklet.js'){
-    const blob=URL.createObjectURL(new Blob([source],{type:'text/javascript'}));
+   const name=new URL(url,location.href).pathname.split('/').pop();
+   if(source[name]){
+    const blob=URL.createObjectURL(new Blob([source[name]],{type:'text/javascript'}));
     window.cefPinnedWorkletLoads=(window.cefPinnedWorkletLoads||0)+1;
     return original.call(this,blob,...args).finally(()=>URL.revokeObjectURL(blob));
    }
    return original.call(this,url,...args);
   };
- },fs.readFileSync(path.join(app,'daw-bridge-worklet.js'),'utf8'));
+ },Object.fromEntries(['daw-bridge-worklet.js','daw-fx-worklet.js'].map(n=>[n,fs.readFileSync(path.join(app,n),'utf8')])));
  await context.route('**/*',async route=>{
   const u=new URL(route.request().url());if(u.origin!==origin){await route.abort();return;}
   auth.signedIn=(route.request().headers().cookie||'').includes('mygrain_session='+fixtureToken);
@@ -68,7 +70,7 @@ async function run(state,signedOutOnly=false){
  await p.waitForURL(u=>u.href.startsWith(origin+'/mygrain/'));
  const savedCookies=await c.cookies(origin);assert.equal(savedCookies.some(x=>x.name==='mygrain_session'&&x.value===fixtureToken),!!state&&!signedOutOnly,'session imported into a fresh isolated helper');
  p.on('dialog',()=>{});
- const response=await p.goto(origin+'/mygrain/?mygrain_cef=1&account=login&cef_fixture='+Date.now()+'#daw='+code);assert.equal(response.headers()['x-mygrain-isolated-test'],'cef-project');
+ const response=await p.goto(origin+'/mygrain/?mygrain_cef=1&account=login&cef_fixture='+Date.now()+'#'+fragment+'='+code);assert.equal(response.headers()['x-mygrain-isolated-test'],'cef-project');
  p.on('pageerror',e=>fs.appendFileSync(path.join(out,'page-errors.txt'),e.stack+'\n'));
  if(signedOutOnly){await p.locator('#mygrainLoginUsername').waitFor({state:'visible'});return p;}
  if(!state){
@@ -103,14 +105,14 @@ async function run(state,signedOutOnly=false){
 
  await p.waitForFunction(()=>window.mygrainDawBridge&&document.documentElement.dataset.mygrainStartup==='ready',null,{timeout:90000}).catch(async error=>{fs.writeFileSync(path.join(out,'startup-diagnostic.json'),JSON.stringify(await p.evaluate(()=>({url:location.href,build:document.querySelector('.build-badge')?.textContent,status:document.documentElement.dataset,body:document.body.innerText.slice(0,15000)})),null,2));throw error;});
  if(await p.locator('#start-btn').isVisible())await p.locator('#start-btn').click();
- await p.waitForFunction(()=>mygrainDawBridge.connected&&mygrainDawBridge.diagnostics().project.ready&&isAudioGraphReady()&&!engineStarting&&!stateSaveSuspended&&!mygrainCardHistory.busy,null,{timeout:90000});
+ await p.waitForFunction(api=>window[api].connected&&window[api].diagnostics().project.ready&&isAudioGraphReady()&&!engineStarting&&!stateSaveSuspended&&!mygrainCardHistory.busy,api,{timeout:90000});
  assert.equal(await p.evaluate(()=>mygrainAccounts.user.username),'cef-fixture');if(state)assert.equal(auth.posts,0,'fresh instance must not submit credentials');
  return p;
 }
 async function close(){command('quit');if(browser){await browser.close().catch(()=>{});browser=null;}await until(()=>exit!==null,'native clean unload',15000);assert.equal(exit,0,log);fs.writeFileSync(path.join(out,'cef-native-host.log'),log);}
 function rms(){const bytes=fs.readFileSync(raw);let power=0,n=0;for(let at=Math.max(0,bytes.length-48000*8);at+4<=bytes.length;at+=4){const v=bytes.readFloatLE(at);assert(Number.isFinite(v));power+=v*v;n++;}return Math.sqrt(power/Math.max(1,n));}
 (async()=>{try{
- const p=await run();await until(()=>fs.existsSync(loginPath),'remembered session persisted');assert(!fs.readFileSync(loginPath).includes(Buffer.from('Aa7!@-z')),'never store the account password');command('stop');const diag=()=>p.evaluate(()=>mygrainDawBridge.diagnostics());
+ const p=await run();if(fx){await require('./fx_tests.cjs')({p,run,close,command,acknowledged,toolbar,rms,delay,until,out,raw,control,loginPath});return;}await until(()=>fs.existsSync(loginPath),'remembered session persisted');assert(!fs.readFileSync(loginPath).includes(Buffer.from('Aa7!@-z')),'never store the account password');command('stop');const diag=()=>p.evaluate(()=>mygrainDawBridge.diagnostics());
  const audit=async label=>{const value=await p.evaluate(async()=>{const a=audioContext.createAnalyser();a.fftSize=2048;finalAmplifierNode.connect(a);await new Promise(r=>setTimeout(r,150));const v=new Float32Array(2048);a.getFloatTimeDomainData(v);finalAmplifierNode.disconnect(a);return {audio:{state:audioContext.state,time:audioContext.currentTime,rate:audioContext.sampleRate,rms:Math.sqrt(v.reduce((sum,x)=>sum+x*x,0)/v.length)},visibility:document.visibilityState,bridge:mygrainDawBridge.diagnostics(),status:document.querySelector('#dawBridgeStatus')?.textContent};});value.nativeRms=rms();fs.writeFileSync(path.join(out,label+'.json'),JSON.stringify(value,null,2));};
 
  assert.equal((await diag()).project.auto.enabled,true);assert.equal((await diag()).project.auto.interval,60);
