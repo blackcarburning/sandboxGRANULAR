@@ -68,7 +68,7 @@ upstream of the plugin's dry fallback.
 
 ## Silent FX clock
 
-The helper installs an FX-only zero-input/zero-output automatic-pull worklet in
+The helper installs an FX-only zero-output automatic-pull worklet in
 the main interactive AudioContext. It generates no samples and changes no FX
 DSP, mapping, latency or native callback. Chromium otherwise migrates a silent
 output to its fake sink after 30 seconds, which is inappropriate for this

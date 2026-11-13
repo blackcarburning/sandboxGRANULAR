@@ -18,7 +18,7 @@ constexpr const char* fxClockScript=R"JS(
   try{
    await ctx.audioWorklet.addModule(url);
    if(closed||ctx.state==='closed')return;
-   node=new AudioWorkletNode(ctx,'mygrain-cef-fx-clock-v1',{numberOfInputs:0,numberOfOutputs:0});
+   node=new AudioWorkletNode(ctx,'mygrain-cef-fx-clock-v1',{numberOfInputs:1,numberOfOutputs:0});
    context=ctx;state.ready=true;state.error='';
   }catch(e){state.error=String(e?.message||e);}
   finally{URL.revokeObjectURL(url);pending=false;}

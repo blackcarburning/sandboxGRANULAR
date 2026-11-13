@@ -3,7 +3,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
 module.exports=async function({p,run,close,command,acknowledged,toolbar,rms,delay,until,out,raw,control,loginPath}){
  const trace=[];const audit=async label=>{const d=await p.evaluate(()=>({time:performance.now(),audio:{state:audioContext.state,time:audioContext.currentTime,rate:audioContext.sampleRate,baseLatency:audioContext.baseLatency,outputLatency:audioContext.outputLatency},wire:window.cefFxWireDiagnostics,clockGuard:window.mygrainCefFxClock,fx:mygrainDawFx.diagnostics(),capture:{engineStarting,stateSaveSuspended,historyBusy:mygrainCardHistory.busy}}));trace.push({label,nativeRms:rms(),...d});fs.writeFileSync(path.join(out,'fx-stream-trace.json'),JSON.stringify(trace,null,2));};
  const results={},diag=()=>p.evaluate(()=>mygrainDawFx.diagnostics());
- await p.waitForFunction(()=>window.mygrainCefFxClock?.ready,null,{timeout:15000});
+ await p.waitForFunction(()=>window.mygrainCefFxClock?.ready||window.mygrainCefFxClock?.error,null,{timeout:15000});const guard=await p.evaluate(()=>window.mygrainCefFxClock);assert(guard.ready,JSON.stringify(guard));
  assert.equal(await p.evaluate(()=>mygrainDawBridge.connected),false);
  assert.equal((await diag()).mutedMonitor,true);assert.equal((await diag()).clock.latencySamples,48000);
  await p.evaluate(async()=>{stopAllPerformancePlayback({silent:true});clearAllPerformanceSoloStates({silent:true,skipSave:true});setFxMuted(true,{silent:true});setFilterEnabled('lpf',false);setFilterEnabled('hpf',false);setDrumMachineEnabled(false,{silent:true,skipSave:true});
