@@ -14,7 +14,7 @@ async function until(fn,label,timeout=30000){const end=Date.now()+timeout;while(
 const mime=p=>({'.html':'text/html','.js':'text/javascript','.cjs':'text/javascript','.json':'application/json','.css':'text/css','.wasm':'application/wasm','.png':'image/png','.webp':'image/webp','.wav':'audio/wav','.woff2':'font/woff2'}[path.extname(p)]||'application/octet-stream');
 async function fixture(context,auth={signedIn:true,posts:0}){
  // Chromium AudioWorklet module fetches can bypass CDP request interception.
- // Pin the unchanged release module bytes in a same-origin blob instead of
+ // Pin the release module bytes in a same-origin blob instead of
  // accidentally executing the older production worklet during isolated tests.
  await context.addInitScript(source=>{
   const original=Worklet.prototype.addModule;
@@ -27,7 +27,10 @@ async function fixture(context,auth={signedIn:true,posts:0}){
    }
    return original.call(this,url,...args);
   };
- },Object.fromEntries(['daw-bridge-worklet.js','daw-fx-worklet.js'].map(n=>[n,fs.readFileSync(path.join(app,n),'utf8')])));
+ },Object.fromEntries(['daw-bridge-worklet.js','daw-fx-worklet.js'].map(n=>{let source=fs.readFileSync(path.join(app,n),'utf8');if(fx&&n==='daw-fx-worklet.js')source+=`
+for(const [type,Processor] of [['input',MygrainFxInput],['return',MygrainFxReturn]]){const original=Processor.prototype.process;Processor.prototype.process=function(...args){const result=original.apply(this,args);if(currentFrame-(this.testDiagnosticFrame||0)>=sampleRate){this.testDiagnosticFrame=currentFrame;this.port.postMessage({type:'testDiagnostic',processor:type,currentFrame,rate:sampleRate,epoch:this.mapping?.epoch??this.epoch,queued:this.w-this.r,base:this.base,expected:this.expected,read:this.r,write:this.w,started:this.started,mapping:this.mapping?.positions[0],previous:this.previous,lastSentEnd:this.lastSentEnd,used:this.used,pool:this.pool?.length,dead:this.dead});}return result;};}
+`;return[n,source];})));
+ if(fx)await context.addInitScript(()=>{const Original=Worker;window.Worker=class extends Original{constructor(...args){super(...args);this.addEventListener('message',({data})=>{if(data.type==='testDiagnostic')(window.cefFxWireDiagnostics||(window.cefFxWireDiagnostics={}))[data.processor]=data;});}};});
  await context.route('**/*',async route=>{
   const u=new URL(route.request().url());if(u.origin!==origin){await route.abort();return;}
   auth.signedIn=(route.request().headers().cookie||'').includes('mygrain_session='+fixtureToken);
@@ -54,7 +57,7 @@ async function fixture(context,auth={signedIn:true,posts:0}){
    await route.fulfill({headers,contentType:'application/json',body:JSON.stringify(body)});return;
   }
   const file=path.resolve(app,n);if(!file.startsWith(app+path.sep)||!fs.existsSync(file)||!fs.statSync(file).isFile()){await route.fulfill({status:404,headers,body:'Isolated fixture: missing asset'});return;}
-  await route.fulfill({headers,contentType:mime(file),body:fs.readFileSync(file)});
+  await route.fulfill({headers,contentType:mime(file),body:fx&&n==='daw-fx-worker.js'?fs.readFileSync(file,'utf8')+`\nself.addEventListener('message',({data})=>{if(data.type==='ports')for(const port of [data.input,data.returned])port.addEventListener('message',({data:d})=>{if(d.type==='testDiagnostic')postMessage(d);});});\n`:fs.readFileSync(file)});
  });
 }
 let child,browser,code,log='',exit=null;const raw=path.resolve(out,'cef-native.f32'),control=raw+'.control';
