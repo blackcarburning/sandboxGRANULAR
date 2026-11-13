@@ -54,6 +54,7 @@ jobs:
           $hostExe = "$env:RUNNER_TEMP/plugin/Release/cef-fx-windows-host.exe"
           $env:MYGRAIN_CEF_APP_PATH = "$env:GITHUB_WORKSPACE"
           $env:MYGRAIN_CEF_FX_TEST = "1"
+          node vst3/cef/fx_clock_test.cjs
           node vst3/cef/worklet_test.cjs
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           node vst3/cef/tests.cjs "$hostExe" "$bundle/Contents/x86_64-win/MyGrain CEF FX.vst3" "$env:RUNNER_TEMP/release/evidence"
@@ -120,6 +121,7 @@ jobs:
           validator=$(find "$RUNNER_TEMP/plugin" -type f -name validator | head -1)
           "$validator" "$RUNNER_TEMP/release/MyGrain CEF FX.vst3" | tee "$RUNNER_TEMP/release/validator.txt"
           npm install --no-save playwright-core
+          node vst3/cef/fx_clock_test.cjs
           node vst3/cef/worklet_test.cjs
           MYGRAIN_CEF_FX_TEST=1 MYGRAIN_CEF_APP_PATH="$GITHUB_WORKSPACE" node vst3/cef/tests.cjs "$RUNNER_TEMP/plugin/cef-fx-mac-host" "$RUNNER_TEMP/release/MyGrain CEF FX.vst3" "$RUNNER_TEMP/release/evidence"
           cat > "$RUNNER_TEMP/release/VERIFICATION.txt" <<EOF

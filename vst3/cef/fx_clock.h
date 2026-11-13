@@ -12,7 +12,7 @@ constexpr const char* fxClockScript=R"JS(
  const tick=async()=>{
   if(closed||pending||!window.mygrainDawFx?.connected)return;
   let ctx;try{ctx=typeof audioContext==='undefined'?null:audioContext;}catch{return;}
-  if(!ctx||ctx.state==='closed'||ctx===context||!ctx.audioWorklet)return;
+  if(!ctx||typeof ctx.startRendering==='function'||ctx.state==='closed'||ctx===context||!ctx.audioWorklet)return;
   pending=true;dispose();
   const url=URL.createObjectURL(new Blob([`class MygrainCefFxClock extends AudioWorkletProcessor {constructor(){super();this.alive=true;this.port.onmessage=()=>this.alive=false;}process(){return this.alive;}}registerProcessor('mygrain-cef-fx-clock-v1',MygrainCefFxClock);`],{type:'text/javascript'}));
   try{
