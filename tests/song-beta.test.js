@@ -3321,3 +3321,17 @@ test('inherited editor credit cannot admit an oversized replacement deck', async
     assert.ok(!trace.includes('checkpoint') && !trace.includes('detach'));
     assert.equal(c.memoryBudget.bytes, 0);
 });
+
+test('Playground resonance refresh is selective and accepts current cached audio',()=>{
+ const {controller}=makeController();
+ const legacy={...first,sha256:'snapshot',render:{version:1,sourceSha256:'snapshot',keyboardVersion:1,grainVersion:5,portableVersion:1,kReverbVersion:1}};
+ const decoded=mode=>({snapshot:{state:{modes:{wasp:{playground:{enabled:true,mode}}}}}});
+ for(const mode of ['lowpass','highpass','bandpass','notch','allpass','peak','lowshelf','highshelf']){
+  assert.equal(controller.isRenderCompatible(legacy,decoded(mode)),false);
+  assert.equal(controller.isRenderCompatible({...legacy,render:{...legacy.render,playgroundVersion:1}},decoded(mode)),true);
+ }
+ for(const mode of ['comb','combNegative'])assert.equal(controller.isRenderCompatible(legacy,decoded(mode)),true);
+ assert.equal(controller.isRenderCompatible(legacy,{snapshot:{}}),true);
+ assert.equal(controller.isRenderCompatible({...legacy,playgroundVersion:1}),false);
+ assert.equal(controller.hasSavedRender({...legacy,playgroundVersion:1}),false);
+});

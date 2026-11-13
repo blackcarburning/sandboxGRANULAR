@@ -1,6 +1,6 @@
 # F — The Wasp
 
-Two stereo loop-to-loop modulation routes. All loop lanes, including N, are
+Two editable stereo loop-to-loop modulation rows, with **at most one source row enabled**. All loop lanes, including N, are
 selectable through the shared Wasp key inventory (28 total).
 K and drums can be selected individually or as groups; All loops is supported for
 sources and destinations. There are two modulation rows, not two available loops.
@@ -48,8 +48,10 @@ more expensive while enabled than a few targeted routes.
 
 ## Hard bypass contract
 
-Fresh page startup always forces Wasp OFF but retains row settings. Explicit
-preset/patch/Song recall restores its saved power state to reproduce the sound.
+Page reload restores Wasp and Filter Playground power and all canonical settings.
+Turning on either source row switches the other off; the alternate row’s settings
+remain editable and saved. Presets, randomisation and legacy recall also enforce
+the one-source limit. Explicit preset/patch/Song recall restores saved power.
 Missing Wasp state in legacy imports restores six disabled rows and OFF power.
 Presets configure routes without changing the current power switch.
 
@@ -205,3 +207,180 @@ wet PCM and dry bypass, fresh node identity, and acknowledged retirement.
 The pre-change host failed the fresh-node assertion. WebKit/Chromium phone
 viewports are browser simulation, not physical iPhone verification.
 Backup: output/mygrain-wasp-restart2-20261026/.
+
+
+## Filter Playground — PLAYGROUND.1 (2026-11-04)
+
+Filter Playground is an independent instrument card with its own power, header,
+Jump/search entry and layer/mixer shortcuts. Signal order:
+Wasp Melt → optional Wasp LFO filter → Wasp Output → Dry/Wasp mix and ceiling
+→ independent Playground → final output. WASP Off bypasses the Wasp stages only;
+Playground still processes the complete mix, including the dry side of Dry/Wasp.
+Playground Off preserves the previous Wasp path exactly.
+
+The Playground supports low/high/band-pass, notch, positive/negative comb,
+all-pass, resonant peak and low/high shelf; 12–96 dB/octave (2–16 poles) selects
+one to eight two-pole sections. Roll-off wording applies to LP/HP; other modes
+cascade their respective shapes. A separate resonator supplies an independent
+resonant-frequency control; Q is inverse damping, bounded 0.2–24.
+
+Cutoff, resonant frequency and Q each have independent source/amount controls.
+Every Wasp track, D, individual K/drum tracks and useful groups can drive a
+rectified attack/release follower. The source is tapped pre-Wasp and used only
+for detection, never added to the mix. D retains its original direct audio route;
+only its detection tap is added. Bipolar envelope amounts span ±10 octaves
+for frequency and ±8 octaves for Q, with bounds and smoothing. Shared sensitivity,
+attack/release and drawn-curve rate are saved explicitly.
+
+Each control also accepts its own 64-point drawn periodic curve. Pointer drawing,
+keyboard point editing and Sine/Ramp/Steps/Flat tools modify canonical settings;
+no visual animation timer runs. Curve interpolation and clocking run in the same
+DSP for live and server/offline output. Phone uses this same full Playground,
+not its reduced legacy-filter implementation.
+
+Off removes all native modulation-source connections immediately and disposes
+all Playground filter, comb, follower and curve processing state. No Playground
+instance or sample processing is retained in the already-existing master insert.
+Wasp Off releases its cross-modulation graph but retains an active Playground.
+With Playground alone there is one final insert and no 32-bus Wasp allocation.
+Both Off restores hard bypass with no processing nodes. Parameter edits while
+Off do not enable the Playground. Wasp presets and Wasp-only randomisation retain
+Playground settings and power. Ordinary/Mega/Sparse whole-patch randomisation
+sets Playground Off while retaining editable settings.
+Explicit saved patch/Song recall preserves the requested saved power settings.
+
+Settings are additive `modes.wasp.playground` / `preset.wasp.playground`, including
+private Wasp libraries. Missing legacy state defaults Off. Bypassed Playground
+settings are removed from audio-content hashing, preserving old caches; active
+Playground uses audio-content engine revision 7 (including when Wasp is Off).
+Wasp-only and fully bypassed legacy cache signatures are unchanged. Inactive
+Wasp settings do not invalidate Playground-only renders. Sources/archives are never rewritten.
+Tests: `tests/wasp-playground.test.cjs`, `tests/test_wasp_playground.py`,
+`tests/wasp-playground-browser.cjs` and `tests/wasp-playground-song-browser.cjs`.
+
+### Draw-curve discovery — DRAW.2 (2026-11-04)
+
+An always-visible Draw Your Own Modulation panel offers direct Cutoff, Resonance
+and Q editor buttons. Each source selector also has a dedicated Draw/Edit Curve
+button. These select the existing `drawn` source, preserve its canonical points,
+then reveal, scroll to and focus the authoritative editor. They never enable
+Playground or WASP. Dropdowns and buttons stay synchronized; the existing
+history, preset/Song formats, bypass behavior and audio engine are unchanged.
+Phone actions and shape buttons have 44–48 px minimum touch heights.
+Verification: `tests/wasp-draw-discovery-browser.cjs`.
+
+## Independent drawn-curve clocks and musical grid (2026-11-04)
+
+Cutoff, Resonance and Q retain independent 64-point curves and now each save
+`clock` (`hz`, independent `bpm`, or main-tempo `sync`), `hz`, `bpm`, `beats`,
+`multiplier`, `timing`, `snap` and `snapTiming`. Loop/grid lengths cover 1/32,
+1/16, 1/8, 1/4, 1/2, one bar and two bars (4/4). Straight/triplet/dotted
+factors are 1, 2/3 and 3/2. Multipliers run ÷8 through ×8. Hz remains free
+running and legacy shared `rate` initializes missing per-lane Hz unchanged.
+Changing tempo updates worklet increments without resetting phases. No new
+animation/scheduler timer is used. Grid snapping constrains pointer and keyboard
+horizontal edit locations; triplets map to nearest points in the retained
+64-point format. It does not quantize amplitude or change existing curves.
+
+`routeKick` defaults false (legacy normal routing). Selecting Through main
+filter input overrides the SC kick bypass for subsequently scheduled kicks
+while Wasp and Playground are enabled. It leaves Direct Out independent.
+The old SC bypass and Direct Out already rejoin upstream of the final Playground
+insert: this is an explicit main-input routing override, not a claim that legacy
+kicks were omitted from the final insert. Wasp/Playground Off preserves the old
+kick path. The routing option does not power either stage on.
+
+Server validation accepts optional new fields; active audible clock/routing
+extensions use Wasp revision 6, unchanged legacy active curves revision 5,
+Playground Off retains old cache behavior. Test suites:
+`wasp-curve-timing.test.cjs`, `wasp-curve-timing-browser.cjs`,
+`wasp-curve-timing-song-browser.cjs`, `test_wasp_playground.py`.
+Chromium and WebKit phone-view controls pass; a real kick-only server Song
+render with independent sync/BPM/Hz lanes measures RMS 0.00282 versus dry
+0.00942, with warm-cache reuse, unchanged source checksums/revision,
+phone PCM playback and released rendering reservations. Physical phone untested.
+
+### Snap-window repair (2026-11-04, CURVE-GRID.2)
+
+One canvas width is one complete audible loop. `curveWindow` is the shared
+source for seconds, beats and snap-to-phase conversion; independent BPM uses
+its own tempo, sync/Hz grids use the main tempo. Loop length, multiplier and
+triplet/dotted factors are reflected in the time axis and window description.
+Playback rate is never changed merely to fit a drawing grid.
+
+A snap interval longer than the loop previously rounded every edit to index
+zero. Both canvas boundaries now remain valid edit positions, with a shortened
+last cell when necessary; a grid at least as long as the loop is explicitly
+labelled as boundary-only. UI coordinates and waveform drawing consistently
+map 0–63 to the full visible width. Snap-drag retains the preceding distinct
+anchor, ignores repeated writes away from its snapped location and rebuilds
+the complete interpolated segment when the destination value changes. This
+prevents wide-cell pointer motion from flattening or breaking the waveform.
+No curve-array migration, audio-clock change, new timer or DSP revision is
+needed: PlaygroundEngine is byte-for-byte unchanged. Existing source snapshots,
+curves and rendered-audio compatibility are retained.
+
+Regression: the prior module maps every input position to zero at a 1/32
+loop ×8 with a 2-bar grid; the repair retains both boundaries. Unit tests cover
+every grid/loop/multiplier and straight/triplet/dotted combination.
+`tests/wasp-curve-grid-browser.cjs` exercises real full-width pointer strokes
+on Cutoff, Resonance and Q at all seven grids and all three timing styles
+in Chromium and WebKit phone viewports. Physical touch-device testing remains
+separate from browser simulation.
+
+
+## Independent Filter Playground verification
+
+The settings remain in `modes.wasp.playground` and `preset.wasp.playground` for
+backward compatibility; the UI is a sibling `#filterPlaygroundCard`, not nested
+inside `#waspCard`. Explicit patch/Song recall restores each saved power state;
+a fresh page keeps both effects Off until enabled. No curve/schema migration is
+needed. Generic slider/preset collectors exclude both cards so canonical settings
+remain authoritative. The lazy placeholder exposes Playground navigation before
+opening WASP; opening either editor initializes the shared controls once.
+
+The master processor applies Playground after the completed Wasp wet/dry mix.
+Host preparation/attachment accepts either active power state; detection taps do
+not depend on Wasp power. Toggling Wasp creates/retires only its cross-modulation
+node and leaves the Playground master/curve phase alive. `dispose()` releases both.
+Safety limiting follows an active Playground; fully bypassed hot legacy PCM is
+not altered.
+
+Tests: `playground-independent-browser.cjs` covers desktop/phone-mode Chromium
+and WebKit, final-output PCM for independent/combined/zero-blend/bypass states,
+source taps across Wasp toggles, standalone lazy navigation and search, block
+editing, undo/redo, saved Song recall and phone layouts. Physical iPhone CPU has
+not been measured. `playground-independent-song-browser.cjs` checks three real
+server-rendered parts, old snapshots without Playground settings, warm-cache reuse,
+phone-style PCM playback, unchanged source hashes/revision and released memory.
+`test_wasp_playground.py` checks active/bypassed render signatures and validation;
+existing Wasp/Playground DSP/timing tests retain finite-output and legacy checks.
+
+## Phone matrix cold-start warmup (2026-11-10)
+
+The phone-only matrix processor now starts with modulation routes temporarily
+bypassed for its first 2048 audio frames (about 43 ms at 48 kHz), then applies
+the latest selected routes automatically. This separates bus startup from
+route-delay allocation and reproduces the successful manual bypass/enable
+sequence without changing the saved route checkboxes. An edit during startup
+wins; disposing during warmup cannot reactivate the processor.
+
+There is no Wasp CPU/memory admission threshold to lower. Song preparation
+budgets, desktop processing, the master/Playground processor and steady-state
+DSP remain unchanged. Browser checks exercise a cold lazy editor and repeated
+Layers power changes during uninterrupted playback, with source 1 selected,
+actual final-output PCM, two-source settings and ZIP recall. Physical iPhone
+resource behaviour remains unverified.
+
+
+## 2026-11-10: reload and batch effect policy
+
+Wasp and Filter Playground retain saved power, routes, curves, Rate Sculptor and
+all controls on reload, before and after Start. Sparse leaves both off. Mega
+randomises both independently, with one independent 50% in/out choice for each.
+Wasp uses a playable concrete source when available (X is the deferred-load
+fallback), never more than one enabled row. UI row switching is mutually
+exclusive and history-backed. The v1 six-record archive stays readable; disabled
+row settings remain intact. Active legacy two-source Song freezes get a selective
+source-limit compatibility marker, while one-source and bypassed audio identities
+stay unchanged. No source ZIP is rewritten. See `effect-reload-mega.md`.

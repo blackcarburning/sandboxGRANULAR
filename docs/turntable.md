@@ -29,13 +29,14 @@ fractional-delay wow/flutter, 50 Hz hum with a quiet 100 Hz harmonic, stochastic
 click and dust envelopes, fine surface hiss, needle-dependent saturation, and
 an age-dependent high-pass plus four cascaded low-pass stages. The 1920–current
 year control narrows bandwidth progressively. Surface noise is intentionally
-audible even without musical input when explicitly powered on. No animation
+audible even without musical input when explicitly powered on and the live
+composition transport is running (isolated renders retain saved T processing). No animation
 clock, analyser, noise oscillator or UI timer runs for this card.
 
 ## State and safety
 
-- First page load/reload always starts T OFF, regardless of stored power.
-- Ordinary/Mega/Sparse, per-card randomisation and AI application switch T OFF.
+- Page reload retains saved T power and all Turntable settings. Fresh devices still default OFF.
+- Ordinary, Sparse, per-card randomisation and AI application keep T OFF. Mega randomises settings and independently chooses T ON/OFF (50% each).
   EQ protection does not protect T power. Rejected/cancelled operations do not
   switch it off before their existing authorization/history boundary.
 - Control changes and power participate in existing draft Undo/Redo.
@@ -99,3 +100,98 @@ with both modulation controls at zero retain their existing cache identity.
   through real isolated server jobs, current Drums only versus legacy Whole mix
   with no route metadata; pitch analysis, warm reuse, playback and archive/hash
   preservation. No production Songs or accounts are changed.
+
+## Surface-speed arm lever — 2026-11-04
+
+Three detents: 33 (33⅓ RPM), 45 and 78. The arm-style control uses a native
+three-step range input for keyboard access, explicit pointer tap/drag detents
+(Safari does not reliably jump a native range track on touch), an RPM readout and a
+visible pivot/metal lever. The committed value is captured before asynchronous
+Undo snapshot work so a UI refresh cannot replace the chosen detent.
+
+`rpm` is additive in version-1 Turntable state, defaults to 33, and survives
+patches, Song snapshots, Undo and local reload (including saved power).
+Only click/scratch and dust event density/decay change: relative rates are 1,
+1.35 and 2.34. Music base tempo/tuning, mains hum, routing and output are unchanged.
+Wow/flutter cycle speeds now follow the lever as described below. Decay coefficients are computed once per audio block; no extra
+buffers, nodes, timers or bypass work. Legacy/default 33 PCM was compared
+bit-for-bit with the backed-up DSP over 512000 stereo frames.
+
+The shared worklet DSP is used by the live and isolated Song render engines.
+The existing Song clock/adapter preloads Turntable before timed capture; server
+worker uses this same engine. Backend validates only 33/45/78, defaults missing
+RPM to 33 and omits explicit 33 from content hashing, retaining legacy freezes.
+45/78 are included in enabled-T content hashes; bypassed T remains omitted.
+No blanket render revision bump or source-archive migration is needed.
+
+Tests: `turntable.test.cjs` checks transient density, faster decay, stereo,
+unchanged music and legacy PCM; `test_turntable.py` checks validation/hash
+compatibility. `turntable-browser.cjs` checks detent keyboard/touch input,
+320/390/844 layouts, patch/Song persistence, reload, power and graph rebuild.
+`turntable-rpm-song-browser.cjs` sends current 78 and missing-RPM legacy 33
+snapshots through real cold server jobs; verifies faster surface transients,
+warm reuse, phone PCM playback, untouched source hashes/revision and cleanup.
+
+
+### RPM-linked wow/flutter — T-RPM.2
+
+Wow and flutter cycle frequencies track platter speed at 1× / 1.35× / 2.34×
+for 33⅓ / 45 / 78 RPM. Amount settings are retained. A separate integrated
+rotational phase preserves phase continuity when the lever moves, while mains
+hum stays at 50/100 Hz on its independent wall clock. At 33 the DSP remains
+bit-identical to the preceding engine; missing-RPM legacy states keep 33.
+No added timers, audio nodes or buffers. Main music tempo/base tuning stays
+unchanged; the intended wow/flutter pitch movement follows RPM.
+
+Song rendering shares this same DSP through the isolated deck/clock/adapter
+and server worker. Enabled 45/78 snapshots with nonzero wow/flutter use render
+revision 4, selectively regenerating the now-different freezes. Bypassed T,
+33 RPM, and 45/78 with both modulation amounts zero retain their hashes.
+Source ZIPs are never rewritten. Seven backend tests cover this selective
+compatibility boundary. PCM tests identify each modulation's dominant frequency
+at all detents and verify no phase reset when moving the lever. The real-server
+`turntable-rpm-wow-song-browser.cjs` checks modulated 78 versus legacy missing-
+RPM 33, warm-cache reuse, phone PCM playback and unchanged hashes/revision.
+
+### UK/EU and US mains hum — T-MAINS.1
+
+`mainsHz` is an additive version-1 setting: 50 (default/legacy) or 60. A numeric
+selector saves it in patches/Song/local state with the existing Hum amount.
+The worklet generates fundamental + 17% second harmonic (50/100 or 60/120),
+independently of RPM, using a continuous phase offset when switching frequency.
+The existing .009 peak fundamental at Hum 100% is unchanged; at default 12%
+measured hum-only RMS is -62.218 dBFS before downstream app gain. This can be
+masked by music; it is not evidence about the listener's headphones. UI notes
+suggest T ON and raising Hum to audition. No gain boost or extra nodes/timers.
+Legacy 50-Hz PCM is bit-identical over 256000 stereo frames.
+
+Server uses the same preloaded worklet via Song clock/adapter/isolated deck and
+server-arm worker. Backend validates 50/60, treats omission as 50, omits default
+50 from content hashes, and ignores frequency differences when Hum is zero.
+Audibly enabled 60 Hz changes its hash naturally, without blanket invalidation
+or source ZIP migration. Browser tests cover numeric selection, 320/390/844
+layouts, patch/Song/reload, power, random/AI bypass and rebuild in Chromium and
+WebKit. DSP tests measure both fundamentals/harmonics and RPM independence;
+backend tests verify legacy and silent compatibility. Real server tests in
+`turntable-mains-song-browser.cjs` verify current 60 and missing-field legacy 50
+WAV spectra, warm reuse, phone PCM playback and unchanged source revisions/hashes.
+
+## Transport monitoring (2026-11-13)
+
+Live Turntable is temporarily bypassed while the composition transport is stopped,
+including the shared sample-browser Stop button. Play restores its native or
+Cooking Pot processor without changing saved power, recipe, inputs or solos.
+Sample/card auditions alone do not reopen T. `effect-output.js` owns the transient
+gate; `syncPerformanceControlState` publishes actual running sequencer, arp,
+loop, drum, Q and Song state. Offline contexts and the isolated Song render deck
+ignore the monitoring gate, so saved T processing and existing render revisions
+remain unchanged.
+
+Regression checks: `tests/turntable-transport-w-browser.cjs` measures final
+PCM in Chromium/WebKit phone/desktop (native mix, drums and A input; the same
+three in Cooking Pot), stopped sample auditions, repeated Stop/Play and W
+Loop Store manual recut/persistence. `tests/turntable-transport-song.cjs`
+checks actual current/legacy server PCM, warm reuse, source hashes/revision,
+phone playback and memory cleanup. `tests/test_w_loopstore.py` checks backend
+repository admission and historical digest preservation. `global-solo.test.cjs`
+also checks transport-neutral saved settings and offline/wrapped render contexts.

@@ -647,3 +647,87 @@
     if (typeof module === 'object' && module.exports) module.exports.createXTrace = createXTrace;
     else root.MygrainXTrace = { create: createXTrace };
 })(typeof window !== 'undefined' ? window : globalThis);
+
+/* On-demand, read-only clock panel. No audio nodes, RAF, observers or history. */
+(function(root){
+    'use strict';
+    if (!root.document) return;
+    root.MygrainClockWidget = { mount({getContext, getStats}) {
+        const doc=root.document, button=doc.getElementById('audioClockWidgetBtn');
+        if (!button || button.dataset.mounted) return;
+        button.dataset.mounted='true';
+        if(/iPhone/i.test(root.navigator?.userAgent||'')){
+            const edge=doc.querySelector('.history-edge-controls');
+            if(edge){edge.append(button);button.classList.add('history-edge-button','clock-edge-start');button.textContent='Perf';button.setAttribute('aria-label','Performance meter');}
+        }
+        const style=doc.createElement('style');
+        style.textContent=`#audioClockWidgetBtn{min-height:44px;margin-top:8px;padding:8px 14px}#audioClockWidget{position:fixed;z-index:15000;top:80px;right:12px;width:min(350px,calc(100vw - 24px));max-height:calc(100dvh - 100px);overflow:auto;overscroll-behavior:contain;background:#14212b;color:#eef8ff;border:1px solid #68bfb5;border-radius:12px;box-shadow:0 8px 24px #0008;padding:12px;font:13px/1.4 system-ui,sans-serif;box-sizing:border-box}#audioClockWidget[hidden]{display:none}#audioClockWidget header{display:flex;align-items:center;gap:8px}#audioClockWidget .clock-handle{flex:1;touch-action:none;cursor:move;padding:10px 0;font-weight:700}#audioClockWidget button{min-height:44px;min-width:44px;padding:6px 10px;font-size:12px}#audioClockWidget dl{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:8px 0;font-variant-numeric:tabular-nums}#audioClockWidget dt,#audioClockWidget dd{margin:0;overflow-wrap:anywhere}#audioClockWidget dd{text-align:right;color:#9fe7d7}#audioClockWidget p{font-size:11px;margin:8px 0;color:#c3d2dc}#audioClockWidget .clock-status{font-size:13px;color:#fff}#audioClockWidget .clock-warning{color:#ffcc8e}`;
+        style.textContent+=`#audioClockWidget{width:min(250px,calc(100vw - 16px));padding:8px;font-size:11px}#audioClockWidget .clock-handle{padding:2px 0;align-self:stretch;display:flex;align-items:center}#audioClockWidget header{gap:4px}#audioClockWidget .clock-status{font-size:11px;line-height:1.25;margin:3px 0}#audioClockWidget dl{gap:3px;margin:5px 0}#audioClockWidget button{padding:3px 7px;font-size:11px}#audioClockWidget:not(.clock-expanded) dl>:not(:nth-child(5)):not(:nth-child(6)):not(:nth-child(15)):not(:nth-child(16)):not(:nth-child(17)):not(:nth-child(18)):not(:nth-child(19)):not(:nth-child(20)){display:none}#audioClockWidget:not(.clock-expanded)>p:not(.clock-status){display:none}#audioClockWidget.clock-expanded{width:min(320px,calc(100vw - 16px))}`;
+        style.textContent+=`#audioClockWidgetBtn.clock-edge-start{position:absolute;top:calc(100% + 8px);left:0;margin:0;padding:10px 4px;min-width:34px;width:34px;min-height:64px;font-size:9px!important;color:#fff;background:#153b4c;pointer-events:auto}#audioClockWidget .clock-actions{display:flex;gap:5px;margin-top:4px}#audioClockWidget .clock-actions button{flex:1;min-width:0}#audioClockWidget .clock-feedback{display:block!important;font-size:11px;overflow-wrap:anywhere}#audioClockWidget .clock-feedback[hidden]{display:none!important}`;
+        doc.head.append(style);
+        const panel=doc.createElement('section');panel.id='audioClockWidget';panel.hidden=true;panel.setAttribute('role','region');panel.setAttribute('aria-label','Audio clock monitor');
+        panel.innerHTML='<header><span class="clock-handle">Audio clock · drag</span><button type="button" class="clock-close" aria-label="Close audio clock monitor">Close</button></header><p class="clock-status"></p><dl></dl><button type="button" class="clock-reset">Reset peaks</button> <button type="button" class="clock-details" aria-expanded="false">Details</button><div class="clock-actions"><button type="button" class="clock-mark">Mark Crackle</button><button type="button" class="clock-submit">Submit Log</button></div><p class="clock-feedback" role="status" hidden></p><p>Read-only · one update/second while visible. Clock speed uses a 5-second window. Timer delays and scheduling misses indicate stress, not measured CPU use or confirmed dropouts. Other audio contexts (e.g. mastering) are not measured.</p><p>Requested: browser-default sample rate / interactive latency. Actual rate is the context rate, not a hardware-clock measurement. Hidden or closed: monitoring paused.</p>';
+        doc.body.append(panel);
+        const labels=['Context','Requested rate','Actual rate','Requested latency','Base / output latency','Expected clock advance','Actual clock advance','Clock speed / lowest','UI timer delay / peak','Late ticks / skipped steps','Worst scheduling lateness','Schedule lookahead','Grains / oscillators'];
+        const outputs=labels.map(label=>{const dt=doc.createElement('dt'),dd=doc.createElement('dd');dt.textContent=label;panel.querySelector('dl').append(dt,dd);return dd;});
+        let timer=0,previous=null,windowStart=null,lastContext=null,peakDelay=0,baseline=null,samples=0,drag=null,lastRatio=null,minRatio=null;
+        const status=panel.querySelector('.clock-status');
+        const ms=n=>typeof n==='number'&&Number.isFinite(n)?n.toFixed(1)+' ms':'Unavailable';
+        function park(){clearTimeout(timer);timer=0;previous=null;windowStart=null;lastRatio=null;outputs[7].textContent="";}
+        function paint(values){values.forEach((v,i)=>{if(outputs[i].textContent!==v)outputs[i].textContent=v;});}
+        const actionFeedback=panel.querySelector('.clock-feedback');
+        let followSubmission=false;
+        function syncActions(){
+            for(const [selector,id]of [['.clock-mark','markAudioProblemBtn'],['.clock-submit','submitCurrentDebugLogBtn']]){
+                const original=doc.getElementById(id);panel.querySelector(selector).disabled=!original||original.disabled;
+            }
+            if(followSubmission){const message=doc.getElementById('debugLogSubmitStatus')?.textContent;if(message){actionFeedback.hidden=false;actionFeedback.textContent=message;}}
+        }
+        panel.querySelector('.clock-mark').onclick=()=>{
+            const original=doc.getElementById('markAudioProblemBtn');if(!original||original.disabled)return;
+            followSubmission=false;original.click();actionFeedback.hidden=false;actionFeedback.textContent='Crackle marked. Submit Log to send the current log.';syncActions();
+        };
+        panel.querySelector('.clock-submit').onclick=()=>{
+            const original=doc.getElementById('submitCurrentDebugLogBtn');if(!original||original.disabled)return;
+            followSubmission=true;original.click();syncActions();
+        };
+        function sample(){
+            timer=0;if(panel.hidden||doc.hidden)return;
+            syncActions();
+            const now=performance.now(),ctx=getContext(),stats=getStats(),running=ctx?.state==='running';
+            if(ctx!==lastContext){previous=null;windowStart=null;baseline=null;lastRatio=null;minRatio=null;lastContext=ctx;}
+            if(!baseline)baseline={late:stats.lateTicks,skip:stats.skippedSteps};
+            const delay=previous?Math.max(0,now-previous.wall-1000):0;peakDelay=Math.max(peakDelay,delay);
+            let expected='Warming up…',actual='Warming up…',speed='Warming up…',slow=false;
+            if(running){
+                if(!windowStart)windowStart={wall:now,audio:ctx.currentTime};
+                const elapsed=now-windowStart.wall,advance=(ctx.currentTime-windowStart.audio)*1000;
+                expected=ms(elapsed);actual=ms(advance);
+                if(elapsed>=5000){const ratio=advance/elapsed;lastRatio=ratio;minRatio=Math.min(minRatio??ratio,ratio);speed=(ratio*100).toFixed(1)+'%';slow=ratio<.9;windowStart={wall:now,audio:ctx.currentTime};}
+                else if(lastRatio!==null){speed=(lastRatio*100).toFixed(1)+'%';slow=lastRatio<.9;}
+                if(minRatio!==null)speed+=' / '+(minRatio*100).toFixed(1)+'%';
+            }else{windowStart=null;lastRatio=null;expected=actual=speed='Paused';}
+            paint([ctx?.state||'Not started','Browser default',ctx?ctx.sampleRate.toLocaleString()+' Hz':'Not started','Interactive',ctx?ms(ctx.baseLatency*1000)+' / '+ms(ctx.outputLatency*1000):'Unavailable',expected,actual,speed,ms(delay)+' / '+ms(peakDelay),Math.max(0,stats.lateTicks-baseline.late)+' / '+Math.max(0,stats.skippedSteps-baseline.skip),ms(stats.maxLatenessMs)+' (context peak)',ms(stats.lookaheadMs),stats.grains+' / '+stats.oscillators]);
+            const stress=slow||(minRatio!==null&&minRatio<.9)||peakDelay>stats.lookaheadMs||stats.lateTicks>baseline.late||stats.skippedSteps>baseline.skip;
+            status.textContent=!ctx?'Start MYGRAIN to create the audio context.':!running?'Audio context '+ctx.state:stress?'Stress observed — compare the timing indicators.':'Running — no stress observed in these indicators.';
+            status.classList.toggle('clock-warning',running&&stress);
+            previous={wall:now};samples++;timer=setTimeout(sample,1000);
+        }
+        function start(){park();if(!panel.hidden&&!doc.hidden)sample();}
+        function close(){panel.hidden=true;button.setAttribute('aria-expanded','false');park();if(panel.contains(doc.activeElement))button.focus();}
+        button.onclick=()=>{if(!panel.hidden){close();return;}panel.hidden=false;fit();button.setAttribute('aria-expanded','true');peakDelay=0;baseline=null;minRatio=null;outputs[7].textContent='';start();};
+        panel.querySelector('.clock-close').onclick=close;
+        panel.querySelector('.clock-reset').onclick=()=>{peakDelay=0;baseline=null;minRatio=null;outputs[7].textContent='';start();};
+        panel.addEventListener('keydown',e=>{if(e.key==='Escape'){e.stopPropagation();close();}});
+        doc.addEventListener('visibilitychange',start);
+        function fit(){const r=panel.getBoundingClientRect();panel.style.left=Math.max(0,Math.min(innerWidth-r.width,r.left))+'px';panel.style.right='auto';panel.style.top=Math.max(0,Math.min(innerHeight-r.height,r.top))+'px';}
+        root.addEventListener('resize',()=>{if(!panel.hidden)fit();});
+        panel.querySelector('.clock-details').onclick=e=>{const expanded=panel.classList.toggle('clock-expanded');e.currentTarget.setAttribute('aria-expanded',String(expanded));e.currentTarget.textContent=expanded?'Less':'Details';fit();};
+        const handle=panel.querySelector('.clock-handle');
+        handle.onpointerdown=e=>{if(e.button!==0)return;const r=panel.getBoundingClientRect();drag={x:e.clientX,y:e.clientY,left:r.left,top:r.top};handle.setPointerCapture(e.pointerId);e.preventDefault();};
+        handle.onpointermove=e=>{if(!drag)return;panel.style.left=(drag.left+e.clientX-drag.x)+'px';panel.style.top=(drag.top+e.clientY-drag.y)+'px';panel.style.right='auto';fit();};
+        handle.onpointerup=handle.onpointercancel=()=>{drag=null;};
+        root.mygrainClockWidget=Object.freeze({snapshot:()=>({open:!panel.hidden,monitorRunning:!!timer,samples})});
+        root.addEventListener('mygrain-account-lock',close);root.addEventListener('mygrain-account-changed',close);
+    }};
+})(typeof window!=='undefined'?window:globalThis);

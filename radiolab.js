@@ -1,11 +1,11 @@
 (function (root) {
     'use strict';
 
-    const BUILD = 'v2026.10.27.RADIO-V.1';
+    const BUILD = 'v2026.11.04.LAB-10MIN.1';
     const TUNE_TIMEOUT_MS = 12000;
     const BUFFER_SECONDS = 15;
-    const MAX_RECORD_SECONDS = 120;
-    const MAX_PCM_BYTES = 32 * 1024 * 1024;
+    const MAX_RECORD_SECONDS = 600;
+    const MAX_PCM_BYTES = 224 * 1024 * 1024;
 
     function pcm16Value(raw) {
         const value = Math.max(-1, Math.min(1, Number.isFinite(raw) ? raw : 0));
@@ -657,6 +657,7 @@
             });
             click('radiolabNormalize', () => this.normalizeTake());
             click('radiolabSave', () => this.save());
+            const ftp = this.root.document.createElement('button');ftp.id='radiolabUploadFtp';ftp.type='button';ftp.className='performance-btn';ftp.textContent='Upload take to FTP';this.element('radiolabSave').after(ftp);click('radiolabUploadFtp',()=>this.uploadFtp());
             this.bindTrim();
             click('radiolabBrowser', () => this.openBrowser(), true);
             click('radiolabRefreshSamples', () => this.refreshSamples(), true);
@@ -1217,7 +1218,7 @@
             this.captureDiagnostics.state = 'recording';
             this.diagnosticEvent('capture-signal');
             this.element('radiolabName').value = `Radio ${operation.station.name} ${new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-')}`;
-            this.status('Recording independent live station PCM until Stop. No rewind or pre-roll; capture may lag monitoring. Limit 120s / 32 MiB PCM.');
+            this.status('Recording independent live station PCM until Stop. No rewind or pre-roll; capture may lag monitoring. Limit 10 minutes / 224 MiB PCM.');
             this.render();
         }
 
@@ -1353,6 +1354,26 @@
             this.render();
         }
 
+        async uploadFtp(sample = null) {
+            this.assertActive();
+            if(!this.root.mygrainFtp?.upload || !this.root.mygrainFtp?.copyLibrary)throw new Error('FTP browser is still loading. Please retry.');
+            const epoch=this.epoch,abort=new AbortController();this.requests.add(abort);if(sample)this.browserRequests?.add(abort);
+            try {
+                let path;
+                if(sample)path=await this.root.mygrainFtp.copyLibrary({source:'radio',id:sample.filename,signal:abort.signal});
+                else {
+                    const recorder=this.recorder;
+                    if(!recorder||recorder.state!=='stopped'||!recorder.selectedFrames||!recorder.selectionStats().audible)throw new Error('Stop a non-empty audible take before uploading.');
+                    const name=this.element('radiolabName').value.trim();if(!name)throw new Error('Name the recording before uploading.');
+                    const filename=name.replace(/[\\/\x00-\x1f\x7f]/g,'_').replace(/^\.+/,'_').slice(0,120).replace(/\.wav$/i,'')+'.wav';
+                    path=await this.root.mygrainFtp.upload({name:filename,body:recorder.wav(),signal:abort.signal});
+                }
+                this.assertActive(epoch);if(abort.signal.aborted)return;
+                const message=path===null?'FTP upload cancelled.':`Uploaded to your private FTP: /${path}. Original audio unchanged.`;
+                this.status(message);if(sample)this.element('radiolabBrowserStatus').textContent=message;
+            } finally {this.requests.delete(abort);this.browserRequests?.delete(abort);}
+        }
+
         async save() {
             this.assertActive();
             const name = this.element('radiolabName').value.trim();
@@ -1437,7 +1458,7 @@
                 const actions = this.root.document.createElement('div');
                 actions.className = 'sample-browser-card-actions radiolab-sample-actions';
                 const controls = { row };
-                for (const action of ['play', 'load', 'rename', 'trim', 'delete']) {
+                for (const action of ['play', 'load', 'rename', 'trim', 'delete', 'ftp']) {
                     const button = this.root.document.createElement('button');
                     button.type = 'button';
                     button.className = `performance-btn${action === 'load' ? ' primary' : ''}`;
@@ -1448,7 +1469,7 @@
                             this.stopPreview();
                             return;
                         }
-                        const method = { play: 'playSample', load: 'loadSample', rename: 'editSampleName', trim: 'trimSample', delete: 'deleteSample' }[action];
+                        const method = { play: 'playSample', load: 'loadSample', rename: 'editSampleName', trim: 'trimSample', delete: 'deleteSample', ftp: 'uploadFtp' }[action];
                         this.run(() => this[method](sample), true);
                     });
                     controls[action] = button;
@@ -1554,7 +1575,7 @@
             const buffer = await context.decodeAudioData(body);
             this.assertBrowser(generation);
             if (previewEpoch !== this.previewEpoch) return;
-            if (!Number.isInteger(buffer?.length) || buffer.length < 1 || ![1, 2].includes(buffer.numberOfChannels) || !Number.isFinite(buffer.sampleRate) || buffer.sampleRate < 1 || buffer.sampleRate > 192000 || buffer.length / buffer.sampleRate > MAX_RECORD_SECONDS) throw new Error('Choose a finite mono/stereo radio WAV of at most 120 seconds.');
+            if (!Number.isInteger(buffer?.length) || buffer.length < 1 || ![1, 2].includes(buffer.numberOfChannels) || !Number.isFinite(buffer.sampleRate) || buffer.sampleRate < 1 || buffer.sampleRate > 192000 || buffer.length / buffer.sampleRate > MAX_RECORD_SECONDS) throw new Error('Choose a finite mono/stereo radio WAV of at most 600 seconds.');
             const channels = Array.from({ length: buffer.numberOfChannels }, (_, channel) => buffer.getChannelData(channel));
             if (channels.some(channel => channel.some(value => !Number.isFinite(value)))) throw new Error('This saved WAV contains invalid PCM samples.');
             const recorder = new PCMRecorder({ sampleRate: buffer.sampleRate, channels: buffer.numberOfChannels }).start(null, 0, { station: sample.station });
@@ -1702,6 +1723,7 @@
             this.element('radiolabStop').disabled = this.locked || !(this.listening || capturing || this.preview || this.busy);
             const playableTake = this.recorder?.state === 'stopped' && this.recorder.selectedFrames > 0 && this.recorder.selectionStats().audible;
             this.element('radiolabSave').disabled = blocked || capturing || !playableTake;
+            if(this.element('radiolabUploadFtp'))this.element('radiolabUploadFtp').disabled=blocked||capturing||!playableTake;
             const preview = this.element('radiolabPreview');
             preview.textContent = this.previewTake ? 'Stop Preview' : 'Preview';
             preview.setAttribute('aria-pressed', String(Boolean(this.previewTake)));
@@ -1735,6 +1757,7 @@
                     controls.trim.setAttribute('aria-label', `Re-trim ${filename} and save a new WAV`);
                     controls.trim.disabled = blocked || capturing;
                 }
+                if(controls.ftp){controls.ftp.textContent='Upload to FTP';controls.ftp.disabled=blocked||capturing;}
                 controls.delete.textContent = 'Delete';
                 controls.delete.setAttribute('aria-label', `Delete ${filename}`);
                 controls.delete.disabled = blocked || capturing;

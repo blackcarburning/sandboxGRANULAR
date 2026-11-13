@@ -6,6 +6,12 @@ button[data-nav-section] {
     opacity: 1;
 }
 
+/* Bright orange render needs dark text despite the generic Actions treatment. */
+body.simplified-ui #performanceLoopStoreAddBtn[data-nav-section="loop-store-render"] {
+    color: var(--nav-foreground) !important;
+    border-color: var(--nav-border) !important;
+}
+
 button[data-nav-section="transport"].is-running {
     background: var(--nav-running-background) !important;
     color: var(--nav-running-foreground) !important;
@@ -124,35 +130,6 @@ button[data-nav-section]:focus-visible {
         transition: filter .15s;
     }
 
-    .simplified-ui .section-jump-drawer button[data-nav-section]::before {
-        content: '↗';
-        display: grid;
-        place-items: center;
-        width: 24px;
-        height: 24px;
-        flex: 0 0 24px;
-        border: 1px solid #ffffff24;
-        border-radius: 7px;
-        background: linear-gradient(145deg, #ffffff28, #00000020);
-        box-shadow: inset 0 1px #ffffff24, 0 2px 4px #0003;
-        font: 600 16px/1 system-ui, sans-serif;
-    }
-
-    .simplified-ui .section-jump-drawer button[data-nav-section="song"]::before { content: '♫'; }
-    .simplified-ui .section-jump-drawer button[data-nav-section="mega"]::before { content: '✦'; }
-    .simplified-ui .section-jump-drawer button[data-nav-section="sparse"]::before { content: '⁙'; }
-    .simplified-ui .section-jump-drawer button[data-nav-section="keyboard"]::before { content: '▥'; }
-    .simplified-ui .section-jump-drawer button[data-nav-section="layers"]::before { content: '▱'; }
-    .simplified-ui .section-jump-drawer button:is([data-nav-section="mixer"], [data-nav-section="mix"])::before { content: '☷'; }
-    .simplified-ui .section-jump-drawer button[data-nav-section="actions"]::before { content: 'ϟ'; }
-    .simplified-ui .section-jump-drawer button[data-nav-section="transport"]::before { content: '▶'; }
-    .simplified-ui .section-jump-drawer button[data-nav-section="transport"].is-running::before { content: '■'; }
-    .simplified-ui .section-jump-drawer button[data-nav-section^="loop-"]::before { content: '∿'; }
-    .simplified-ui .section-jump-drawer button[data-nav-section="radiolab"]::before { content: '◉'; }
-    .simplified-ui .section-jump-drawer button[data-nav-section="videolab"]::before { content: '▷'; }
-    .simplified-ui .section-jump-drawer button[data-nav-section="drums"]::before { content: '▦'; }
-    .simplified-ui .section-jump-drawer button[data-nav-section="fx"]::before { content: '✧'; }
-
     .simplified-ui .section-jump-drawer button:hover:not(:disabled) { filter: brightness(1.24); }
     .simplified-ui .section-jump-drawer button[aria-current="location"] {
         box-shadow: inset 0 0 0 1px #c3f8ff, 0 3px 6px #0003;
@@ -196,13 +173,286 @@ button[data-nav-section]:focus-visible {
     .simplified-ui .section-jump-option[hidden] { display: none; }
 }
 
-/* Phone Jump search sits immediately above the AI tile inside the drawer. */
-@media(max-width:960px){
- #sectionJumpPanel .desktop-nav-tools{display:grid;gap:6px;padding:4px 0 12px;min-width:0}
- #sectionJumpPanel .desktop-nav-tools label{font:800 10px/1.4 system-ui,sans-serif;letter-spacing:.12em;color:#a8bacb;text-transform:uppercase}
- #sectionJumpPanel .desktop-nav-tools input{box-sizing:border-box;width:100%;min-width:0;min-height:44px;padding:10px 12px;border:1px solid #638399;border-radius:9px;background:#091621;color:#edf8ff;font:16px system-ui,sans-serif;touch-action:manipulation}
- #sectionJumpPanel .desktop-nav-tools input:focus-visible{outline:2px solid #8fe5f5;outline-offset:2px}
- #sectionJumpPanel .desktop-nav-empty{color:#b6c7d9;font:12px/1.5 system-ui,sans-serif;margin:0}
- #sectionJumpPanel .desktop-nav-empty[hidden]{display:none}
- #sectionJumpPanel .section-jump-option[hidden]{display:none!important}
+    .simplified-ui .section-jump-drawer button[data-nav-section]::before {
+        content: '↗';
+        display: grid;
+        place-items: center;
+        width: 24px;
+        height: 24px;
+        flex: 0 0 24px;
+        border: 1px solid #ffffff24;
+        border-radius: 7px;
+        background: linear-gradient(145deg, #ffffff28, #00000020);
+        box-shadow: inset 0 1px #ffffff24, 0 2px 4px #0003;
+        font: 600 16px/1 system-ui, sans-serif;
+    }
+
+    .simplified-ui .section-jump-drawer button[data-nav-section="song"]::before { content: '♫'; }
+    .simplified-ui .section-jump-drawer button[data-nav-section="mega"]::before { content: '✦'; }
+    .simplified-ui .section-jump-drawer button[data-nav-section="sparse"]::before { content: '⁙'; }
+    .simplified-ui .section-jump-drawer button[data-nav-section="keyboard"]::before { content: '▥'; }
+    .simplified-ui .section-jump-drawer button[data-nav-section="layers"]::before { content: '▱'; }
+    .simplified-ui .section-jump-drawer button:is([data-nav-section="mixer"], [data-nav-section="mix"])::before { content: '☷'; }
+    .simplified-ui .section-jump-drawer button[data-nav-section="actions"]::before { content: 'ϟ'; }
+    .simplified-ui .section-jump-drawer button[data-nav-section="transport"]::before { content: '▶'; }
+    .simplified-ui .section-jump-drawer button[data-nav-section="transport"].is-running::before { content: '■'; }
+    .simplified-ui .section-jump-drawer button[data-nav-section^="loop-"]::before { content: '∿'; }
+    .simplified-ui .section-jump-drawer button[data-nav-section="radiolab"]::before { content: '◉'; }
+    .simplified-ui .section-jump-drawer button[data-nav-section="videolab"]::before { content: '▷'; }
+    .simplified-ui .section-jump-drawer button[data-nav-section="drums"]::before { content: '▦'; }
+    .simplified-ui .section-jump-drawer button[data-nav-section="fx"]::before { content: '✧'; }
+
+
+/* Phone: fixed Jump/Find header and the desktop's one ordered list below it. */
+@media (max-width: 960px) {
+ body.simplified-ui .section-jump-drawer { box-sizing:border-box;display:flex;flex-direction:column;gap:10px;width:min(88vw,320px);height:100dvh;padding:max(12px,env(safe-area-inset-top)) 10px max(12px,env(safe-area-inset-bottom)) 38px;min-height:0;overflow:visible;background:linear-gradient(155deg,#16283a,#0a121f 60%);border:1px solid #364d62;border-radius:18px 0 0 18px; }
+ body.simplified-ui .section-jump-quick-stack {display:none;}
+ body.simplified-ui .section-jump-drawer .section-jump-handle {position:absolute;left:0;width:34px;min-width:34px;max-width:34px;min-height:76px;box-sizing:border-box;}
+ body.simplified-ui .section-jump-drawer .section-jump-handle-text {writing-mode:vertical-rl;}
+ body.simplified-ui .section-jump-panel {flex:1 1 auto;min-height:0;max-height:none;width:100%;margin:0;padding:0 4px 4px 0;box-sizing:border-box;overflow-y:auto;overscroll-behavior:contain;border:0;border-radius:0;background:none;box-shadow:none;}
+ body.simplified-ui .section-jump-title {display:none;}
+ body.simplified-ui .desktop-nav-tools {display:grid;gap:6px;flex:0 0 auto;min-width:0;pointer-events:auto;}
+ .desktop-nav-tools label {font:800 10px/1.4 system-ui,sans-serif;letter-spacing:.12em;color:#a8bacb;text-transform:uppercase;}
+ .desktop-nav-tools input {box-sizing:border-box;width:100%;min-width:0;min-height:44px;padding:10px 12px;border:1px solid #638399;border-radius:9px;background:#091621;color:#edf8ff;font:16px system-ui,sans-serif;touch-action:manipulation;user-select:text;-webkit-user-select:text;}
+ .desktop-nav-tools input:focus-visible {outline:2px solid #8fe5f5;outline-offset:2px;}
+ .desktop-nav-empty {color:#b6c7d9;font:12px/1.5 system-ui,sans-serif;margin:0;}
+ .desktop-nav-empty[hidden] {display:none;}
+ body.simplified-ui .section-jump-grid {align-content:start;}
+ body.simplified-ui .section-jump-grid > button {position:static;width:100%;min-width:0;min-height:44px;max-height:none;box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:7px;padding:8px;writing-mode:horizontal-tb;white-space:normal;border:1px solid var(--nav-border,#435970);border-radius:10px;font:700 11px/1.2 system-ui,sans-serif;letter-spacing:.015em;text-transform:none;pointer-events:auto;box-shadow:inset 0 1px #ffffff10,0 3px 6px #0003;}
+ body.simplified-ui .section-jump-grid > .desktop-jump-wide {grid-column:1/-1;}
+ body.simplified-ui .section-jump-grid > button[hidden] {display:none!important;}
+ body.simplified-ui #sectionJumpFinalMixBtn {display:flex;}
+ body.simplified-ui .section-jump-grid > #sectionJumpInitialisePanelBtn {height:48px;justify-self:stretch;}
+ body.simplified-ui .section-jump-grid > #sectionJumpInitialisePanelBtn .clear-patch-label {display:inline;}
+}
+
+/* Jump labels wrap between whole words, never through a word. */
+body :is(.section-jump-option, .section-jump-quick, .performance-layer-jump-btn, .performance-mixer-jump-btn) {
+    overflow-wrap: normal !important;
+    word-break: normal !important;
+    hyphens: none !important;
+}
+body .jump-button-label {
+    display: block;
+    min-width: 0;
+    white-space: pre-line !important;
+    overflow-wrap: normal !important;
+    word-break: normal !important;
+    hyphens: none !important;
+    text-transform: none;
+}
+body button:is([data-jump-target="#turntableCard"], [data-jump-target="#resonatorCard"], [data-jump-target="#filterPlaygroundCard"], [data-jump-target="#waspCard"]) {
+    text-transform: none;
+    border-width: 1px !important;
+}
+/* Give these names the full tile width rather than a separate arrow column. */
+body.simplified-ui .section-jump-drawer button:is([data-jump-target="#turntableCard"], [data-jump-target="#resonatorCard"], [data-jump-target="#filterPlaygroundCard"], [data-jump-target="#waspCard"])::before {
+    display: none;
+}
+body.simplified-ui .section-jump-option:is([data-jump-target="#turntableCard"], [data-jump-target="#resonatorCard"], [data-jump-target="#filterPlaygroundCard"], [data-jump-target="#waspCard"]) {
+    min-height: 42px;
+    padding-block: 5px;
+}
+
+/* Layer activity is neutral grey when muted, including Solo isolation. Never blue. */
+html body.simplified-ui.simplified-ui button:is(.layer-muted,.osc-off,.layer-solo-muted,.layer-level-zero,.layer-nav-muted),
+html body.simplified-ui.simplified-ui button[data-nav-section]:is(.layer-muted,.osc-off,.layer-solo-muted,.layer-level-zero,.layer-nav-muted):enabled {
+    background: linear-gradient(150deg,#343436,#242426) !important;
+    color: #a9a9af !important;
+    border-color: #626267 !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+}
+#performanceLayerSwitchesCard button.layer-level-button {
+    position: relative;
+    overflow: hidden;
+    touch-action: pan-y pinch-zoom;
+    -webkit-touch-callout: none;
+    user-select: none;
+    -webkit-user-select: none;
+    min-height: 44px;
+    padding-right: 45px;
+    background: linear-gradient(90deg,#ffffff29 0 var(--layer-volume,0%),transparent var(--layer-volume,0%) 100%),var(--nav-background,linear-gradient(150deg,#205273,#12334f)) !important;
+}
+/* Active direct-manipulation surfaces own touch from contact, not after a pan. */
+#performanceLayerSwitchesCard button.layer-level-button.layer-volume-active { touch-action: none; }
+#performanceLayerSwitchesCard button.layer-level-button::before {
+    content: attr(data-layer-level);
+    position: absolute;
+    right: 7px;
+    top: 50%;
+    transform: translateY(-50%);
+    font: 600 10px/1 system-ui,sans-serif;
+    font-variant-numeric: tabular-nums;
+    opacity: .85;
+    pointer-events: none;
+}
+#performanceLayerSwitchesCard button.layer-level-button::after {
+    content: '';
+    position: absolute;
+    inset: auto auto 2px 0;
+    height: 3px;
+    width: var(--layer-vu,0%);
+    background: #e9fff0;
+    box-shadow: 0 0 3px #dcffeaaa;
+    pointer-events: none;
+}
+#performanceLayerSwitchesCard button.layer-level-button:is(.layer-muted,.layer-solo-muted,.layer-level-zero) {
+    background: linear-gradient(150deg,#343436,#242426) !important;
+}
+#performanceLayerSwitchesCard button.layer-level-button:is(.layer-muted,.layer-solo-muted)::before { opacity: .55; }
+#performanceLayerSwitchesCard button.layer-level-button:is(.layer-muted,.layer-solo-muted,.layer-level-zero)::after { display:none; }
+#performanceLayerSwitchesCard button.layer-level-dragging { cursor: ew-resize; outline: 2px solid #ffffff90; outline-offset: 1px; }
+/* Narrow layer rows keep long names and the volume readout on separate lines. */
+@media (max-width: 600px) {
+    #performanceLayerSwitchesCard button.layer-level-button {
+        min-height: 56px;
+        padding: 8px 8px 18px;
+        overflow-wrap: anywhere;
+    }
+    #performanceLayerSwitchesCard button.layer-level-button::before {
+        top: auto;
+        bottom: 6px;
+        transform: none;
+        font-size: 9px;
+    }
+}
+
+/* Direct render actions share the bright play treatment on phone and desktop. */
+body.simplified-ui #sectionJumpDrawer button.final-mix-export::before {
+    content: '▶';
+    color: #087c26;
+}
+body.simplified-ui #sectionJumpDrawer button.loop-store-add::before {
+    content: '▶';
+    color: #4b2607;
+}
+#sectionJumpDrawer button[data-render-action] { min-width: 0; white-space: normal; }
+#sectionJumpDrawer .render-action-copy { display: block; min-width: 0; flex: 1; }
+#sectionJumpDrawer .render-action-label { display: block; min-height: 2.4em; }
+#sectionJumpDrawer .render-action-progress {
+    display: block; min-height: 1.3em; font-size: .9em; line-height: 1.3; font-weight: 700;
+}
+
+/* Top is always the first app card, even while lazy effect UIs are loading. */
+body .synth-container > .performance-controls { order: -1; }
+.synth-container > [data-mygrain-effect-card] { flex: 0 0 auto; box-sizing: border-box; min-width: 0; max-width: 100%; }
+
+/* Desktop: a single scroll owner below the fixed Jump and Find/search header. */
+@media (min-width: 961px) {
+    .simplified-ui .section-jump-drawer { box-sizing: border-box; min-height: 0; overflow: hidden; }
+    .simplified-ui .section-jump-handle { flex: 0 0 auto; min-width: 0; box-sizing: border-box; }
+    .simplified-ui .section-jump-quick-stack { display: none; }
+    .simplified-ui .desktop-nav-tools { min-width: 0; }
+    .simplified-ui .desktop-nav-tools input { box-sizing: border-box; }
+    .simplified-ui .section-jump-panel { width: 100%; box-sizing: border-box; overflow-y: auto; overscroll-behavior: contain; }
+    .simplified-ui .section-jump-grid { align-content: start; }
+    .simplified-ui .section-jump-grid > .section-jump-quick { position: static; width: 100%; min-width: 0; min-height: 44px; padding: 8px; writing-mode: horizontal-tb; pointer-events: auto; border-right: 1px solid var(--nav-border, #435970); }
+    .simplified-ui .section-jump-grid > .desktop-jump-wide { grid-column: 1 / -1; }
+    .simplified-ui .section-jump-grid > button[hidden] { display: none !important; }
+    .simplified-ui .section-jump-grid > button { box-sizing: border-box; min-height: 44px; }
+    .simplified-ui .section-jump-grid > #sectionJumpInitialisePanelBtn { height: 48px; max-height: none; }
+    .simplified-ui .section-jump-grid > #sectionJumpInitialisePanelBtn .clear-patch-label { display: inline; }
+    .simplified-ui .section-jump-grid > #sectionJumpInitialisePanelBtn svg { width: 28px; height: 28px; flex: 0 0 28px; }
+}
+
+/* HTML dialogs render inside the CEF editor, not in detached host windows. */
+.mygrain-export-dialog {
+    box-sizing: border-box; width: min(540px, calc(100vw - 32px));
+    max-height: calc(100dvh - 32px); overflow: auto; overscroll-behavior: contain;
+    padding: 24px; border: 1px solid #75bfd2; border-radius: 18px;
+    background: linear-gradient(145deg, #193342, #101d2a); color: #f0f8ff;
+    box-shadow: 0 24px 90px #000a; font: 15px/1.5 system-ui, sans-serif;
+}
+.mygrain-export-dialog::backdrop { background: #020810b8; }
+.mygrain-export-dialog h2 { margin: 0 0 12px; font: 800 22px/1.25 system-ui, sans-serif; color: #fff; }
+.mygrain-export-dialog p { margin: 0 0 18px; }
+.mygrain-export-dialog form { display: grid; gap: 10px; min-width: 0; }
+.mygrain-export-dialog label { color: #e7f6ff; font-weight: 700; }
+.mygrain-export-dialog input[type="text"] { box-sizing: border-box; width: 100%; min-width: 0; min-height: 46px; padding: 10px 12px; border: 1px solid #75bfd2; border-radius: 9px; background: #07131d; color: #fff; font: 16px system-ui, sans-serif; user-select: text; -webkit-user-select: text; }
+.mygrain-export-dialog small { display: block; color: #c4d8e8; font: 13px/1.5 system-ui, sans-serif; }
+.mygrain-export-dialog .export-snapshot-choice { display: flex; gap: 12px; align-items: flex-start; margin-top: 12px; padding: 14px; background: #ffffff09; border: 1px solid #617d8b; border-radius: 10px; cursor: pointer; }
+.mygrain-export-dialog input[type="checkbox"] { width: 22px; height: 22px; flex: 0 0 22px; margin: 0; accent-color: #76e4ef; }
+.mygrain-export-dialog .export-dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+.mygrain-export-dialog button { min-height: 44px; min-width: 100px; max-width: 100%; height: auto; padding: 10px 16px; border: 1px solid #8baebc; border-radius: 10px; background: #233d50; color: #fff; font: 700 14px/1.3 system-ui, sans-serif; white-space: normal; }
+.mygrain-export-dialog button[type="submit"] { background: #a8f16c; color: #12210c; border-color: #d6ffa7; }
+.mygrain-export-dialog :is(input,button):focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+.mygrain-export-dialog .export-dialog-status { padding: 16px; border: 1px solid #6b9fad; border-radius: 10px; background: #07131d; overflow-wrap: anywhere; }
+.mygrain-export-dialog[data-failed="true"] .export-dialog-status { border-color: #ff8787; }
+
+/* Unified list retains the actual AI/Pot buttons formerly hidden on phones. */
+@media(max-width:960px){body.simplified-ui #sectionJumpPanel :is(#sectionJumpAiBtn,#sectionJumpCookingPotBtn):not([hidden]){display:flex!important;}}
+
+
+
+/* Phone edge controls are mirrors, never moved out of the shared Jump menu. */
+.phone-edge-shortcuts { display: none; }
+@media (max-width: 960px) {
+ body.simplified-ui .phone-edge-shortcuts {
+  position:fixed;right:env(safe-area-inset-right,0px);z-index:9989;
+  display:flex; flex-direction:column; align-items:flex-end; width:34px; min-height:0; justify-content:flex-start;
+  top:calc(max(12px, 2svh, env(safe-area-inset-top)) + 84px);
+  bottom:max(12px, 2svh, env(safe-area-inset-bottom));
+  gap:6px; overflow-x:hidden; overflow-y:auto; overscroll-behavior:contain;
+  scrollbar-width:none; pointer-events:auto; transition:transform .24s ease;
+ }
+ body.simplified-ui .phone-edge-shortcuts::-webkit-scrollbar { display:none; }
+ body.simplified-ui .phone-edge-shortcut {
+  box-sizing:border-box; display:grid; place-items:center; flex:1 0 52px;
+  width:34px!important; min-width:34px!important; max-width:34px; min-height:52px; padding:4px 3px;
+  writing-mode:vertical-rl; font:900 8px/1.1 system-ui,sans-serif;
+  letter-spacing:.04em; text-transform:uppercase; white-space:nowrap;
+  border:1px solid var(--nav-border,#435970); border-right:0;
+  border-radius:12px 0 0 12px; pointer-events:auto; touch-action:manipulation;
+ }
+ body.simplified-ui .phone-edge-shortcut[data-phone-shortcut="sectionJumpTransportBtn"] {
+  flex:2 0 104px; min-height:104px; font-size:12px;
+ }
+ /* Travel with the panel's reserved left gutter while preserving safe-area
+    positioning at the closed viewport edge. Mirrors remain outside the
+    drawer so focusing them cannot open it or replace a pending touch target. */
+ body.simplified-ui .section-jump-drawer:is(.is-open,:focus-within):not(.is-close-guarded) + .phone-edge-shortcuts {
+  transform:translateX(calc(35px - min(88vw,320px) + env(safe-area-inset-right,0px)));
+ }
+}
+
+/* Narrow rails have their own clearance; do not paint over card controls. */
+@media (max-width: 960px) {
+ body.simplified-ui .synth-container {
+  padding-left:calc(30px + env(safe-area-inset-left,0px));
+  padding-right:calc(30px + env(safe-area-inset-right,0px));
+ }
+ /* Solid shaded finishes: only shadows use alpha, never the button surface. */
+ body.simplified-ui .section-jump-drawer { opacity:1!important; }
+ body.simplified-ui .section-jump-drawer .section-jump-handle {
+  background:linear-gradient(155deg,#36bfd0,#238fa8)!important;
+  color:#102632!important; border-color:#7ed8e5!important; opacity:1!important;
+  box-shadow:inset 0 1px 0 #ffffff35,inset 0 -1px 0 #0003,-2px 3px 7px #0004;
+ }
+ body.simplified-ui .phone-edge-shortcuts { opacity:1!important; z-index:9991; }
+ body.simplified-ui .phone-edge-shortcut {
+  background:linear-gradient(155deg,var(--phone-edge-light,#99bed5),var(--phone-edge-dark,#638fa8))!important;
+  color:var(--phone-edge-ink,#152332)!important;
+  border-color:var(--phone-edge-border,#a1c5d4)!important; opacity:1!important;
+  box-shadow:inset 0 1px 0 #ffffff35,inset 0 -1px 0 #0003,-2px 3px 7px #0004;
+ }
+ body.simplified-ui [data-phone-shortcut="sectionJumpSongBtn"] { --phone-edge-light:#64c88a; --phone-edge-dark:#359e64; --phone-edge-border:#91d9a9; }
+ body.simplified-ui [data-phone-shortcut="sectionJumpMegaRandomBtn"] { --phone-edge-light:#36bfd0; --phone-edge-dark:#238fa8; --phone-edge-border:#7ed8e5; }
+ body.simplified-ui [data-phone-shortcut="sectionJumpSparseRandomBtn"] { --phone-edge-light:#e1ba4a; --phone-edge-dark:#b78b2c; --phone-edge-border:#ead084; }
+ body.simplified-ui [data-phone-shortcut="sectionJumpKeyboardBtn"] { --phone-edge-light:#99a6dd; --phone-edge-dark:#7384bc; --phone-edge-border:#b9c3ea; }
+ body.simplified-ui [data-phone-shortcut="sectionJumpLayerSwitchBtn"] { --phone-edge-light:#61caaa; --phone-edge-dark:#359e86; --phone-edge-border:#90dbc4; }
+ body.simplified-ui [data-phone-shortcut="sectionJumpBastardMixerBtn"] { --phone-edge-light:#e6a25b; --phone-edge-dark:#bf7837; --phone-edge-border:#f1c18a; }
+ body.simplified-ui [data-phone-shortcut="sectionJumpTransportBtn"] { --phone-edge-light:#dd4438; --phone-edge-dark:#b52c25; --phone-edge-border:#ed8277; --phone-edge-ink:#fff; }
+ body.simplified-ui [data-phone-shortcut="sectionJumpTransportBtn"].is-running { --phone-edge-light:#39b36f; --phone-edge-dark:#1f8a50; --phone-edge-border:#79d29e; }
+ body.simplified-ui .history-edge-controls button.history-edge-button {
+  opacity:1!important;
+  background:linear-gradient(155deg,var(--phone-edge-light),var(--phone-edge-dark))!important;
+  color:var(--phone-edge-ink,#fff)!important; border-color:var(--phone-edge-border)!important;
+  box-shadow:inset 0 1px 0 #ffffff35,inset 0 -1px 0 #0003,2px 3px 7px #0004;
+ }
+ body.simplified-ui .history-edge-controls #sectionJumpUndoBtn { --phone-edge-light:#9f293c; --phone-edge-dark:#752034; --phone-edge-border:#c76a7a; }
+ body.simplified-ui .history-edge-controls #sectionJumpRedoBtn { --phone-edge-light:#17633e; --phone-edge-dark:#104a30; --phone-edge-border:#60987a; }
+ body.simplified-ui .history-edge-controls #audioClockWidgetBtn { --phone-edge-light:#205e77; --phone-edge-dark:#16475d; --phone-edge-border:#6899ae; }
+ body.simplified-ui .history-edge-controls #historyEdgeMasterBakerBtn { --phone-edge-light:#c63b29; --phone-edge-dark:#94271d; --phone-edge-border:#df8971; }
+ body.simplified-ui .history-edge-controls #historyEdgeCookingPotBtn { --phone-edge-light:#d9aa4c; --phone-edge-dark:#b17b2c; --phone-edge-border:#e5c585; --phone-edge-ink:#30210a; }
 }

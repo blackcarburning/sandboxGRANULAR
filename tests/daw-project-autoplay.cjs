@@ -1,0 +1,23 @@
+'use strict';
+const {chromium}=require('playwright-core'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),{spawn}=require('node:child_process');
+const task=fs.readFileSync('/tmp/mygrain-project-task','utf8').trim(),out=task+'/evidence',origin='https://openclaw.blackcarburning.com',win=p=>'Z:'+p.replaceAll('/','\\');
+const hosts=[];
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+async function until(fn,label,ms=15000){const end=Date.now()+ms;while(Date.now()<end){if(await fn())return;await wait(100);}throw Error('Timeout: '+label);}
+async function host(kind,label,state){
+ const raw=out+'/'+label+'.f32',title=kind==='fx'?'MYGRAIN FX':'MYGRAIN Bridge',exe=kind==='fx'?'fx-windows-host.exe':'bridge-windows-host.exe';
+ const args=['-i','PATH=/usr/bin:/bin','WINEPREFIX=/tmp/mygrain-vst3-wine-clean','WINEDEBUG=-all','xvfb-run','-a','/usr/lib/wine/wine64','/tmp/mygrain-project-win/'+exe,win(task+'/bundle/'+title+'.vst3/Contents/x86_64-win/'+title+'.vst3'),win(raw),'240'];if(state)args.push(win(state));
+ fs.writeFileSync(raw+'.control','');if(process.env.MYGRAIN_TEST_DISPLAY){const start=args.indexOf('xvfb-run');args.splice(start,2,'DISPLAY='+process.env.MYGRAIN_TEST_DISPLAY,'XAUTHORITY='+process.env.XAUTHORITY);}const child=spawn('/usr/bin/env',args);let log='';child.stdout.on('data',b=>{log+=b;});child.stderr.on('data',b=>{fs.appendFileSync(raw+'.stderr',b);});let exit=null;child.on('exit',code=>{exit=code;fs.writeFileSync(raw+'.log',log);});
+ await until(()=>/187\d{2}\.[a-f0-9]{32}/.test(log),'native connection code',20000);const code=log.match(/187\d{2}\.[a-f0-9]{32}/)[0];
+ const object={raw,code,command:s=>fs.writeFileSync(raw+'.control',s),async save(){this.command('save-project');await until(()=>log.includes('PROJECT_SAVED='),'native DAW state save',20000);assert(log.includes('PROJECT_STATE_CHECKS_OK'),log);return raw+'.project.bin';},async close(){this.command('quit');await until(()=>exit!==null,'native clean exit');assert.equal(exit,0,log);},log:()=>log};hosts.push(object);return object;
+}
+(async()=>{
+ const browser=await chromium.launch({executablePath:'/snap/bin/chromium',args:['--no-sandbox','--autoplay-policy=document-user-activation-required','--host-resolver-rules=MAP openclaw.blackcarburning.com 127.0.0.1:19210']});const c=await browser.newContext({ignoreHTTPSErrors:true,viewport:{width:1440,height:1100}});
+ try{
+  await c.request.post('http://127.0.0.1:19209/mygrain/api/auth/login',{data:{username:'admin',password:'isolated-vst3-test'}});await c.addCookies((await c.cookies('http://127.0.0.1:19209')).map(v=>({...v,domain:'openclaw.blackcarburning.com',secure:true})));
+  const h=await host('bridge','project-autoplay',out+'/bridge-save.f32.project.bin');h.command('stop');const p=await c.newPage();
+  await p.addInitScript(()=>{let allowed=false;const Native=AudioContext;document.addEventListener('pointerdown',e=>{if(e.isTrusted)allowed=true;},true);window.AudioContext=new Proxy(Native,{construct(target,args){const ctx=new target(...args),resume=ctx.resume.bind(ctx),state=Object.getOwnPropertyDescriptor(BaseAudioContext.prototype,'state').get,pending=[];ctx.suspend();Object.defineProperty(ctx,'state',{get:()=>allowed?state.call(ctx):'suspended'});ctx.resume=()=>allowed?resume().then(()=>{for(const resolve of pending.splice(0))resolve();}):new Promise(resolve=>pending.push(resolve));return ctx;}});});
+  const cdp=await c.newCDPSession(p);await cdp.send('Browser.setPermission',{permission:{name:'local-network-access'},setting:'granted',origin});const r=await p.goto(origin+'/mygrain/#daw='+h.code);assert.equal(r.headers()['x-mygrain-isolated-test'],'project-recall');await p.waitForFunction(()=>mygrainDawBridge?.connected&&mygrainDawBridge.diagnostics().project.busy&&typeof audioContext!=='undefined'&&audioContext?.state==='suspended',{},{timeout:20000});assert.equal(await p.evaluate(()=>mygrainDawBridge.diagnostics().clock.browserReady),false);
+  await p.locator('#start-btn').click();await p.waitForFunction(()=>mygrainDawBridge.diagnostics().project.ready&&mygrainDawBridge.diagnostics().clock.browserReady,{},{timeout:30000});assert.equal(await p.evaluate(()=>bastardLoopMetadata.summary),'project-source-A');await p.close();await h.close();fs.writeFileSync(out+'/project-autoplay.json',JSON.stringify({initialResumeHeldByPolicyFixture:true,realAudioContext:true,initialNativeReady:false,trustedStartGestures:1,projectRecalled:true}));console.log('PASS project recall waits for one trusted audio gesture before native readiness');
+ }finally{await browser.close();for(const h of hosts)h.command('quit');}
+})().catch(e=>{console.error(e);process.exitCode=1;});

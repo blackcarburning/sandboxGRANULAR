@@ -1,0 +1,18 @@
+#bassFaceCard{border:1px solid #c999fa;border-radius:14px;background:linear-gradient(145deg,rgba(113,54,153,.25),rgba(17,21,30,.9));padding:15px;margin:16px 0;min-width:0;max-width:100%;box-sizing:border-box;scroll-margin-top:90px}
+#bassFaceCard .bass-face-head{display:flex;gap:12px;align-items:center;color:#ddb9ff}
+#bassFaceCard .bass-face-head svg{width:54px;height:54px;flex:0 0 54px}
+#bassFaceCard h4{font-size:20px;letter-spacing:.12em;margin:0}
+#bassFaceCard p{font-size:12px;line-height:1.5;margin:8px 0;color:var(--text-secondary)}
+#bassFaceCard label{display:flex;flex-direction:column;gap:8px;font-size:12px;margin:12px 0;min-width:0}
+#bassFaceCard select,#bassFaceCard input[type=range],#mutilatorInput{width:100%;min-width:0;max-width:100%;box-sizing:border-box}
+#bassFaceCard select,#mutilatorInput{min-height:46px;background:#21162d!important;color:#f0e3ff!important;border:1px solid #ac7ec8;padding:8px;color-scheme:dark}
+#bassFaceCard .bass-face-actions{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0}
+#bassFaceCard .bass-face-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(170px,100%),1fr));gap:12px}
+#bassFaceCard .bass-face-rhythm{flex-direction:row;align-items:center}
+#bassFaceCard[data-active=true]{box-shadow:0 0 15px rgba(194,125,255,.22)}
+
+#bassFaceCard .bass-face-bank{width:100%;max-width:100%;min-width:0;box-sizing:border-box;border:1px solid #a87cc4;border-radius:10px;padding:12px;margin:14px 0}
+#bassFaceCard .bass-face-preset-controls{display:grid;grid-template-columns:46px minmax(0,1fr) 46px;gap:8px;min-width:0}
+#bassFaceCard .bass-face-preset-controls button{width:46px;min-width:46px;max-width:46px;min-height:46px;padding:0;font-size:22px}
+#bassFaceCard .performance-btn{color:#f0e3ff!important;background:#382343;border:1px solid #a87cc4;min-height:46px}
+#bassFaceCard .performance-btn:hover,#bassFaceCard .performance-btn:focus-visible{background:#52345f}

@@ -1,8 +1,8 @@
-# MYGRAIN feature knowledge — 2026-10-25
+# MYGRAIN feature knowledge — 2026-11-12
 
 This is application context for AI Patch Direction, including Generate, Regenerate,
 Refine and Song section requests. It describes the UI, not additional recipe fields.
-The supplied allowed controls and loopCapabilities remain the sole writable contract.
+The supplied allowed controls, loopCapabilities and effectCapabilities remain the sole writable contract.
 Do not invent control IDs, automate UI actions, or claim an unsupported effect/card
 was changed. For an unsupported request, say briefly in the recipe description what
 requires manual adjustment; retain unrelated audio/settings. Do not substitute main
@@ -10,7 +10,7 @@ granular filters for a requested loop filter or N filter and claim equivalence.
 
 Legacy loop `*FilterCutoff` IDs are read-only compatibility values, NOT writable
 recipe parameters. Shared loop effects own the real cutoff now; never output a
-retired filter ID or replace it with a main granular filter. Preserve shared FX.
+retired filter ID or replace it with a main granular filter. Use cardEffects for actual shared filter/space changes; omit unrelated settings to preserve them.
 
 ## Cards and layers
 
@@ -36,8 +36,8 @@ retired filter ID or replace it with a main granular filter. Preserve shared FX.
 
 ## Shared loop effects and filter clock
 
-- Shared effects cover A/B/C/V/W/P/O/L/X/M/M+, K1–K5, Q and N. The shared loopFx
-  state is version 1. These controls are NOT exposed as arbitrary AI parameters.
+- Shared effects cover A/B/C/D/V/W/P/O/L/X/M/M+, K1–K5, Q and N. The shared loopFx
+  state is version 1. Use the bounded cardEffects field contract, not arbitrary scalar parameters.
 - Standard loop filters support bypass, low-pass or high-pass, slopes of
   12/24/36/48/96 dB per octave, cutoff and resonance. LFO shapes are sine, triangle,
   sawtooth, ramp and square, with tempo division, depth and inversion.
@@ -92,3 +92,21 @@ retired filter ID or replace it with a main granular filter. Preserve shared FX.
 - On normal app startup N is off, Drums All amplitude follower, +8 octave envelope,
   50 ms decay/release, sustain 0, 96 dB/oct low-pass at 80 Hz. Explicit patch/Song
   recalls retain saved N settings. AI enabling uses these current settings.
+
+## D Mutilator
+Loop D has a native, non-destructive Mutilator: Gnaw resonant fuzz, Melt sine-fold acid, Rupture fractured grit. AI no longer randomises Mutilator when D is reloaded/enabled. Choose its power, input, strain, damage, tone and mix explicitly through effects.mutilator. Legacy scalar loopDMutilatorAmount/Tone/Mix remain compatible; effects.mutilator fields apply last when both are supplied. Mix 0 bypasses. Omitted effect fields retain existing settings. Sparse/Mega randomise only eligible audible D. Disabled or generation-muted D explicitly switches Mutilator Off; manual re-enable never silently rearms it.
+
+Mutilator also offers Scab (lo-fi steps), Venom (biased valve), Hollow (octave rectifier), and Splinter (jagged wavefold). All seven strains participate in D's existing AI/Sparse/Mega mutation selection. The Dropbox Sample card now shares the standard LFO filter, stereo hall reverb and tempo delay under loopFx.channels.sample. Legacy Dropbox sources remain dry; its existing pan is authoritative.
+
+Loop D defaults to SAMPLES_LOOPSTORE. Its remembered repository may be SAMPLES_LOOPSTORE or SAMPLES_LOOPS (see loopInventory.D.repository). A D reload uses that selected library; recipes must not change it. D loads one original loop, not a generated chopped composite. Reels retain that original source.
+
+## AI effects contract (AIFX.1)
+
+Recipes may include `effects` for the eight allowed specialised effects and
+`cardEffects` for bounded per-channel filter/LFO/room/delay fields. Read the
+injected effectCapabilities; do not invent field names. The genre memory gives
+style-specific suggestions. Bubble Chamber stays manual-only. Existing effect
+DSP, saved-state fields and server rendering are reused, not replaced.
+Current effectState is supplied for targeted refinements; omitted fields remain
+unchanged. Prefer explicit unused-effects Off in new genre recipes, but targeted
+refinement/sections must not erase unrelated effects. No Solo/main routing edits.

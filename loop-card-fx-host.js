@@ -2,7 +2,7 @@
 'use strict';
 const FX=root.MygrainLoopFx,eq=root.mygrainChannelEq;if(!FX||!eq)throw Error('Loop effects could not load. Reload MYGRAIN.');
 let state=FX.normalize(null,readStoredStateSnapshot()||{});const groups=new Set(),panels=[];
-let preparationDepth=0;
+let preparationDepth=0,effectConnector=null;
 // Source preparation is stopped: retain routing/settings, but release native
 // delay/convolution storage until the ownership transfer and IDB copies finish.
 const graphSettings=key=>preparationDepth?{...state.channels[key],delayEnabled:false,reverbEnabled:false}:state.channels[key];
@@ -12,28 +12,55 @@ function prepareEditing(){
 }
 const bpm=()=>typeof getTransportClockBpm==='function'?getTransportClockBpm():Number(document.getElementById('globalBpmSlider')?.value||120);
 function createGraph(context,bridge,key){
- const clock=context===audioContext&&transportSync.context===context?transportSync:null;
- return FX.createGraph(context,bridge,graphSettings(key),bpm(),Number.isFinite(clock?.origin)?clock.origin:0,Math.max(context.currentTime,Number.isFinite(clock?.startTime)?clock.startTime:context.currentTime));
+ const n=ctx=>ctx?.__mygrainNativeContext||ctx,t=n(context)===n(audioContext)&&n(transportSync.context)===n(context)?transportSync:null,clock=root.mygrainWasp?.clockSnapshot(context)||{origin:t?.origin,bpm:bpm(),at:t?.startTime};
+ return FX.createGraph(context,bridge,graphSettings(key),clock.bpm,Number.isFinite(clock.origin)?clock.origin:0,Math.max(context.currentTime,Number.isFinite(clock.at)?clock.at:context.currentTime));
 }
 function rebuild(g){const old=g.graph;for(const source of g.sources)try{source.disconnect(old.input)}catch{};old.dispose();g.graph=createGraph(g.context,g.bridge,g.key);for(const source of g.sources)source.connect(g.graph.input)}
-function syncClock(origin,tempo,at){for(const g of groups)if(g.context===audioContext)g.graph.syncClock(origin,tempo,at)}
+function syncClock(origin,tempo,at){for(const g of groups)if((g.context.__mygrainNativeContext||g.context)===(audioContext?.__mygrainNativeContext||audioContext))g.graph.syncClock(origin,tempo,at)}
 const rawConnect=eq.connect.bind(eq),rawRelease=eq.releaseContext.bind(eq);
+function connectDownstream(key,source,destination,owner=null,context=null){return key==='N'?(root.mygrainWasp?root.mygrainWasp.connect(key,source,destination,owner):(source.connect(destination),{disconnect(){try{source.disconnect(destination)}catch{}}})):rawConnect(key,source,destination,owner,context);}
 function release(g){g.graph.dispose();g.eqRoute.disconnect();g.bridge.disconnect();groups.delete(g)}
 function connect(key,source,destination,owner=null,contextOverride=null){
  if(!FX.KEYS.includes(key))return rawConnect(key,source,destination,owner);
  for(const g of [...groups])if(g.context.state==='closed')release(g);
  const context=contextOverride || audioContext || source.context;
  let g=[...groups].find(g=>g.key===key&&g.context===context&&g.destination===destination);
- if(!g){const bridge=context.createGain(),eqRoute=key==='N'?(root.mygrainWasp?root.mygrainWasp.connect(key,bridge,destination):(bridge.connect(destination),{disconnect(){try{bridge.disconnect(destination)}catch{}}})):rawConnect(key,bridge,destination),graph=createGraph(context,bridge,key);g={key,context,destination,bridge,eqRoute,graph,sources:new Set()};groups.add(g)}
+ if(!g){const bridge=context.createGain(),eqRoute=effectConnector?effectConnector(key,bridge,destination,context):connectDownstream(key,bridge,destination,null,context),graph=createGraph(context,bridge,key);g={key,context,destination,bridge,eqRoute,graph,sources:new Set()};groups.add(g);if(key==='X')root.mygrainLayerControls?.sourcesChanged?.('performanceBastardLoopXLevelMixer')}
  source.connect(g.graph.input);g.sources.add(source);let ended=false;
  const route={disconnect(){if(ended)return;ended=true;owner?.removeEventListener?.('ended',route.disconnect);g.sources.delete(source);try{source.disconnect(g.graph.input)}catch{}}};owner?.addEventListener?.('ended',route.disconnect,{once:true});return route;
 }
 eq.connect=connect;eq.releaseContext=function(ctx){for(const g of [...groups])if(!ctx||g.context===ctx)release(g);return rawRelease(ctx)};
 const selectedK=()=>`K${(root.mygrainKMultitrack?.selected||0)+1}`;
 function keyFor(panel){return panel.dataset.loopFxKey==='K'?selectedK():panel.dataset.loopFxKey}
-function update(){for(const g of groups)if(g.context.state!=='closed')g.graph.update(graphSettings(g.key),bpm());sync()}
+function update(){for(const g of groups)if(g.context.state!=='closed')g.graph.update(graphSettings(g.key),root.mygrainWasp?.clockSnapshot(g.context)?.bpm||bpm());sync()}
 function restore(value,legacy){state=FX.normalize(value,legacy||{});update()}
-function sync(){for(const panel of panels){const key=keyFor(panel),s=state.channels[key];panel.querySelector('[data-loop-fx-title]').textContent=key==='N'?'Reverb & tempo delay':key.startsWith('K')?`${key} · Filter & space`:'Filter & space';for(const el of panel.querySelectorAll('[data-loop-fx]')){const k=el.dataset.loopFx;if(document.activeElement!==el){if(el.type==='checkbox')el.checked=s[k];else el.value=String(s[k])}const o=panel.querySelector(`[data-loop-fx-value="${k}"]`);if(o)o.textContent=format(k,s[k])}}}
+// Use musical eligibility, not a momentary waveform/voice check: a rest or a
+// stopped transport must not erase a useful filter on the next enabled note.
+function filterActiveKeys(){
+ const keys=[],add=(key,ready,enabled,level,solo)=>{if(ready&&enabled&&level>0&&getLoopLayerSoloGain(solo)>0)keys.push(key)};
+ for(const key of ['A','B','C','V','W','P','O']){const lane=getBastardLoopTraceState(key);add(key,lane.buffer,lane.enabled,lane.level,'bastard'+key.toLowerCase())}
+ add('sample',dropboxSampleLayerBuffer,dropboxSampleLayerEnabled,getDropboxSampleLayerLevelValue({applyLayerToggle:false}),'dropbox');
+ add('D',root.mygrainD?.playable(),root.mygrainD?.state.enabled,root.mygrainD?.state.level,'bastardd');
+ add('L',hasPlayableBastardLoopLTransportSource(),bastardLoopLEnabled,bastardLoopLLevel,'bastardl');
+ add('X',hasPlayableBastardLoopXTransportSource(),bastardLoopXEnabled,bastardLoopXLevel,'bastardx');
+ add('Q',root.mygrainQ?.playable(),root.mygrainQ?.state.enabled,root.mygrainQ?.state.level,'bastardq');
+ const noise=root.mygrainNoise?.settings();add('N',true,noise?.enabled,noise?.level,'noise');
+ add('M',bastardLoopMBuffer,bastardLoopMEnabled,bastardLoopMLevel,'bastardm');
+ add('M+',bastardLoopMPlusBuffer,bastardLoopMPlusEnabled,bastardLoopMPlusLevel,'bastardmplus');
+ for(const[i,lane]of(root.mygrainKMultitrack?.tracks||[]).entries())add('K'+(i+1),lane.raw||lane.rendered,bastardLoopKEnabled&&lane.enabled!==false&&!lane.mute,bastardLoopKLevel*lane.level,'bastardk');
+ return keys;
+}
+function finishRandomization(){
+ flushPendingSliderUpdates();
+ const active=filterActiveKeys(),next=FX.pruneEffects(state,active,{L:getBastardLoopLFilterEnvelopeAmount(),X:getBastardLoopXFilterEnvelopeAmount()});
+ const changed=FX.KEYS.some(key=>['filterEnabled','reverbEnabled','delayEnabled'].some(flag=>state.channels[key][flag]!==next.channels[key][flag]));
+ const noise=root.mygrainNoise?.settings(),noiseChanged=Boolean(noise?.filterEnabled&&!active.includes('N'));
+ if(noiseChanged)root.mygrainNoise.restore({...noise,filterEnabled:false});
+ if(changed){state=next;update()}else sync();
+ const mutilatorChanged=root.mygrainD?.finishMutilatorRandomization()||false;
+ return changed||noiseChanged||mutilatorChanged;
+}
+function sync(){for(const panel of panels){const key=keyFor(panel),s=state.channels[key];panel.querySelector('[data-loop-fx-title]').textContent=key==='N'?'Reverb & tempo delay':key.startsWith('K')?`${key} · Filter & space`:'Filter & space';for(const el of panel.querySelectorAll('[data-loop-fx]')){const k=el.dataset.loopFx;if(document.activeElement!==el||el.type==='checkbox'){if(el.type==='checkbox')el.checked=s[k];else el.value=String(s[k])}const o=panel.querySelector(`[data-loop-fx-value="${k}"]`);if(o)o.textContent=format(k,s[k])}}}
 function format(key,v){if(key==='pan')return v===0?'Centre':Math.round(Math.abs(v)*100)+'% '+(v<0?'L':'R');if(['room','delay','feedback','lfoDepth','reverbSize','reverbWidth'].includes(key))return Math.round(v*100)+'%';if(/cutoff|damping|lowcut/i.test(key))return v>=1000?(v/1000).toFixed(1)+' kHz':Math.round(v)+' Hz';if(key==='reverbDecay')return Number(v).toFixed(1)+' s';if(key==='reverbPredelay')return v+' ms';return Number(v).toFixed(2)}
 const slider=(k,label,min,max,step)=>`<label class="loop-fx-control"><span>${label}<output data-loop-fx-value="${k}"></output></span><input type="range" data-loop-fx="${k}" min="${min}" max="${max}" step="${step}"></label>`;
 const select=(k,label,values)=>`<label class="loop-fx-control">${label}<select data-loop-fx="${k}">${values.map(([v,l])=>`<option value="${v}">${l}</option>`).join('')}</select></label>`;
@@ -55,7 +82,7 @@ function mount(key,card){if(!card)return;
  // Native K filter / delay / reverb editor is superseded, but tuning, drive and envelope remain.
  if(key==='K')for(const input of [...card.querySelectorAll('[data-k-processing]')])if(['filterMode','cutoff','resonance','lfoWave','lfoDivision','lfoAmount','lfoInvert','delayMix','delayDivision','delayFeedback','delayCutoff','reverbMix','reverbDecay'].includes(input.dataset.kProcessing)){const row=input.closest('label')||input.parentElement;row.hidden=true;row.inert=true;row.dataset.loopFxSuperseded='true'}
  const panel=document.createElement('section');panel.className='loop-fx';panel.dataset.loopFxKey=key;panel.setAttribute('aria-label',`Loop ${key} filter, reverb and delay`);
- panel.innerHTML=`<h4 data-loop-fx-title>Filter &amp; space</h4>${!['K','M+'].includes(key)?slider('pan','Pan',-1,1,.01):''}<details class="loop-fx-filter"><summary>LFO Filter</summary><p class="loop-fx-filter-note">Resonance emphasises the cutoff frequency. Switch Filter on and sweep Cutoff through the sound’s range to hear it.</p><div class="loop-fx-grid">${check('filterEnabled','Filter on')}${select('filterType','Type',[['lowpass','Low-pass'],['highpass','High-pass']])}${select('filterSlope','Poles / slope',FX.SLOPES.map(n=>[n,`${n/6} poles · ${n} dB/oct`]))}${slider('cutoff','Cutoff',20,20000,10)}${slider('resonance','Resonance (Q)',.1,4,.01)}${select('lfoWave','LFO shape',[['sine','Sine'],['triangle','Triangle'],['sawtooth','Saw down'],['ramp','Ramp up'],['square','Square']])}${select('lfoBeats','LFO cycle',[[.25,'1/16'],[.5,'1/8'],[1,'1/4'],[2,'1/2'],[4,'1 bar'],[8,'2 bars'],[16,'4 bars'],[32,'8 bars'],[64,'16 bars']])}${slider('lfoDepth','LFO depth',0,1,.01)}${check('lfoInvert','Invert LFO')}</div></details><details class="loop-fx-hall"><summary>Stereo Hall Reverb</summary><p>Parallel stereo hall: the dry attack stays intact.</p><div class="loop-fx-actions">${[['piano','Piano Hall'],['strings','Lush Strings'],['cathedral','Cathedral'],['off','Reverb Off']].map(([k,l])=>`<button type="button" class="performance-btn" data-loop-fx-preset="${k}">${l}</button>`).join('')}</div><div class="loop-fx-grid">${check('reverbEnabled','Reverb on')}${slider('room','Reverb Mix',0,1,.01)}${slider('reverbDecay','Decay',.5,12,.1)}${slider('reverbSize','Room Size / Bloom',0,1,.01)}${slider('reverbPredelay','Pre-delay',0,200,1)}${slider('reverbDamping','High-frequency Damping',1000,18000,100)}${slider('reverbLowcut','Reverb Low Cut',20,1500,10)}${slider('reverbWidth','Stereo Width',0,1,.01)}</div></details><details class="loop-fx-delay"><summary>Tempo Delay</summary><div class="loop-fx-actions"><button type="button" class="performance-btn" data-loop-fx-preset="delayOff">Delay Off</button></div><div class="loop-fx-grid">${check('delayEnabled','Delay on')}${slider('delay','Delay Mix',0,1,.01)}${select('delayBeats','Delay time',divisions)}${slider('feedback','Feedback',0,.7,.01)}${slider('delayCutoff','Delay Tone',200,18000,100)}${check('pingPong','Ping pong')}</div></details>`;
+ panel.innerHTML=`<h4 data-loop-fx-title>Filter &amp; space</h4>${!['K','M+','sample'].includes(key)?slider('pan','Pan',-1,1,.01):''}<details class="loop-fx-filter"><summary>LFO Filter</summary><p class="loop-fx-filter-note">Resonance emphasises the cutoff frequency. Switch Filter on and sweep Cutoff through the sound’s range to hear it.</p><div class="loop-fx-grid">${check('filterEnabled','Filter on')}${select('filterType','Type',[['lowpass','Low-pass'],['highpass','High-pass']])}${select('filterSlope','Poles / slope',FX.SLOPES.map(n=>[n,`${n/6} poles · ${n} dB/oct`]))}${slider('cutoff','Cutoff',20,20000,10)}${slider('resonance','Resonance (Q)',.1,4,.01)}${select('lfoWave','LFO shape',[['sine','Sine'],['triangle','Triangle'],['sawtooth','Saw down'],['ramp','Ramp up'],['square','Square']])}${select('lfoBeats','LFO cycle',[[.25,'1/16'],[.5,'1/8'],[1,'1/4'],[2,'1/2'],[4,'1 bar'],[8,'2 bars'],[16,'4 bars'],[32,'8 bars'],[64,'16 bars']])}${slider('lfoDepth','LFO depth',0,1,.01)}${check('lfoInvert','Invert LFO')}</div></details><details class="loop-fx-hall"><summary>Stereo Hall Reverb</summary><p>Parallel stereo hall: the dry attack stays intact.</p><div class="loop-fx-actions">${[['piano','Piano Hall'],['strings','Lush Strings'],['cathedral','Cathedral'],['off','Reverb Off']].map(([k,l])=>`<button type="button" class="performance-btn" data-loop-fx-preset="${k}">${l}</button>`).join('')}</div><div class="loop-fx-grid">${check('reverbEnabled','Reverb on')}${slider('room','Reverb Mix',0,1,.01)}${slider('reverbDecay','Decay',.5,12,.1)}${slider('reverbSize','Room Size / Bloom',0,1,.01)}${slider('reverbPredelay','Pre-delay',0,200,1)}${slider('reverbDamping','High-frequency Damping',1000,18000,100)}${slider('reverbLowcut','Reverb Low Cut',20,1500,10)}${slider('reverbWidth','Stereo Width',0,1,.01)}</div></details><details class="loop-fx-delay"><summary>Tempo Delay</summary><div class="loop-fx-actions"><button type="button" class="performance-btn" data-loop-fx-preset="delayOff">Delay Off</button></div><div class="loop-fx-grid">${check('delayEnabled','Delay on')}${slider('delay','Delay Mix',0,1,.01)}${select('delayBeats','Delay time',divisions)}${slider('feedback','Feedback',0,.7,.01)}${slider('delayCutoff','Delay Tone',200,18000,100)}${check('pingPong','Ping pong')}</div></details>`;
  if(key==='N'){panel.querySelector('.loop-fx-filter').remove();panel.setAttribute('aria-label','N noise reverb and tempo delay')}
  for(const el of panel.querySelectorAll('[data-loop-fx]')){el.id=`loopFx-${key.replace('+','Plus')}-${el.dataset.loopFx}`;el.closest('label').htmlFor=el.id}
  for(const event of ['keydown','keyup'])panel.addEventListener(event,event=>event.stopPropagation());
@@ -66,10 +93,11 @@ function mount(key,card){if(!card)return;
  card.append(panel);panels.push(panel);
 }
 mount('N',document.getElementById('noiseCard'));
+mount('sample',document.querySelector('[aria-label="Dropbox sample layer controls"]'));
 for(const key of ['A','B','C','D','V','W','P','O','L','X','M','M+','K','Q']){
  const id={A:'bastardLoopCard',B:'bastardLoop2Card',C:'bastardLoop3Card','M+':'bastardLoopMPlusCard'}[key]||`bastardLoop${key}Card`;mount(key,document.getElementById(id)||document.querySelector(`[aria-label="Bastardloop${key==='A'?'':' '+key} controls"]`));
 }
-root.mygrainLoopFx={prepareEditing,settings:()=>JSON.parse(JSON.stringify(state)),channel:key=>state.channels[key],restore,update,sync,syncClock,connect,groups,randomise(){state=FX.subtle(state);setSliderValue('grainSynthAPan',0);setSliderValue('grainSynthBPan',0);setBastardLoopMPlusPanPercent(0,{skipSave:true});root.mygrainKMultitrack?.centrePans();if(root.mygrainQ){root.mygrainQ.state.pan=0;root.mygrainQ.updateEffects()}update()},stop(){for(const g of groups)rebuild(g)}};
+root.mygrainLoopFx={connectDownstream,setEffectConnector(fn){effectConnector=fn;},prepareEditing,settings:()=>JSON.parse(JSON.stringify(state)),channel:key=>state.channels[key],restore,update,sync,syncClock,connect,groups,filterActiveKeys,finishRandomization,randomise(options={}){state=FX.subtle(state);if(!options.deferCleanup)state=FX.pruneEffects(state,filterActiveKeys());setSliderValue('grainSynthAPan',0);setSliderValue('grainSynthBPan',0);setBastardLoopMPlusPanPercent(0,{skipSave:true});root.mygrainKMultitrack?.centrePans();if(root.mygrainQ){root.mygrainQ.state.pan=0;root.mygrainQ.updateEffects()}update()},stop(){for(const g of groups)rebuild(g)}};
 // Legacy filters are retained only as the independent note/accent-envelope stage.
 createBastardLoopConfigurableFilters=function(cutoff,mode,key){
  if(!['L','X','K1'].includes(key))return [];

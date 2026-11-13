@@ -1,9 +1,9 @@
 (function (root) {
     'use strict';
 
-    const BUILD = 'v2026.10.28.INSTAGRAM.1';
-    const MAX_SECONDS = 180;
-    const MAX_BYTES = 128 * 1024 * 1024;
+    const BUILD = 'v2026.11.04.VIDEO-PCM.1';
+    const MAX_SECONDS = 600;
+    const MAX_BYTES = 224 * 1024 * 1024;
     const BUILTIN = Object.freeze({ id: 'bbc-archive', name: 'BBC Archive', url: 'https://www.youtube.com/@BBCArchive', builtin: true });
     const TARGETS = Object.freeze({ grainMain: 'Apply', V: 'V', grainA: 'Grain A', grainB: 'Grain B' });
 
@@ -38,13 +38,13 @@
         const startSeconds = Number(timestamp[1]) * 60 + Number(timestamp[2]);
         if (startSeconds > 21600) throw new Error('Start time must be between 00:00 and 360:00 (6 hours).');
         const durationSeconds = Number(duration);
-        if (!Number.isFinite(durationSeconds) || durationSeconds < 0.1 || durationSeconds > MAX_SECONDS) throw new Error('Duration must be 0.1–180 seconds (default 120).');
+        if (!Number.isFinite(durationSeconds) || durationSeconds < 0.1 || durationSeconds > MAX_SECONDS) throw new Error('Duration must be 0.1–600 seconds (default 120).');
         return { startSeconds, durationSeconds };
     }
 
     function seedRecorder(buffer, radio = root.MygrainRadiolab, metadata = {}) {
         if (!radio?.PCMRecorder) throw new Error('RadioLab PCM is not ready. Please try again.');
-        if (!buffer || !Number.isInteger(buffer.length) || buffer.length < 1 || !Number.isFinite(buffer.sampleRate) || buffer.sampleRate < 1 || buffer.sampleRate > 192000 || ![1, 2].includes(buffer.numberOfChannels) || buffer.length / buffer.sampleRate > MAX_SECONDS) throw new Error('Server audio must be a non-empty, finite mono/stereo take of at most 180 seconds.');
+        if (!buffer || !Number.isInteger(buffer.length) || buffer.length < 1 || !Number.isFinite(buffer.sampleRate) || buffer.sampleRate < 1 || buffer.sampleRate > 192000 || ![1, 2].includes(buffer.numberOfChannels) || buffer.length / buffer.sampleRate > MAX_SECONDS) throw new Error('Server audio must be a non-empty, finite mono/stereo take of at most 600 seconds.');
         const channels = Array.from({ length: buffer.numberOfChannels }, (_, channel) => buffer.getChannelData(channel));
         if (channels.some(channel => channel.length !== buffer.length || channel.some(value => !Number.isFinite(value)))) throw new Error('Server audio contains invalid PCM samples. Previous take retained.');
         const recorder = new radio.PCMRecorder({ sampleRate: buffer.sampleRate, channels: buffer.numberOfChannels, maxSeconds: MAX_SECONDS, maxBytes: MAX_BYTES }).start(null, 0, metadata);
@@ -52,6 +52,41 @@
         recorder.stop();
         if (recorder.frames !== buffer.length || !recorder.hasSignal) { recorder.clear(); throw new Error('Server audio is empty or contains only digital silence. Previous take retained.'); }
         return recorder;
+    }
+
+    // Server capture output is already canonical PCM16 WAV: no Web Audio
+    // decoder, resampling or running hardware context is needed to retain it.
+    function recorderFromWav(body, radio = root.MygrainRadiolab, metadata = {}) {
+        if (!(body instanceof ArrayBuffer) || body.byteLength < 44 || body.byteLength > MAX_BYTES) throw new Error('Invalid captured WAV size.');
+        const v = new DataView(body), tag = offset => String.fromCharCode(...new Uint8Array(body, offset, 4));
+        if (tag(0) !== 'RIFF' || tag(8) !== 'WAVE' || v.getUint32(4, true) + 8 !== body.byteLength) throw new Error('Captured WAV is incomplete.');
+        let format = null, data = null;
+        for (let offset = 12; offset + 8 <= body.byteLength;) {
+            const size = v.getUint32(offset + 4, true), start = offset + 8, end = start + size;
+            if (end > body.byteLength) throw new Error('Captured WAV chunk is incomplete.');
+            if (tag(offset) === 'fmt ') {
+                if (format || size < 16) throw new Error('Invalid captured WAV format.');
+                format = {code:v.getUint16(start,true),channels:v.getUint16(start+2,true),rate:v.getUint32(start+4,true),bytesPerSecond:v.getUint32(start+8,true),align:v.getUint16(start+12,true),bits:v.getUint16(start+14,true)};
+            } else if (tag(offset) === 'data') {
+                if (data) throw new Error('Duplicate captured WAV audio.');
+                data = {start,size};
+            }
+            offset = end + (size % 2);
+        }
+        if (!format || !data || format.code !== 1 || format.bits !== 16 || ![1,2].includes(format.channels) || format.rate < 8000 || format.rate > 192000 || format.align !== format.channels*2 || format.bytesPerSecond !== format.rate*format.align || !data.size || data.size % format.align) throw new Error('Server capture must be PCM16 mono/stereo WAV.');
+        const frames = data.size / format.align;
+        if (frames / format.rate > MAX_SECONDS) throw new Error('Captured WAV exceeds 10 minutes.');
+        const recorder = new radio.PCMRecorder({sampleRate:format.rate,channels:format.channels,maxSeconds:MAX_SECONDS,maxBytes:MAX_BYTES}).start(null,0,metadata);
+        try {
+            for (let offset=0;offset<frames;offset+=16384) {
+                const count = Math.min(16384,frames-offset), channels = Array.from({length:format.channels},()=>new Float32Array(count));
+                for (let frame=0;frame<count;frame++) for (let channel=0;channel<format.channels;channel++) channels[channel][frame]=v.getInt16(data.start+(offset+frame)*format.align+channel*2,true)/32768;
+                recorder.append(channels);
+            }
+            recorder.stop();
+            if (recorder.frames !== frames || !recorder.hasSignal) throw new Error('Captured WAV is empty, silent or exceeds the PCM budget.');
+            return recorder;
+        } catch(error) { recorder.clear(); throw error; }
     }
 
     function apiBase(base) { return new URL('api/videolab/', new URL('.', base)); }
@@ -81,6 +116,7 @@
             this.samples = [];
             this.sampleRows = new Map();
             this.recorder = null;
+            this.captureError = null;
             this.capture = null;
             this.busy = false;
             this.username = null;
@@ -116,7 +152,8 @@
             operation?.abort.signal.addEventListener('abort', cancel, { once: true });
             if (operation?.abort.signal.aborted) abort.abort();
             this.requests.add(abort);
-            const timer = this.root.setTimeout(() => abort.abort(), 45000);
+            const timeout = binary ? 600000 : 45000;
+            const timer = this.root.setTimeout(() => abort.abort(), timeout);
             const headers = new Headers(options.headers || {});
             headers.set('X-Mygrain-User', this.username);
             try {
@@ -130,11 +167,13 @@
                 if (operation && !binary && payload.capture?.id && this.capture !== operation && operation.username && this.root.mygrainAccounts?.user?.username === operation.username) this.deleteCapture(payload.capture.id, operation.username);
                 this.assertActive(epoch);
                 if (abort.signal.aborted) throw new Error('Video Lab request cancelled or timed out.');
+                if (binary && response.headers.get('Content-Length') != null && Number(response.headers.get('Content-Length')) !== payload.byteLength) throw new Error('Audio download was incomplete. Retry Record/Fetch; previous take retained.');
                 if (binary && (!payload.byteLength || payload.byteLength > MAX_BYTES)) throw new Error('Server audio is empty or too large. Previous take retained.');
                 if (!binary && payload.ok === false) throw new Error(typeof payload.error === 'string' ? payload.error : 'Video Lab request failed.');
                 return payload;
             } catch (error) {
-                if (abort.signal.aborted) throw new Error('Video Lab request cancelled or timed out after 45 seconds. Close and reopen the browser to retry.');
+                if (abort.signal.aborted) throw new Error(operation?.abort.signal.aborted ? 'Video Lab request cancelled.' : `Video Lab ${binary ? 'audio download' : 'request'} timed out after ${timeout / 1000} seconds. Retry Record/Fetch.`);
+                if (binary && error instanceof TypeError) throw new Error('Audio download was interrupted. Check the connection and retry Record/Fetch; previous take retained.');
                 throw error;
             } finally {
                 this.root.clearTimeout(timer);
@@ -166,6 +205,7 @@
             click('videolabSaveURL', () => this.saveURL());
             click('videolabShowVideo', () => this.showVideo());
             click('videolabSave', () => this.save());
+            const ftp = this.root.document.createElement('button');ftp.id='videolabUploadFtp';ftp.type='button';ftp.className='performance-btn';ftp.textContent='Upload take to FTP';this.element('videolabSave').after(ftp);click('videolabUploadFtp',()=>this.uploadFtp());
             click('videolabBrowse', () => this.openBrowser());
             click('videolabRefreshSamples', () => this.refreshSamples(), true);
             click('videolabNormalize', () => this.normalizeTake());
@@ -235,6 +275,7 @@
             this.savedEditor?.close();
             this.recorder?.clear();
             this.recorder = null;
+            this.captureError = null;
             this.samples = [];
             this.bookmarks = [BUILTIN];
             this.username = null;
@@ -277,7 +318,7 @@
             link.textContent = source.value === 'instagram' ? 'Open Reel on Instagram' : 'Open archive / video';
             if (parsed && !this.locked && !this.closed && !this.busy && !this.capture) { link.href = parsed.url; link.removeAttribute('aria-disabled'); link.removeAttribute('tabindex'); }
             else { link.removeAttribute('href'); link.setAttribute('aria-disabled', 'true'); link.setAttribute('tabindex', '-1'); }
-            this.element('videolabURLHelp').textContent = parsed?.kind === 'channel' ? 'Channel bookmark: open the archive, choose one video, then paste its video URL here. Channels and playlists are not fetched.' : parsed ? (parsed.source === 'instagram' ? 'Public Reel selected · mixed soundtrack only. Login-required, private or rate-limited Reels cannot be imported yet. Choose start time and up to 180 seconds.' : 'Single video selected. Enter the source start time and a finite duration (120 seconds by default, maximum 180).') : (source.value === 'instagram' ? 'Paste a direct public Instagram Reel link. Instagram login is not connected; restricted Reels will show an explanation.' : 'Paste a valid YouTube video URL, or save a channel bookmark. Playlist downloads are not supported.');
+            this.element('videolabURLHelp').textContent = parsed?.kind === 'channel' ? 'Channel bookmark: open the archive, choose one video, then paste its video URL here. Channels and playlists are not fetched.' : parsed ? (parsed.source === 'instagram' ? 'Public Reel selected · mixed soundtrack only. Login-required, private or rate-limited Reels cannot be imported yet. Choose start time and up to 600 seconds or the end of the video, whichever comes first.' : 'Single video selected. Enter the source start time and a finite duration (120 seconds by default, maximum 600; stops at the end of the video).') : (source.value === 'instagram' ? 'Paste a direct public Instagram Reel link. Instagram login is not connected; restricted Reels will show an explanation.' : 'Paste a valid YouTube video URL, or save a channel bookmark. Playlist downloads are not supported.');
             return parsed;
         }
 
@@ -369,7 +410,8 @@
             const parsed = parseSourceURL(this.element('videolabURL').value);
             if (parsed.kind !== 'video') throw new Error('Channel bookmark: open the archive, choose one video and paste its URL. No channel or playlist is downloaded.');
             const settings = captureSettings(this.element('videolabStart').value, this.element('videolabDuration').value);
-            const context = this.context();
+            this.context();
+            this.captureError = null;
             this.stopPreview();
             this.hideVideo();
             const operation = { abort: new AbortController(), epoch: this.epoch, username: this.username, phase: 'queued', started: Date.now(), id: null };
@@ -388,7 +430,7 @@
                     if (operation.phase === 'error') throw new Error(typeof capture.error === 'string' ? capture.error : 'Server retrieval failed. Previous take retained.');
                     if (operation.phase === 'cancelled') throw new Error('Server retrieval cancelled. Previous take retained.');
                     if (operation.phase === 'ready') break;
-                    if (Date.now() - operation.started > 300000) throw new Error('Server retrieval timed out. Previous take retained.');
+                    if (Date.now() - operation.started > 780000) throw new Error('Server retrieval timed out. Previous take retained.');
                     this.status(operation.phase === 'queued' ? 'Server job queued… Cancel is available.' : 'Server is fetching/decoding the selected interval… Cancel is available.');
                     const progress = Number(capture.progress ?? capture.progressPercent);
                     operation.progress = Number.isFinite(progress) ? Math.max(0, Math.min(100, progress <= 1 ? progress * 100 : progress)) : null;
@@ -399,23 +441,24 @@
                     this.assertCapture(operation);
                     payload = await this.request(`captures/${encodeURIComponent(operation.id)}`, {}, operation);
                 }
-                operation.phase = 'decoding';
+                operation.phase = 'downloading';
                 operation.progress = null;
-                this.status('Decoding the finite WAV take… Previous take still retained.');
+                this.status('Downloading captured audio… Cancel is available. Previous take retained.');
                 this.render();
                 const body = await this.request(`captures/${encodeURIComponent(operation.id)}/audio`, {}, operation, true);
                 this.assertCapture(operation);
-                const buffer = await context.decodeAudioData(body);
+                operation.phase = 'decoding';
+                this.status('Decoding captured audio… Previous take retained.');
+                this.render();
                 this.assertCapture(operation);
-                if (context !== this.adapter.getContext?.() || context.state !== 'running') throw new Error('MYGRAIN audio state changed. Previous take retained; start MYGRAIN and retry.');
                 const capture = payload.capture || payload;
-                const recorder = seedRecorder(buffer, this.root.MygrainRadiolab, { source: { title: String(capture.source?.title || capture.title || (parsed.source === 'instagram' ? 'Instagram Reel' : 'YouTube video')).slice(0, 200), url: parsed.url }, ...settings });
+                const recorder = recorderFromWav(body, this.root.MygrainRadiolab, { source: { title: String(capture.source?.title || capture.title || (parsed.source === 'instagram' ? 'Instagram Reel' : 'YouTube video')).slice(0, 200), url: parsed.url }, ...settings });
                 this.recorder?.clear();
                 this.recorder = recorder;
                 this.element('videolabSampleName').value = String(capture.source?.title || capture.title || (parsed.source === 'instagram' ? 'Instagram Reel' : 'Video take')).slice(0, 100);
                 this.status(`Take ready: ${recorder.duration.toFixed(2)} s. Trim, Preview, Normalise and Save. No playback was started.`);
             } catch (error) {
-                if (this.capture === operation && operation.epoch === this.epoch) this.status(`${error.message || 'Server retrieval failed.'} Previous take retained.`);
+                if (this.capture === operation && operation.epoch === this.epoch) { this.captureError = `Capture failed during ${operation.phase}: ${error.message || 'Unknown error'}`; this.status(this.captureError + (this.recorder?.frames ? ' Previous take retained.' : ' No take was created.')); }
             } finally {
                 if (this.capture === operation) {
                     this.capture = null;
@@ -493,6 +536,26 @@
             const recorder = this.currentTake();
             this.stopPreview();
             this.playRecorder(recorder, this.previewEpoch);
+        }
+
+        async uploadFtp(sample = null) {
+            this.assertActive();
+            if(!this.root.mygrainFtp?.upload || !this.root.mygrainFtp?.copyLibrary)throw new Error('FTP browser is still loading. Please retry.');
+            const epoch=this.epoch,abort=new AbortController();this.requests.add(abort);if(sample)this.browserRequests?.add(abort);
+            try {
+                let path;
+                if(sample)path=await this.root.mygrainFtp.copyLibrary({source:'video',id:sample.filename,signal:abort.signal});
+                else {
+                    const recorder=this.recorder;
+                    if(!recorder||recorder.state!=='stopped'||!recorder.selectedFrames||!recorder.selectionStats().audible)throw new Error('Stop a non-empty audible take before uploading.');
+                    const name=this.element('videolabSampleName').value.trim();if(!name)throw new Error('Name the recording before uploading.');
+                    const filename=name.replace(/[\\/\x00-\x1f\x7f]/g,'_').replace(/^\.+/,'_').slice(0,120).replace(/\.wav$/i,'')+'.wav';
+                    path=await this.root.mygrainFtp.upload({name:filename,body:recorder.wav(),signal:abort.signal});
+                }
+                this.assertActive(epoch);if(abort.signal.aborted)return;
+                const message=path===null?'FTP upload cancelled.':`Uploaded to your private FTP: /${path}. Original audio unchanged.`;
+                this.status(message);if(sample)this.element('videolabBrowserStatus').textContent=message;
+            } finally {this.requests.delete(abort);this.browserRequests?.delete(abort);}
         }
 
         async save() {
@@ -672,7 +735,7 @@
                 const actions = this.root.document.createElement('div');
                 actions.className = 'radiolab-sample-actions videolab-controls';
                 const controls = { row };
-                for (const [label, action, method] of [['Preview', 'preview', 'playSample'], ['Load', 'load', 'loadSample'], ['Rename file', 'rename', 'editSampleName'], ['Re-trim', 'trim', 'trimSample'], ['Delete', 'delete', 'deleteSample']]) {
+                for (const [label, action, method] of [['Preview', 'preview', 'playSample'], ['Load', 'load', 'loadSample'], ['Rename file', 'rename', 'editSampleName'], ['Re-trim', 'trim', 'trimSample'], ['Delete', 'delete', 'deleteSample'], ['Upload to FTP', 'ftp', 'uploadFtp']]) {
                     const button = this.root.document.createElement('button');
                     button.type = 'button';
                     button.className = 'performance-btn';
@@ -707,7 +770,8 @@
             this.element('videolabPreview').setAttribute('aria-pressed', String(Boolean(this.preview)));
             this.element('videolabPreview').textContent = this.preview ? 'Stop Preview' : 'Preview';
             this.element('videolabNormalize').setAttribute('aria-pressed', String(Boolean(this.recorder?.normalized)));
-            this.element('videolabTake').textContent = hasTake ? `${this.recorder.duration.toFixed(3)} s take · ${this.recorder.normalized ? 'normalised selection' : 'original PCM'}` : 'No take yet.';
+            this.element('videolabTake').textContent = hasTake ? `${this.recorder.duration.toFixed(3)} s take · ${this.recorder.normalized ? 'normalised selection' : 'original PCM'}` : this.captureError || 'No take yet.';
+            if(this.element('videolabUploadFtp'))this.element('videolabUploadFtp').disabled=blocked||!hasTake;
             const panel = this.element('videolabTrimPanel');
             panel.hidden = !hasTake;
             panel.disabled = blocked || !hasTake;
@@ -778,7 +842,7 @@
         return controller;
     }
 
-    const exported = { BUILD, MAX_SECONDS, MAX_BYTES, BUILTIN, TARGETS, parseYouTubeURL, parseSourceURL, captureSettings, capturePhase, apiBase, seedRecorder, Controller, boot };
+    const exported = { BUILD, MAX_SECONDS, MAX_BYTES, BUILTIN, TARGETS, recorderFromWav, parseYouTubeURL, parseSourceURL, captureSettings, capturePhase, apiBase, seedRecorder, Controller, boot };
     if (typeof module !== 'undefined' && module.exports) module.exports = exported;
     root.MygrainVideolab = Object.freeze(exported);
     if (root.document && !root.__mygrainSongRenderDeck) {

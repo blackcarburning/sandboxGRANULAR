@@ -7,9 +7,9 @@
     const canUndo = () => /^AI (generated patch|regenerated patch|refined patch|song section)$/.test(root.mygrainCardHistory?.undoLabel || '');
     let activity = null, usage = null, sessionTokens = 0, usageReplies = 0, historyFingerprint = null;
     function usageText(value) {
-        if (!value?.available || !['inputTokens', 'outputTokens', 'totalTokens', 'cachedInputTokens'].every(key => Number.isSafeInteger(value[key]) && value[key] >= 0)) return 'Token usage not reported for this task.';
+        if (!value?.available || !['inputTokens', 'outputTokens', 'cachedInputTokens'].every(key => Number.isSafeInteger(value[key]) && value[key] >= 0) || value.cachedInputTokens > value.inputTokens || !Number.isSafeInteger(value.inputTokens + value.outputTokens)) return 'Token usage not reported for this task.';
         const number = n => n.toLocaleString();
-        return `This AI task: ${number(value.totalTokens)} tokens · ${number(value.inputTokens)} input (${number(value.cachedInputTokens)} cached) · ${number(value.outputTokens)} output. Input includes instructions, musical state and catalogue—not just your prompt.`;
+        return `This AI task: ${number(value.inputTokens + value.outputTokens)} tokens · ${number(value.inputTokens)} input (${number(value.cachedInputTokens)} cached) · ${number(value.outputTokens)} output · ${number(value.inputTokens - value.cachedInputTokens)} uncached input. Input includes instructions, musical state and catalogue—not just your prompt.`;
     }
     function drawUsage(text) {
         byId('aiPatchUsage').textContent = text;
@@ -17,7 +17,7 @@
     }
     function receiveUsage(value) {
         const text = usageText(value); usage = text.startsWith('This AI task:') ? value : null;
-        if (usage) { sessionTokens += value.totalTokens; usageReplies++; }
+        if (usage) { sessionTokens += value.inputTokens + value.outputTokens; usageReplies++; }
         drawUsage(text + (usageReplies ? ` This page: ${sessionTokens.toLocaleString()} reported tokens across ${usageReplies} replies.` : ''));
     }
     function beginActivity(mode) {
@@ -71,6 +71,7 @@
     function update() {
         const busy = Boolean(request) || Boolean(root.mygrainCardHistory?.busy);
         byId('aiPatchGenerate').disabled = locked || !schema || busy;
+        for (const box of document.querySelectorAll('[data-ai-eq-protect]')) box.disabled = locked || busy;
         byId('aiPatchCancel').hidden = !request || phase === 'undo';
         byId('aiPatchUndo').hidden = kept || !canUndo();
         byId('aiPatchKeep').hidden = kept || !canUndo();
@@ -131,16 +132,107 @@
         byId('aiPatchPrompt').value = saved.prompt; byId('aiPatchPromptName').value = saved.name;
         byId('aiPatchLibraryStatus').textContent = `Recalled “${saved.name}”. Sound unchanged; Generate to try this direction.`;
     }
+    async function refreshSchema(signal) {
+        const response = await root.fetch(new URL('ai-patch-controls.json?v=20261113-vocals-1', document.baseURI), { credentials: 'same-origin', cache: 'no-store', ...(signal ? { signal } : {}) });
+        if (!response.ok) throw Error('AI controls could not refresh. Nothing was changed; retry.');
+        const data = await response.json();
+        if (data.version !== 4 || !data.controls || Object.keys(data.loops || {}).length !== 14) throw Error('AI controls changed. Reload MYGRAIN. Nothing was changed.');
+        schema = data;
+    }
+    function waitForWorker(ms, signal) {
+        return new Promise((resolve, reject) => {
+            let timer;
+            const cancel = () => { root.clearTimeout(timer); signal.removeEventListener('abort', cancel); reject(new DOMException('Cancelled.', 'AbortError')); };
+            if (signal.aborted) return cancel();
+            signal.addEventListener('abort', cancel, { once: true });
+            timer = root.setTimeout(() => { signal.removeEventListener('abort', cancel); resolve(); }, ms);
+        });
+    }
+    async function requestRecipe(body, signal, check) {
+        const started = performance.now();
+        let waiting = false;
+        for (;;) {
+            check();
+            const response = await root.fetch(new URL('api/ai-patch-direction', document.baseURI), { method: 'POST', credentials: 'same-origin', signal, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+            const payload = await response.json();
+            const busy = response.status === 429 && (['ai_busy', 'ai_cooldown'].includes(payload.code) || ['AI is finishing another proposal. Try again shortly.', 'Please wait 15 seconds between AI requests.'].includes(payload.error));
+            if (!busy) return { response, payload };
+            const remaining = 90000 - (performance.now() - started);
+            if (remaining <= 0) throw Error('AI is still busy after waiting. Your patch is unchanged; try again shortly.');
+            if (!waiting) { report('AI worker occupied. Waiting for availability; no new model request has started.'); waiting = true; }
+            status('Waiting for the AI worker… Cancel remains available. Your patch is unchanged.');
+            const seconds = Number(response.headers.get('Retry-After'));
+            await waitForWorker(Math.min(remaining, Number.isFinite(seconds) && seconds > 0 ? Math.max(1000, Math.min(15000, seconds * 1000)) : 2000), signal);
+        }
+    }
+    // Bounded data-only effect contract, shared with the model/server schema.
+    function validateEffectChanges(value) {
+        if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).some(k => !['effects','cardEffects'].includes(k))) throw Error('Invalid AI effect changes.');
+        for (const group of ['effects','cardEffects']) {
+            const changes=Object.hasOwn(value,group)?value[group]:{}, contract=group==='effects'?schema.effects:Object.fromEntries(schema.cardEffects.channels.map(k=>[k,schema.cardEffects.fields]));
+            if (!changes||typeof changes!=='object'||Array.isArray(changes)) throw Error('Invalid AI effects.');
+            for(const [key,fields] of Object.entries(changes)) {
+                if(!Object.hasOwn(contract,key)||!fields||typeof fields!=='object'||Array.isArray(fields)||!Object.keys(fields).length) throw Error('Unsupported AI effect/card: '+key);
+                for(const [name,item] of Object.entries(fields)) {
+                    if(group==='cardEffects'&&key==='N'&&(/^(filter|lfo)/.test(name)||['cutoff','resonance'].includes(name))) throw Error('N has its own filter; cardEffects N supports space only.');
+                    const spec=Object.hasOwn(contract[key],name)?contract[key][name]:null;
+                    if(!spec || !(spec.type==='boolean'?typeof item==='boolean':spec.type==='number'?typeof item==='number'&&Number.isFinite(item)&&item>=spec.min&&item<=spec.max:spec.enum.includes(item))) throw Error('Invalid AI effect field: '+key+'.'+name);
+                }
+            }
+        }
+        return value;
+    }
+    function effectSettings(key) {
+        if(key==='mutilator') return {input:'D',...root.mygrainD.settings().mutilator};
+        if(key==='bassFace') return root.mygrainBassFace.settings();
+        if(key==='turntable') {const s=root.mygrainTurntable.settings();return {...s,input:s.input||(s.route==='drums'?'drums':'all')};}
+        if(key==='resonator') {const s=root.mygrainResonator.settings();return {...s.slots[0],enabled:s.enabled,input:s.slots[0].source};}
+        if(['wireWorld','sonicCrystal'].includes(key)) {const s=root.mygrainAcousticFx.settings(key);return {...s,input:s.source};}
+        const s=root.mygrainWasp.settings();
+        if(key==='playground') {const v=s.playground,m=v.modulation.cutoff;return {...v,input:v.input||'all',lfoBeats:m.beats,lfoDepth:m.source==='drawn'?Math.max(0,m.amount):0};}
+        return {...s,...s.routes[0],enabled:s.enabled,input:s.routes[0].source};
+    }
+    function readEffectState() {
+        const effects={},cardEffects={};
+        for(const [key,fields] of Object.entries(schema.effects)) {const s=effectSettings(key);effects[key]={};for(const name of Object.keys(fields)) {try {validateEffectChanges({effects:{[key]:{[name]:s[name]}}});effects[key][name]=s[name];}catch{}}}
+        for(const key of schema.cardEffects.channels) {const s=root.mygrainLoopFx.channel(key);cardEffects[key]={};for(const name of Object.keys(schema.cardEffects.fields)){try{validateEffectChanges({cardEffects:{[key]:{[name]:s[name]}}});cardEffects[key][name]=s[name];}catch{}}}
+        return {effects,cardEffects};
+    }
+    async function applyEffectChanges(recipe, report, guard, done) {
+        validateEffectChanges(Object.fromEntries(['effects','cardEffects'].filter(k=>Object.hasOwn(recipe,k)).map(k=>[k,recipe[k]])));
+        for(const [key,v] of Object.entries(recipe.cardEffects||{})) {
+            guard();const s=root.mygrainLoopFx.settings();s.channels[key]={...s.channels[key],...v};root.mygrainLoopFx.restore(s);done();guard();report('Card '+key+' effects: '+JSON.stringify(v)+' · applied');
+        }
+        for(const [key,v] of Object.entries(recipe.effects||{})) {
+            guard();
+            if(key==='mutilator') root.mygrainD.setMutilator({...root.mygrainD.settings().mutilator,...v},{skipSave:true});
+            else if(key==='bassFace') root.mygrainBassFace.restore({...root.mygrainBassFace.settings(),...v});
+            else if(key==='turntable') {const s=root.mygrainTurntable.settings();await root.mygrainTurntable.restore({...s,...v,...(v.input?{route:v.input==='drums'?'drums':'mix'}:{})});}
+            else if(['wireWorld','sonicCrystal'].includes(key)) {const {input,...fields}=v;await root.mygrainAcousticFx.set(key,{...root.mygrainAcousticFx.settings(key),...fields,...(input?{source:input}:{})});}
+            else if(key==='resonator') {const s=root.mygrainResonator.settings(),{input,enabled,...fields}=v,configure=input!==undefined||Object.keys(fields).length>0;await root.mygrainResonator.restore({...s,...(enabled!==undefined?{enabled}:{}),...(configure?{slots:[{...s.slots[0],...fields,enabled:true,...(input?{source:input}:{})},{...s.slots[1],enabled:false}]}:{})});}
+            else {
+                const s=root.mygrainWasp.settings();
+                if(key==='wasp') {const {input,destination,method,depth,cutoff,release,...fields}=v;Object.assign(s,fields);if([input,destination,method,depth,cutoff,release].some(x=>x!==undefined)){s.routes[0]={...s.routes[0],enabled:true,...(input?{source:input}:{}),...Object.fromEntries(Object.entries({destination,method,depth,cutoff,release}).filter(([,x])=>x!==undefined))};for(let i=1;i<s.routes.length;i++)s.routes[i].enabled=false;}}
+                else {const {lfoBeats,lfoDepth,...fields}=v;Object.assign(s.playground,fields);if(lfoBeats!==undefined||lfoDepth!==undefined){const m=s.playground.modulation.cutoff;Object.assign(m,{clock:'sync',source:'drawn',multiplier:1,timing:'straight',curve:Array.from({length:64},(_,i)=>2*i/63-1)},lfoBeats!==undefined?{beats:lfoBeats}:{},lfoDepth!==undefined?{amount:lfoDepth}:{});}}
+                await root.mygrainWasp.restore(s);
+            }
+            done();guard();report(key+' effect: '+JSON.stringify(v)+' · applied');
+        }
+        await root.mygrainCookingPot?.whenReady();done();guard();
+        return Object.keys(recipe.effects||{}).length+Object.keys(recipe.cardEffects||{}).length;
+    }
+
     function validateRecipe(recipe) {
-        if (!recipe || typeof recipe !== 'object' || Array.isArray(recipe) || !['title', 'description', 'parameters', 'loops'].every(key => Object.hasOwn(recipe, key)) || Object.keys(recipe).some(key => !['title', 'description', 'parameters', 'loops', 'drums', 'patternSteps'].includes(key))) throw Error('Invalid AI recipe. Nothing was changed.');
+        if (!recipe || typeof recipe !== 'object' || Array.isArray(recipe) || !['title', 'description', 'parameters', 'loops'].every(key => Object.hasOwn(recipe, key)) || Object.keys(recipe).some(key => !['title', 'description', 'parameters', 'loops', 'drums', 'patternSteps', 'effects', 'cardEffects'].includes(key))) throw Error('Invalid AI recipe. Nothing was changed.');
         if (Object.hasOwn(recipe, 'patternSteps') && recipe.patternSteps !== 64) throw Error('Progressions use a four-bar, 64-step pattern.');
         for (const [key, limit] of [['title', 80], ['description', 600]]) if (typeof recipe[key] !== 'string' || !recipe[key].trim() || recipe[key].length > limit) throw Error('Invalid AI description.');
         if (!recipe.parameters || typeof recipe.parameters !== 'object' || Array.isArray(recipe.parameters) || !recipe.loops || typeof recipe.loops !== 'object' || Array.isArray(recipe.loops)) throw Error('Missing patch controls or loop operations.');
+        validateEffectChanges(Object.fromEntries(['effects','cardEffects'].filter(k=>Object.hasOwn(recipe,k)).map(k=>[k,recipe[k]])));
         const entries = Object.entries(recipe.parameters), lanes = Object.entries(recipe.loops);
-        if ((!entries.length && !lanes.length && !recipe.drums) || entries.length > Object.keys(schema.controls).length) throw Error('Invalid control count.');
+        if ((!entries.length && !lanes.length && !recipe.drums && !Object.keys(recipe.effects||{}).length && !Object.keys(recipe.cardEffects||{}).length) || entries.length > Object.keys(schema.controls).length) throw Error('Invalid control count.');
         for (const [key, value] of entries) {
             const spec = schema.controls[key];
-            if (!Object.hasOwn(schema.controls, key) || spec.readOnly || typeof value !== 'number' || !Number.isFinite(value) || value < spec.min || value > spec.max || (value - spec.min) % spec.step !== 0) throw Error('Unsupported or out-of-range AI control. Nothing was changed.');
+            if (!Object.hasOwn(schema.controls, key) || spec.readOnly || typeof value !== 'number' || !Number.isFinite(value) || value < spec.min || value > spec.max || (value - spec.min) % spec.step !== 0) throw Error(`Unsupported or out-of-range AI control: ${key}. Nothing was changed; reload MYGRAIN and retry.`);
         }
         let loads = 0;
         for (const [key, lane] of lanes) {
@@ -158,7 +250,7 @@
             if (Object.hasOwn(lane, 'style') && !['dry', 'warm', 'spacious'].includes(lane.style)) throw Error('Invalid Q style.');
             if (Object.hasOwn(lane, 'chordSteps') && ![4, 8, 16].includes(lane.chordSteps)) throw Error('Invalid Q chord spacing.');
             if (Object.hasOwn(lane, 'sampleId') || Object.hasOwn(lane, 'selection')) {
-                const selection = lane.selection, sources = {X: lane.repository || adapter().inventory({ forModel: true }).X.repository || 'samples_bass', L: lane.repository || adapter().inventory({ forModel: true }).L.repository || 'samples_leads', V: 'samples_vocal', P: 'samples_piano', O: 'samples_orch'};
+                const selection = lane.selection, sources = {X: lane.repository || adapter().inventory({ forModel: true }).X.repository || 'samples_bass', L: lane.repository || adapter().inventory({ forModel: true }).L.repository || 'samples_leads', V: adapter().inventory({ forModel: true }).V.repository || 'samples_ncrvocals', P: 'samples_piano', O: 'samples_orch'};
                 if (!lane.reload || typeof lane.sampleId !== 'string' || !/^[a-f0-9]{64}$/.test(lane.sampleId) || !selection || Array.isArray(selection) || selection.sampleId !== lane.sampleId || selection.source !== sources[key] || !/^[a-f0-9]{64}$/.test(selection.sha256) || typeof selection.relativePath !== 'string' || selection.relativePath.length > 1024 || selection.relativePath.includes('\\') || selection.relativePath.split('/').some(part => !part || part === '.' || part === '..') || /[\x00-\x1f]/.test(selection.relativePath) || typeof selection.name !== 'string' || selection.name !== selection.relativePath.split('/').pop()) throw Error('Invalid catalogue sample identity. Nothing was changed.');
                 if (selection.playbackRoot !== null && (!selection.playbackRoot || typeof selection.playbackRoot.note !== 'string' || !/^[A-G][#b]?[0-8]$/.test(selection.playbackRoot.note) || typeof selection.playbackRoot.source !== 'string')) throw Error('Invalid catalogue playback root.');
                 if (!selection.filename || !selection.audioTentative || !selection.measured || !Array.isArray(selection.warnings) || selection.warnings.some(w => typeof w !== 'string')) throw Error('Invalid catalogue metadata.');
@@ -201,9 +293,8 @@
         const token = ++serial;
         try {
             adapter().assertReady();
-            const fingerprint = adapter().fingerprint(), current = adapter().read(Object.keys(schema.controls)), loops = adapter().inventory({ forModel: true });
             request = new AbortController(); const signal = request.signal;
-            timeout = root.setTimeout(() => request?.abort(), 85000);
+            timeout = root.setTimeout(() => request?.abort(), 180000);
             rendered = null;
             byId('aiPatchPreviewStatus').textContent = 'Render a fresh one-bar preview after this direction finishes. Capture is audible and stays on this device.';
             phase = 'generating';
@@ -213,8 +304,14 @@
             inventory();
             report(requestMode === 'section' ? 'Developing a related song section with GPT-6.1 Sol; current tempo, kit and library sources stay loaded. No patch changes yet.' : mode === 'refine' ? 'Refining the current patch with GPT-6.1 Sol; library samples stay loaded. No patch changes yet.' : mode === 'regenerate' ? 'Regenerating the last applied prompt with GPT-6.1 Sol. A fresh variation, not an identical patch.' : 'Requesting a musical recipe from GPT-6.1 Sol. No patch changes yet.');
             status(requestMode === 'section' ? 'GPT-6.1 Sol is developing chords, bass and groove for this section…' : 'GPT-6.1 Sol is choosing tempo, layers and sound parameters…'); update();
-            const response = await root.fetch(new URL('api/ai-patch-direction', document.baseURI), { method: 'POST', credentials: 'same-origin', signal, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt, current, loops, mode: requestMode, ...(external ? { genre: external.genre, genreBpm: external.bpm } : {}), ...(['refine', 'section'].includes(requestMode) ? { refinement, musicalState: adapter().musicalState() } : {}), ...(requestMode === 'section' ? { section } : {}) }) });
-            const payload = await response.json();
+            await refreshSchema(signal);
+            if (token !== serial || locked || signal.aborted) return;
+            const fingerprint = adapter().fingerprint(), current = adapter().read(Object.keys(schema.controls)), loops = adapter().inventory({ forModel: true });
+            const { response, payload } = await requestRecipe({ prompt, current, loops, effectState: readEffectState(), mode: requestMode, ...(external ? { genre: external.genre, genreBpm: external.bpm } : {}), ...(['refine', 'section'].includes(requestMode) ? { refinement, musicalState: adapter().musicalState() } : {}), ...(requestMode === 'section' ? { section } : {}) }, signal, () => {
+                if (token !== serial || locked || signal.aborted) throw new DOMException('Cancelled.', 'AbortError');
+                adapter().assertReady();
+                if (adapter().fingerprint() !== fingerprint) throw Error('Your patch or Song changed while waiting. Generate a fresh direction.');
+            });
             if (token !== serial || locked || signal.aborted) return;
             receiveUsage(payload.usage);
             if (!response.ok || !payload.ok) throw Error(payload.error || 'AI unavailable. Your patch is unchanged.');
@@ -334,11 +431,7 @@
         }, true);
         update(); void promptLibrary();
         try {
-            const response = await root.fetch(new URL('ai-patch-controls.json?v=20261029-genre-4', document.baseURI), { credentials: 'same-origin' });
-            if (!response.ok) throw Error();
-            const data = await response.json();
-            if (data.version !== 4 || !data.controls || Object.keys(data.loops || {}).length !== 13) throw Error();
-            schema = data; inventory(); update();
+            await refreshSchema(); inventory(); update();
         } catch { status('AI beta could not load. Reload to try again. Your other controls still work.'); }
     }
     async function withPartAction(action) {
@@ -382,6 +475,6 @@
         if (historyFingerprint === before) historyFingerprint = after;
         if (rendered?.fingerprint === before) rendered.fingerprint = after;
     }
-    root.mygrainAiPatch = Object.freeze({ generateGenre: (genre, bpm, prompt) => generate('generate', null, { genre, bpm, prompt }), generate, historyState, restoreHistoryState, section: options => generate('section', options), withPartAction, setDirection, acceptCapture, direction: () => ({ prompt: lastPrompt, section: lastSection ? { ...lastSection } : null }), refine: () => generate('refine'), regenerate: () => generate('regenerate'), undo, cancel, diagnostics: () => ({ phase, busy: Boolean(request), libraryBusy: Boolean(libraryRequest), savedPromptCount: savedPrompts.length, lastPromptAvailable: Boolean(lastPrompt), undoAvailable: canUndo() && !kept, renderedPreview: Boolean(rendered), previewPlaying: Boolean(adapter()?.previewPlaying), status: byId('aiPatchStatus')?.textContent }), get ready() { return Boolean(schema); }, get busy() { return Boolean(request); } });
+    root.mygrainAiPatch = Object.freeze({ validateEffectChanges, readEffectState, applyEffectChanges, generateGenre: (genre, bpm, prompt) => generate('generate', null, { genre, bpm, prompt }), generate, historyState, restoreHistoryState, section: options => generate('section', options), withPartAction, setDirection, acceptCapture, direction: () => ({ prompt: lastPrompt, section: lastSection ? { ...lastSection } : null }), refine: () => generate('refine'), regenerate: () => generate('regenerate'), undo, cancel, diagnostics: () => ({ phase, busy: Boolean(request), libraryBusy: Boolean(libraryRequest), savedPromptCount: savedPrompts.length, lastPromptAvailable: Boolean(lastPrompt), undoAvailable: canUndo() && !kept, renderedPreview: Boolean(rendered), previewPlaying: Boolean(adapter()?.previewPlaying), status: byId('aiPatchStatus')?.textContent }), get ready() { return Boolean(schema); }, get busy() { return Boolean(request); } });
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initialize, { once: true }); else void initialize();
 })(window);

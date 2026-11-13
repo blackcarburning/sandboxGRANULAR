@@ -21,9 +21,9 @@ function wav() {
   await p.evaluate(()=>openWavRepositoryBrowser());
   const list=p.locator('#wavRepositoryBrowserList'),card=list.locator('.sample-browser-card').filter({has:p.getByText(name,{exact:true})});await card.waitFor();
   // Real iPhone-only library player, not the hidden native audio widget.
-  await card.locator('.wav-iphone-preview button').tap();
+  await card.locator('.wav-iphone-preview .wav-preview-play').tap();
   await p.waitForFunction(n=>[...document.querySelectorAll('#wavRepositoryBrowserList .sample-browser-card')].find(c=>c.querySelector('.sample-browser-name').textContent===n)?.querySelector('audio').__mygrainIphonePreview.playing,name);
-  await card.locator('.wav-iphone-preview button').tap();
+  await card.locator('.wav-iphone-preview .wav-preview-play').tap();
   await card.getByRole('button',{name:'Master',exact:true}).tap();await p.locator('.live-legacy').tap();await p.locator('.mastering-live').waitFor({state:'detached'});const d=p.locator('.mastering-dialog');await d.locator('.mastering-preset').selectOption('dense');await d.locator('.mastering-target').selectOption('-6');await d.locator('.mastering-start').tap();
   await p.waitForFunction(()=>document.querySelector('.mastering-comparison')?.hidden===false||!document.querySelector('.mastering-start')?.disabled,null,{timeout:90000});assert.match(await d.locator('.mastering-status').textContent(),/^Saved /);
   assert.equal(await d.locator('.wav-iphone-preview').count(),2);assert.equal(await d.locator('audio:visible').count(),0);
@@ -33,7 +33,7 @@ function wav() {
    const evidence=await p.evaluate(async i=>{const a=document.querySelectorAll('.mastering-dialog audio')[i].__mygrainIphonePreview,ctx=a.source.context,an=ctx.createAnalyser();a.source.connect(an);await new Promise(r=>setTimeout(r,150));const pcm=new Float32Array(an.fftSize);an.getFloatTimeDomainData(pcm);an.disconnect();a.source.disconnect(an);return {peak:Math.max(...pcm.map(Math.abs)),time:ctx.currentTime};},index);
    assert(evidence.peak>.01,JSON.stringify(evidence));assert(evidence.time>0);
   }
-  await player.nth(1).locator('button').tap();await checkPlaying(1);
+  await player.nth(1).locator('.wav-preview-play').tap();await checkPlaying(1);
   assert.equal(await p.evaluate(()=>__gains.filter(x=>x.context===document.querySelector('.mastering-result').__mygrainIphonePreview.source.context).at(-1).gain.gain.value),1);
   await d.locator('.mastering-match').check();
   await p.waitForFunction(()=>__gains.filter(x=>x.context===document.querySelector('.mastering-result').__mygrainIphonePreview.source.context).at(-1).gain.gain.value<1);
@@ -41,11 +41,11 @@ function wav() {
   await d.locator('.mastering-match').uncheck();
   await p.waitForFunction(()=>__gains.filter(x=>x.context===document.querySelector('.mastering-result').__mygrainIphonePreview.source.context).at(-1).gain.gain.value===1);
   let fail=true;await p.route('**/mygrain-wavs/'+name+'?*',route=>{if(fail){fail=false;return route.fulfill({status:503,body:'test failure'});}return route.continue();});
-  await player.nth(0).locator('button').tap();await p.waitForFunction(()=>document.querySelector('.mastering-playback-status').textContent.includes('503'));assert.equal(await player.nth(0).locator('button').isEnabled(),true);
-  await player.nth(0).locator('button').tap();await checkPlaying(0);
+  await player.nth(0).locator('.wav-preview-play').tap();await p.waitForFunction(()=>document.querySelector('.mastering-playback-status').textContent.includes('503'));assert.equal(await player.nth(0).locator('.wav-preview-play').isEnabled(),true);
+  await player.nth(0).locator('.wav-preview-play').tap();await checkPlaying(0);
   assert.equal(await d.locator('.mastering-result').evaluate(a=>a.__mygrainIphonePreview.playing),false);
   await player.nth(0).locator('input').fill('1.5');await player.nth(0).locator('input').dispatchEvent('input');
-  const before=loads.length;await player.nth(1).locator('button').tap();await checkPlaying(1);assert.equal(loads.length,before,'A/B reuses decoded WAV');
+  const before=loads.length;await player.nth(1).locator('.wav-preview-play').tap();await checkPlaying(1);assert.equal(loads.length,before,'A/B reuses decoded WAV');
   for(const width of [390,844]) {await p.setViewportSize({width,height:width===390?844:390});const box=await d.boundingBox();assert(box.x>=0&&box.x+box.width<=width+1);}
   await p.setViewportSize({width:390,height:844});
   await p.evaluate(()=>{window.__comparisonApis=[...document.querySelectorAll('.mastering-dialog audio')].map(a=>a.__mygrainIphonePreview);window.__comparisonContext=__comparisonApis[1].source.context;});

@@ -1,0 +1,29 @@
+name: MYGRAIN macOS VST3
+on:
+  workflow_dispatch:
+  push:
+    branches: [mygrain-macos-vst3-20261109]
+    paths: ['vst3/**', '.github/workflows/mygrain-macos-vst3.yml']
+permissions:
+  contents: read
+jobs:
+  universal:
+    runs-on: macos-15
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Checkout pinned official Steinberg SDK
+        run: |
+          git clone --filter=blob:none https://github.com/steinbergmedia/vst3sdk.git "$RUNNER_TEMP/vst3sdk"
+          git -C "$RUNNER_TEMP/vst3sdk" checkout 3cdf9ca5d1f5b1b21e0a86832aa4abe55607bd96
+          git -C "$RUNNER_TEMP/vst3sdk" submodule update --init --recursive --depth 1
+      - name: Build universal plugins and run core checks
+        run: bash vst3/mac/build.sh "$RUNNER_TEMP/mygrain-build" "$RUNNER_TEMP/vst3sdk"
+      - name: Validate actual bundles, exercise native audio, package
+        run: python3 vst3/mac/release.py "$RUNNER_TEMP/mygrain-build" "$RUNNER_TEMP/vst3sdk" "$RUNNER_TEMP/mygrain-release"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mygrain-macos-universal
+          path: ${{ runner.temp }}/mygrain-release/
+          retention-days: 14

@@ -1,4 +1,4 @@
-# GENREator musical memory — version 1
+# GENREator musical memory — version 2
 
 Authoritative musical reference for MYGRAIN generation. This entire document is
 injected server-side into EVERY AI patch request, including every G button press;
@@ -48,6 +48,31 @@ absent from the allowed API. Approximate swing via skipping/alternating step
 placement; do not claim real swing. Normal generation uses straight steps, not
 ratchets; longer section rolls only when that mode explicitly permits them.
 
+### Effects: musical choices, not a mandatory stack
+
+The recipe now has optional `effects` and `cardEffects`; use only the supplied
+field contract. `effects` supports Mutilator, Bass Face, Wasp, Filter Playground,
+Turntable, Resonator, WireWorld and Sonic Crystal. Bubble Chamber is manual-only.
+Pick an audible input in the resulting patch. `all` means the whole mix, not
+just the selected lane; use it deliberately. Wasp input is a DRIVER and its
+`destination` is the affected lane. Its blend/melt are global Wasp controls.
+Resonator edits configure its first object and disable its second object.
+Playground `lfoBeats`/`lfoDepth` produce a drawn synced saw cutoff sweep, not a
+new free-running oscillator. Card effects use actual channel filter/LFO,
+reverb and tempo-delay settings before specialised effect routing. N has its
+own filter: use card N for space only, not as a substitute N filter.
+
+For new patches explicitly disable unused specialised effects and set unwanted
+card filter/room/delay Off; do not inherit a previous patch's wash. For Refine
+and Section change only requested fields and retain all unrelated effects.
+Choose useful amounts, not a fixed preset: values are bounded real settings,
+not percentages unless stated. Prefer one/two character effects plus selected
+card space. Preserve dynamics, dry low-end and headroom. Do not alter Solo,
+main mute/master gain, Through main output switches or Cooking Pot order/power.
+The current native/Pot topology is retained. Do not claim a serial chain when
+Cooking Pot is off. Genre suggestions below are starting points, not rules
+that override user direction or mode. Omission retains the existing setting.
+
 ### MYGRAIN instrument and source translation
 
 - Drums: the existing kick/snare/hat tracks. Use a suitable snare to imply a clap
@@ -63,7 +88,7 @@ ratchets; longer section rolls only when that mode explicitly permits them.
 - L: pitched lead/sampler notes; samples_leads for a hook, samples_terra for unusual
   electronic/organic Terra timbres. Prefer one compact motif, not random pitches.
 - W: samples_modular, good for modular, granular, noise, metallic and evolving
-  material. Source identity and slicing supply texture; shared FX stay unchanged.
+  material. Source identity and slicing supply texture; choose additional processing through the bounded effects contract.
 - V: vocal source fragments when musically useful, not compulsory in every style.
   P: piano phrases; O: orchestral phrases; Q: piano/strings chords. Q is NOT a
   generic synth chord oscillator. If P/O/Q excluded, do not use Q as a loophole.
@@ -74,7 +99,7 @@ ratchets; longer section rolls only when that mode explicitly permits them.
   most three fresh loop sources plus the permitted drum hits; no URL/path output.
 - Source catalogue metadata is evidence of names/estimated features, not proof of
   listening. Prefer compatible keys and tempo-scalable phrases. No unrequested
-  global/shared FX, render, transport or GUI changes. This document is musical
+  master/output routing, render, transport or GUI changes. Shared and specialised effects use only effectCapabilities. This document is musical
   guidance, NOT permission to extend the schema.
 
 ## dnb — Drum & Bass
@@ -99,6 +124,8 @@ one contrasting motif. Distinguish liquid (smoother/sparser), rolling (stable
 propulsion), neuro-influenced (short angular bass phrases) without pretending to
 synthesize unavailable processing. Preserve 174 actual BPM even for halftime feel.
 
+**Useful effects:** Bass Face on X: controlled drive/body for bass definition; modest Mutilator on a mid-bass layer for grit. Keep the kick/sub clean. Short high-pass card filtering on texture layers; little room or delay on the drum foundation.
+
 ## jungle — Jungle
 
 **Clock:** automatic 160–175 BPM; useful/common choices 160, 165, 170, 174.
@@ -117,6 +144,8 @@ recombination supply complexity. Dark/modal or uplifting minor material both
 work. P/O/Q disabled for this app's jungle brief. Avoid a house kick on every
 quarter, huge sustained lead stacks, or writing 85 BPM because the break source
 was originally funk at half speed. Classic dub space matters as much as busy tops.
+
+**Useful effects:** Mutilator sparingly on a break layer or drums for ragged edges; Turntable on a break/texture for age, low wow/flutter so the groove stays tight. Filter Playground band-pass on an accent; card delay on occasional stabs, not the whole beat.
 
 ## house — House
 
@@ -137,6 +166,8 @@ lead running. Choose one house identity (piano-led, soulful, jackin-influenced)
 instead of mixing all subgenres. Do not call an all-off drum pattern house unless
 specifically asked for a breakdown.
 
+**Useful effects:** Small card room on Q/L and tempo delay on a hook; subtle Bass Face on X for warmth. Filter Playground low-pass for softened chords. Keep kick and bass direct; avoid noisy Turntable or aggressive physical resonances unless asked.
+
 ## deep-house — Deep House
 
 **Clock:** automatic 112–124 BPM; common starting choices 116, 118, 120, 122.
@@ -155,6 +186,8 @@ work. Keep bass low and simple while upper chords have extensions; use rests to
 suggest depth without changing shared reverb. Avoid big-room trance arpeggios,
 constant fills, harsh modular clutter or fast rolling 16th bass throughout.
 
+**Useful effects:** Warm low-pass card filter on Q/L, low-depth slow LFO and short room; restrained tempo delay for a chord stab. Gentle Bass Face on X; optional lightly worn Turntable on harmonic material, not a wobbly full mix.
+
 ## tech-house — Tech House
 
 **Clock:** automatic 124–130 BPM; common choices 125, 126, 127, 128.
@@ -171,6 +204,8 @@ No cinematic strings, busy chord progression or constant long leads. A distincti
 repeating bass rhythm plus a sparse hook is more convincing than loading every
 possible layer. Do not fabricate sidechain/compressor settings; achieve space by
 notes and levels in the existing API.
+
+**Useful effects:** Dry tight rhythm; restrained Bass Face on X, short card delay on L/V hooks and light high-pass filtering for separation. Modest Playground movement on a hook; avoid long reverb tails and multiple resonant effects.
 
 ## techno — Techno
 
@@ -191,6 +226,8 @@ SOURCE choices are different variants; only claim acid character if material
 supports it. Avoid trance chord lifts, lush piano, frenetic soloing and excessive
 bass sustain. High energy does not require every lane at full volume.
 
+**Useful effects:** Mutilator on a percussion/texture layer; restrained Wasp ducking with drumKick driving a pad/texture, not the sub. Playground rhythmic low-pass on W/L; WireWorld at low level for metallic motion. Short card delay/room; preserve kick transients.
+
 ## trance — Trance
 
 **Clock:** automatic 132–142 BPM; common choices 134, 136, 138, 140.
@@ -210,6 +247,8 @@ supersaw oscillator, so express an arpeggio as L notes. Avoid writing random
 high notes over unrelated bass or selling unsupported filter/FX automation as a
 build/drop. A patch is not a complete multi-minute trance arrangement.
 
+**Useful effects:** Card tempo delay and longer room on L/Q, slower low-pass LFO for pad movement. Wasp ducking: drumKick input, L or Q destination, moderate depth/release. Keep X and kick clear; no heavy Turntable wear unless lo-fi is requested.
+
 ## garage — UK Garage
 
 **Clock:** automatic 128–138 BPM; common choices 130, 132, 134, 135, 136.
@@ -226,6 +265,8 @@ bass motion; avoid huge sustained orchestral layers and clinical techno ostinati
 Keep vocal or chord stabs away from every snare attack. Recreate implied lilt via
 rests and uneven step spacing only; do not claim shuffle offsets the engine
 cannot express. Make bass rhythmic, not a generic held low note across the bar.
+
+**Useful effects:** Small card room and dotted-style delayBeats .75/1.5 on a chord or vocal; gentle low-pass on Q/V. Light Bass Face on X for roundness. Preserve rhythmic gaps; these effects do not add swing or microtiming.
 
 ## breakbeat — Breakbeat
 
@@ -244,6 +285,8 @@ may feel more sample-heavy and less rigidly robotic. No fixed sample-lane source
 assumptions outside catalogue. Avoid every track hitting all 16 steps and avoid
 adding many sustained harmony layers over an already busy break.
 
+**Useful effects:** Mutilator at modest mix on the break/drum bus for bite; light Turntable wear for rough sample character. Playground band-pass on a separate accent, card delay on a stab; avoid washing the break and bass in long room.
+
 ## electro — Electro (not electro house)
 
 **Clock:** automatic 115–135 BPM; common choices 120, 125, 128, 130, 132.
@@ -261,6 +304,8 @@ four-on-floor, orchestral drama or warm piano progressions; put identity into
 broken kick/bass placement and electronic source character. A sparse hook with
 lots of silence is preferable to a constant high-register solo.
 
+**Useful effects:** Bass Face for X harmonics; tight short room on accents and restrained card delay on L. Wasp ring or phase modulation between a texture driver and lead destination for robotic detail, at low depth/blend. Keep the beat precise.
+
 ## dub-techno — Dub Techno
 
 **Clock:** automatic 110–125 BPM; common choices 115, 118, 120, 122.
@@ -277,6 +322,8 @@ changes. Delay/reverb are part of the broader genre vocabulary, but this generat
 must leave shared FX unchanged: seek spatial character in sources and spacing,
 never invent/send unavailable effect controls. Avoid over-bright hats, melodic
 trance leads, dense drum fills or describing an unchanged delay as newly applied.
+
+**Useful effects:** Card delay on Q/L stabs, delayBeats .75/1.5/2 with feedback .35–.6 and room .2–.5; low-pass and slow low-depth LFO for dark space. Light Turntable wear or Playground low-pass for colour. Keep kick/X mostly dry; no invented feedback automation.
 
 ## ambient — Ambient Electronic
 
@@ -297,6 +344,8 @@ reverb, granular automation or endless pad sustain outside the writable API.
 One foreground texture plus quiet countertexture often suffices. Do not let
 every generator create a kick/snare/bass song regardless of genre.
 
+**Useful effects:** Longer card room on W/L/Q, gentle tempo delay and slow low-pass LFO. Low-level WireWorld dispersion or Sonic Crystal scattering can extend a texture. Optional quiet Playground movement; retain a dry anchor and avoid stacking every spacious effect.
+
 ## idm — IDM / Glitch
 
 **Clock:** automatic 85–150 BPM; useful starting choices 95, 110, 120, 130, 140.
@@ -314,6 +363,8 @@ or clear modal motif. Make a recognisable repeating rule, then disrupt it a
 little. Do not send unsupported ratchets, probability, per-step velocity, swing
 or meters just because the genre is experimental. Use explicit rests and written
 steps. The three-reload budget makes careful source selection essential.
+
+**Useful effects:** Sparse Mutilator accents, Wasp ring/phase between audible layers, low-level WireWorld or Sonic Crystal for unusual texture. Playground comb/notch on a secondary source; short card delays. Choose one or two character processes; never claim unsupported glitch sequencing.
 
 ## industrial — Industrial Electronic
 
@@ -333,6 +384,8 @@ FX or invent a saturator API. Avoid filling the spectrum with constant noise,
 long orchestral rises or a jaunty piano progression. Heavy timbre and sparse
 repetition can be more effective than an all-on sequencer.
 
+**Useful effects:** Mutilator on W or percussion for abrasive edges; Resonator pipe/cone with high damping and modest level for short mechanical impacts. WireWorld/Sonic Crystal can supply controlled metallic texture; Playground high-pass/band-pass for a narrow accent. Keep tails tight and the main kick/sub intelligible.
+
 ## experimental — Experimental Electronic
 
 **Clock:** automatic 60–170 BPM. No meaningful most-common BPM: choose e.g. 72/90
@@ -351,9 +404,12 @@ P/O/Q off. X optional if low end is missing, but do not add bass by reflex.
 Optional already-loaded atmosphere only when the contract permits it; no Dropbox
 load claims. Use a compact pitch family, a drone with irregular intervals, or
 purposeful limited dissonance; avoid unrelated random MIDI values. One unusual
-relationship is enough to define the patch. Keep source budget, sound levels,
-existing effects, recordings and UI untouched. Distinct takes must come from AI
-choices of sources, written patterns and density, not a fixed random preset bank.
+relationship is enough to define the patch. Respect source budget and headroom;
+preserve recordings and UI. Choose effects through the bounded contract. Distinct
+takes must come from AI choices of sources, patterns, density and purposeful
+processing, not a fixed random preset bank.
+
+**Useful effects:** Use W/Terra L as audible drivers. Choose WireWorld dispersion, Sonic Crystal scattering, or Resonator object colour as the main process; add restrained Wasp cross-modulation or Playground comb/notch only with purpose. Card filter/space should separate layers rather than drown them. Bubble Chamber remains manual-only.
 
 ## Sources and editorial scope
 
@@ -379,7 +435,8 @@ editorial generation policy, not measured popularity statistics or quotations.
 
 Before returning JSON, check selected genre and clock (NOT half-time), kick/snare
 identity, appropriate sources/exclusions, fresh required modular/Terra pair,
-melodic key relationship, density/negative space and useful levels. Follow the
+melodic key relationship, density/negative space, useful levels, audible effect
+inputs and intentional unused-effect Off choices for a new patch. Follow the
 strict writable schema. Mention actual BPM, rhythmic character and instrument
 roles briefly in description. A genre label alone is not evidence of a match.
 Never ignore this memory because the previous patch has a different BPM or

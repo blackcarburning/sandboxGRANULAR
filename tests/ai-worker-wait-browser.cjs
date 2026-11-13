@@ -1,0 +1,23 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),{chromium,webkit}=require('playwright-core');
+(async()=>{for(const[name,type]of Object.entries({chromium,webkit})){
+ const b=await type.launch(name==='chromium'?{executablePath:'/snap/bin/chromium',args:['--no-sandbox','--autoplay-policy=no-user-gesture-required']}:{});
+ try{const c=await b.newContext(),base='http://127.0.0.1:19073/mygrain/';await c.request.post(base+'api/auth/login',{data:{username:'admin',password:'eq-generation-local-test'}});const p=await c.newPage();p.setDefaultTimeout(45000);const errors=[];p.on('pageerror',e=>errors.push(e.message));await p.route('**/*',r=>new URL(r.request().url()).origin===new URL(base).origin?r.continue():r.abort());let schemaReads=0;const schema=JSON.parse(fs.readFileSync(require.resolve('../ai-patch-controls.json'),'utf8'));
+ await p.route('**/ai-patch-controls.json*',r=>{const value=structuredClone(schema);if(schemaReads++===0)value.controls.performanceBastardLoopXLevel.max=70;return r.fulfill({json:value})});
+ let requests=0;await p.route('**/api/ai-patch-direction',r=>++requests<=2?r.fulfill({status:429,headers:{'Retry-After':'0.01'},json:{ok:false,code:'ai_busy',error:'AI is finishing another proposal. Try again shortly.'}}):r.fulfill({json:{ok:true,model:'openai/gpt-6.1-sol',recipe:{title:'Fresh schema',description:'Valid X level after a limits update.',parameters:{grainSize:320,performanceBastardLoopXLevel:33,performanceBastardLoopLLength:45,performanceBastardLoopXDecay:62},loops:{}}}}));
+ await p.goto(base);await p.waitForFunction(()=>document.documentElement.dataset.mygrainStartup==='ready'&&mygrainAiPatch?.ready);await p.evaluate(()=>mygrainCardHistory.ready);await p.locator('#start-btn').click();await p.waitForFunction(()=>isAudioGraphReady()&&!engineStarting&&!stateSaveSuspended&&!mygrainCardHistory.busy);
+ const result=await p.evaluate(async()=>{
+  stopAllPerformancePlayback({silent:true});
+  const seed=()=>{for(const k of MygrainChannelEq.KEYS){const v=mygrainChannelEq.get(k);v.enabled=true;delete v.manualBypass;v.bands[1].gain=7;v.automation={version:1,read:true,steps:16,points:[{phase:0,...MygrainChannelEq.defaults(),enabled:true},{phase:1,...MygrainChannelEq.defaults(),enabled:true}]};mygrainChannelEq.set(k,v);mygrainEqAutomation.write(k)}};
+  const off=()=>MygrainChannelEq.KEYS.every(k=>!mygrainChannelEq.get(k).enabled&&!mygrainChannelEq.get(k).automation&&!mygrainEqAutomation.info(k).write);
+  seed();const before=mygrainChannelEq.settings();await randomizeBastardLoopLPattern();const randomOff=off();await mygrainCardHistory.undo();const undo=JSON.stringify(before)===JSON.stringify(mygrainChannelEq.settings());await mygrainCardHistory.redo();const redo=off();
+  seed();const a=mygrainAiPatchAdapter;const applied=await a.execute({parameters:{globalBpmSlider:Number(document.getElementById('globalBpmSlider').value)===117?118:117},loops:{}},a.fingerprint());const aiOff=off();await a.undo(applied.before,a.fingerprint());const aiUndo=MygrainChannelEq.KEYS.every(k=>mygrainChannelEq.get(k).enabled&&mygrainChannelEq.get(k).automation?.read);
+  const protectedBefore=JSON.stringify(mygrainChannelEq.settings());
+  await a.execute({parameters:{grainSize:310},loops:{}},a.fingerprint(),{protectEq:true});
+  const protectedEq=JSON.stringify(mygrainChannelEq.settings())===protectedBefore;
+  const preset=gatherPreset();mygrainChannelEq.restore(preset.channelEq);const roundtrip=MygrainChannelEq.KEYS.every(k=>mygrainChannelEq.get(k).automation?.read);return{randomOff,undo,redo,aiOff,aiUndo,roundtrip,protectedEq};
+ });for(const[k,v]of Object.entries(result))assert.equal(v,true,k);await p.evaluate(async()=>{document.getElementById('aiPatchPrompt').value='Warm fresh schema patch';document.getElementById('aiPatchProtectEq').checked=true;await mygrainAiPatch.generate()});
+ const status=await p.locator('#aiPatchStatus').textContent();assert(!/out-of-range|Nothing was changed|could not|unavailable/i.test(status),status);
+ assert.equal(await p.locator('#performanceBastardLoopXLevel').inputValue(),'33');assert(schemaReads>=2);assert.equal(requests,3);assert.equal(await p.locator('#performanceBastardLoopLLength').inputValue(),'45');assert.equal(await p.locator('#performanceBastardLoopXDecay').inputValue(),'62');
+ await p.locator('[data-ai-eq-protect]').last().evaluate(el=>{el.checked=true;el.dispatchEvent(new Event('change',{bubbles:true}))});assert(await p.locator('#aiPatchProtectEq').isChecked());
+ assert.deepEqual(errors,[]);console.log('PASS',name,result);await c.close();}finally{await b.close()}
+}})().catch(e=>{console.error(e);process.exitCode=1});

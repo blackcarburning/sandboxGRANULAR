@@ -4,6 +4,12 @@ if(root.__mygrainSongRenderDeck)return;
 const card=document.getElementById('genreatorCard');if(!card)return;
 const bpm=document.getElementById('genreatorBpm'),status=document.getElementById('genreatorStatus'),cancel=document.getElementById('genreatorCancel'),undo=document.getElementById('genreatorUndo');
 let genres=[],pending=false,lastGenre=null,confirming=false;
+const protection=document.createElement('details');protection.className='ai-patch-protection';
+protection.innerHTML='<summary>Protected Layers · AI patch</summary><label><input type="checkbox" data-ai-eq-protect> EQ · all channels</label><p>Preserve EQ settings and recorded automation when creating an AI patch.</p>';
+bpm.closest('label')?.after(protection);
+if(!protection.isConnected)card.prepend(protection);
+document.addEventListener('change',e=>{if(!e.target.matches('[data-ai-eq-protect]'))return;for(const box of document.querySelectorAll('[data-ai-eq-protect]'))box.checked=e.target.checked;});
+
 const tempoDialog=document.createElement('dialog');tempoDialog.id='genreatorTempoDialog';tempoDialog.setAttribute('aria-labelledby','genreatorTempoTitle');
 tempoDialog.innerHTML='<h2 id="genreatorTempoTitle">Use BPM override?</h2><p id="genreatorTempoQuestion"></p><div class="genreator-tempo-actions"><button type="button" data-tempo-choice="yes">Yes</button><button type="button" data-tempo-choice="cancel" autofocus>Cancel</button><button type="button" data-tempo-choice="suggested">Use suggested</button></div>';
 document.body.append(tempoDialog);

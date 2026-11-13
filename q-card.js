@@ -68,10 +68,11 @@
         },
         stop() { this.active = null; stopAllPerformancePlayback({ silent: true }); },
         start(index, steps, rate, options = {}) {
-            const step = 60 / sequencerBPM / 4 / rate;
+            const step = 60 / getDawFxTransportBpm() / 4 / rate;
+            if (root.mygrainQ?.playable()) root.mygrainQ.ensureGraph();
             const deadline = getBufferedTransportStartTime();
             this.active = options.full ? null : new Section(deadline, index * step, steps * step);
-            if (this.active) Object.assign(this.active, { owner: options.owner, index, steps, rate, bpm: sequencerBPM });
+            if (this.active) Object.assign(this.active, { owner: options.owner, index, steps, rate, bpm: getDawFxTransportBpm() });
             try {
                 withBufferedTransportStart(deadline, time => {
                     if (this.active) this.active.origin = time;
@@ -1377,6 +1378,9 @@
             if (playing) this.start(this.host.context().currentTime + .04);
         }
         async prepareCapture() {
+            // A trimmed patch can omit a disabled, empty card's source. Saving
+            // it again must not demand a sample or download a new piano bank.
+            if (this.state.enabled === false && !this.state.bank && this.state.sequence.every(step => step == null)) return;
             if (this.externalSound()) { await this.prepareSounds([]); this.state.bank = null; return; }
             const serialized = JSON.stringify(this.state);
             await this.piano.capture(this.state);
@@ -1385,6 +1389,7 @@
         }
 
         async preparePlayback() {
+            const generation = this.generation;
             await this.ready();
             this.status(`Preparing Q ${this.externalSound() ? this.state.soundSource.toUpperCase() : theory.instruments[this.state.instrument].label}…`);
             const events = theory.events(this.state, this.length());
@@ -1393,6 +1398,10 @@
                 events.push({ notes: theory.transposed(chord.notes, this.state.transpose), velocity: this.state.velocity });
             }
             await this.prepareSounds(events);
+            if (generation !== this.generation) throw new DOMException('Q preparation cancelled.', 'AbortError');
+            // Routing (including shared FX/EQ) can be expensive on phones. It
+            // belongs to preparation, before a transport/capture deadline exists.
+            this.ensureGraph();
             this.status(`Q ${this.externalSound() ? this.state.soundSource.toUpperCase() : theory.instruments[this.state.instrument].label} ready.`);
         }
 
@@ -1664,7 +1673,7 @@
             clearInterval(this.timer);
             this.timer = null;
             for (const voice of [...this.voices]) this.removeVoice(voice, true);
-            if (this.graph) {
+            if (this.graph && !options.keepGraph) {
                 clearTimeout(this.graph.reverbTimer);
                 for (const node of this.graph.nodes) { try { node.disconnect(); } catch (error) {} }
                 this.graph = null;
@@ -1676,7 +1685,7 @@
 
         start(startTime, options = {}) {
             if (!this.playable()) return false;
-            this.stop({ keepLoop: true });
+            this.stop({ keepLoop: true, keepGraph: this === root.mygrainQ });
             const generation = this.generation;
             this.running = true;
             this.host.activity?.();
@@ -2176,7 +2185,7 @@
                 await this.preparePlayback();
                 if (generation !== this.generation) return;
                 this.setEnabled(true);
-                if (action === 'play') { this.host.stopAll(); this.start(this.host.context().currentTime + .04); }
+                if (action === 'play') { this.host.stopAll(); this.ensureGraph(); this.start(this.host.context().currentTime + .04); }
                 else this.host.sharedPlay();
                 return;
             }

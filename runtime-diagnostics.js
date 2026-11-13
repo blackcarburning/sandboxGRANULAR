@@ -82,7 +82,7 @@
                 wasDiscarded: typeof host.document?.wasDiscarded === 'boolean' ? host.document.wasDiscarded : null,
                 previousSessionId: previousId, previousSessionFound: previous.some(entry => entry.sessionId === previousId),
                 standalone: safely(() => host.matchMedia('(display-mode: standalone)').matches, false) || Boolean(host.navigator?.standalone) },
-            state: {}, events: [], history: [] };
+            state: {}, events: [], breadcrumbs: [], history: [] };
         safely(() => tab.setItem(tabKey, id));
 
         function sample() {
@@ -101,6 +101,7 @@
             try {
                 if (!storage) throw new Error('Unavailable');
                 let encoded = JSON.stringify(record);
+                while (new Blob([encoded]).size > limits.bytes && record.breadcrumbs.length) { record.breadcrumbs.shift(); encoded = JSON.stringify(record); }
                 while (new Blob([encoded]).size > limits.bytes && record.events.length) {
                     record.events.shift();
                     encoded = JSON.stringify(record);
@@ -134,6 +135,11 @@
                         return;
                     }
                     repeatedFailure = { signature, started: now(), entry: null };
+                }
+                if (type === 'ui-breadcrumb' || type === 'power-mode') {
+                    record.breadcrumbs.push({ timestamp: instant(), type, ...clean(details) });
+                    if (record.breadcrumbs.length > 120) record.breadcrumbs.shift();
+                    return; // Reuse the existing five-second persistence heartbeat.
                 }
                 record.events.push({ timestamp: instant(), type, ...clean(details) });
                 if (repeatedFailure && (type === 'javascript-error' || type === 'unhandled-rejection')) repeatedFailure.entry = record.events.at(-1);
@@ -188,6 +194,45 @@
                 value: control.type === 'checkbox' ? Boolean(control.checked) : text(control.value, 40) });
         }, true);
 
+        // Scalar breadcrumbs only: no pointer-move stream, text entry, layout reads or new timer.
+        let activeCard = null;
+        const sliders = new WeakSet();
+        const describe = target => {
+            const card = target?.closest?.('[role="dialog"],dialog,[id$="Overlay"],[id$="Card"],.performance-feature-card,.performance-sound-card,.performance-bpm-card');
+            return { card: text(card?.id || card?.getAttribute?.('data-instrument') || (card?.tagName==='DIALOG'?'dialog':'page'), 80),
+                control: text(target?.id || target?.getAttribute?.('data-control') || target?.getAttribute?.('aria-label') || target?.tagName || 'unknown', 100) };
+        };
+        const crumb = (action, detail = {}) => event('ui-breadcrumb', { action, ...detail,
+            audioTime: safely(() => host.mygrainClockContextTime?.()), lowPower: Boolean(host.mygrainPower?.active) });
+        const identify = target => { const detail=describe(target); if(detail.card!==activeCard){activeCard=detail.card;crumb('card-enter', {card:activeCard});} return detail; };
+        listen(host.document, 'pointerdown', entry => {
+            const target=entry.target?.closest?.('input[type="range"],button,select,[role="slider"]');
+            const detail=identify(entry.target); if(!target)return;
+            if(target.type==='range'){sliders.add(target);crumb('slider-start',{...describe(target),value:Number(target.value)});}
+        }, true);
+        listen(host.document, 'input', entry => {
+            const target=entry.target;if(target?.type!=='range'||sliders.has(target))return;
+            sliders.add(target);crumb('slider-start',{...identify(target),value:Number(target.value)});
+        }, true);
+        for (const name of ['pointerup','pointercancel']) listen(host.document,name,entry=>{
+            const target=entry.target;if(target?.type!=='range'||!sliders.has(target))return;
+            sliders.delete(target);crumb('slider-end',{...describe(target),value:Number(target.value),cancelled:name==='pointercancel'});
+        },true);
+        listen(host.document, 'change', entry => {
+            const target=entry.target;if(!['range','checkbox','radio'].includes(target?.type)&&target?.tagName!=='SELECT')return;
+            const detail=identify(target); if(target.type==='range')sliders.delete(target);
+            // Select values can contain private filenames: retain selected index, never text.
+            crumb(target.type==='range'?'slider-end':'control-change',{...detail,value:target.tagName==='SELECT'?target.selectedIndex:target.type==='range'?Number(target.value):Boolean(target.checked)});
+        }, true);
+        listen(host.document, 'click', entry => {
+            const target=entry.target?.closest?.('button');if(!target)return;
+            crumb('button',{...identify(target),pressed:target.getAttribute?.('aria-pressed')});
+            if(target.hasAttribute?.('aria-pressed')) Promise.resolve().then(()=>crumb('toggle-applied',{...describe(target),pressed:target.getAttribute('aria-pressed')}));
+        }, true);
+        listen(host.document, 'focusin', entry => identify(entry.target), true);
+        for(const [name,action] of [['mygrain-ui-busy','scroll-start'],['mygrain-ui-settled','scroll-end']])
+            listen(host,name,()=>{const state=safely(()=>host.mygrainUiActivity.snapshot(),{});crumb(action,{card:activeCard,target:text(state.scrollTarget,80),reason:text(state.reason,30)});});
+
         const originalFetch = host.fetch;
         let observedFetch = null;
         if (typeof originalFetch === 'function') {
@@ -241,7 +286,7 @@
             clear(sessionId = id) {
                 safely(() => storage.removeItem(prefix + sessionId));
                 for (let index = previous.length - 1; index >= 0; index -= 1) if (previous[index].sessionId === sessionId) previous.splice(index, 1);
-                if (sessionId === id) { record.events.length = 0; record.history.length = 0; repeatedFailure = null; savedAt = null; }
+                if (sessionId === id) { record.events.length = 0; record.breadcrumbs.length = 0; record.history.length = 0; repeatedFailure = null; savedAt = null; }
             },
             stop() {
                 stopped = true;

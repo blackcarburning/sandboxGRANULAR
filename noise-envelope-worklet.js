@@ -1,4 +1,4 @@
-import './noise-card-dsp.js?v=20261025-n-threshold-1';
+import './noise-card-dsp.js?v=20261110-n-presets-1';
 
 // Input audio is detection-only. The only output is cents of filter modulation;
 // it is connected exclusively to N's filter AudioParams, never to an audio bus.

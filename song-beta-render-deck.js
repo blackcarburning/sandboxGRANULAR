@@ -35,7 +35,10 @@
     const contextListeners = [];
     const captureOption = options => typeof options === 'boolean' ? options : Boolean(options?.capture);
     bridge.disposeContext = () => {
+        window.mygrainEffectOutput?.releaseContext();
         window.mygrainTurntable?.releaseContext();
+        window.mygrainResonator?.releaseContext();
+        window.mygrainAcousticFx?.releaseContext();
         window.mygrainWasp?.dispose();
         window.mygrainNoise?.dispose();
         for (const entry of contextListeners) bridge.context.removeEventListener(entry.type, entry.listener, entry.capture);

@@ -5,32 +5,32 @@ assert.match(base,/^http:\/\/(127\.0\.0\.1|localhost):\d+\/mygrain\/$/);
 (async()=>{for(const [engine,type]of Object.entries({chromium,webkit})){
  const browser=await type.launch(engine==='chromium'?{executablePath:'/snap/bin/chromium',args:['--no-sandbox','--autoplay-policy=no-user-gesture-required']}:{});
  try{
-  const c=await browser.newContext({viewport:{width:390,height:844},hasTouch:true,isMobile:true});assert.equal((await c.request.post(base+'api/auth/login',{data:{username:'admin',password:'isolated-v-cuts'}})).status(),200);
+  const c=await browser.newContext({viewport:{width:390,height:844},hasTouch:true,isMobile:true});assert.equal((await c.request.post(base+'api/auth/login',{data:{username:'admin',password:process.env.MYGRAIN_TEST_ADMIN_PASSWORD}})).status(),200);
   const p=await c.newPage(),errors=[];p.on('pageerror',e=>errors.push(e.message));
   await p.goto(base);await p.waitForFunction(()=>window.mygrainCardHistory&&window.MygrainVocalCut?.randomizeV&&document.documentElement.dataset.mygrainStartup==='ready');await p.locator('#start-btn').tap();await p.waitForFunction(()=>isAudioGraphReady()&&!engineStarting&&!stateSaveSuspended&&!mygrainCardHistory.busy);
   await p.evaluate(async()=>{
    stopAllPerformancePlayback({silent:true});
-   for(let i=0;i<8;i++){randomizeMegaBastardLoopSettings();if(getSelectedBastardLoopVDivisions().some(x=>!['1/2','1/4','1/8'].includes(x)))throw Error('Mega V divisions escaped policy')}
+   for(let i=0;i<8;i++){randomizeMegaBastardLoopSettings();for(const getter of [getSelectedBastardLoopDivisions,getSelectedBastardLoop2Divisions,getSelectedBastardLoop3Divisions,getSelectedBastardLoopVDivisions,getSelectedBastardLoopWDivisions,getSelectedBastardLoopPDivisions,getSelectedBastardLoopODivisions])if(getter().some(x=>!['2','1'].includes(x)))throw Error('Mega divisions escaped policy')}
    applyBastardLoopVDivisionSelection(['1/32','1/16'],{save:false});
-   if(getBastardLoopVBuildPlan().divisions.some(x=>x!=='1/8'))throw Error('V build plan escaped policy');
-   applyGlobalBpm(240);syncPatternLengthControls(8,{skipSave:true});setFxMuted(true,{silent:true});
-   const b=audioContext.createBuffer(1,audioContext.sampleRate,audioContext.sampleRate),a=b.getChannelData(0);for(let i=0;i<a.length;i++)a[i]=.2*Math.sin(2*Math.PI*220*i/b.sampleRate);
-   bastardLoopVBuffer=b;bastardLoopVSourceBpm=240;bastardLoopVMetadata={durationSeconds:1,bpm:240,label:'V division regression'};bastardLoopVLevel=.5;document.getElementById('performanceBastardLoopVLevel').value='50';
+   if(getBastardLoopVBuildPlan().divisions.some(x=>!['2','1'].includes(x)))throw Error('V build plan escaped policy');
+   applyGlobalBpm(240);syncPatternLengthControls(32,{skipSave:true});setFxMuted(true,{silent:true});
+   const b=audioContext.createBuffer(1,audioContext.sampleRate*2,audioContext.sampleRate),a=b.getChannelData(0);for(let i=0;i<a.length;i++)a[i]=.2*Math.sin(2*Math.PI*220*i/b.sampleRate);
+   bastardLoopVBuffer=b;bastardLoopVSourceBpm=240;bastardLoopVMetadata={durationSeconds:2,bpm:240,label:'V division regression'};bastardLoopVLevel=.5;document.getElementById('performanceBastardLoopVLevel').value='50';
    setBastardLoopVPitchOctaves(0,{skipSave:true});setBastardLoopVPitchSemitones(0,{skipSave:true});setBastardLoopVFineCents(0,{skipSave:true});setBastardLoopVPitchAffectsDuration(false,{skipSave:true});
    setBastardLoopVEnabled(true,{skipSave:true});setLoopLayerSolo('bastardv',{skipSave:true});setBastardLoopVCut({grid:1/32,snap:false,repeat:true},{skipSave:true});
    await saveAudioBufferToDB(b,BASTARD_LOOP_V_AUDIO_BUFFER_KEY);saveState({force:true});window.vDivisionOriginal=b;
   });
   for(let i=0;i<6;i++){
    await p.locator('#performanceBastardLoopVCutRandomizeBtn').scrollIntoViewIfNeeded();await p.locator('#performanceBastardLoopVCutRandomizeBtn').tap();await p.waitForFunction(()=>!mygrainCardHistory.busy);
-   assert(await p.evaluate(()=>{const cycle=getBastardLoopVCycleDuration(),bar=getLoopBarDurationSeconds(),s=bastardLoopVCut;return [s.end-s.start,MygrainVocalCut.region(s).duration].every(w=>[.5,.25,.125].some(x=>Math.abs(w*cycle/bar-x)<1e-8))}));
+   assert(await p.evaluate(()=>{const cycle=getBastardLoopVCycleDuration(),bar=getLoopBarDurationSeconds(),s=bastardLoopVCut;return [s.end-s.start,MygrainVocalCut.region(s).duration].every(w=>[2,1].some(x=>Math.abs(w*cycle/bar-x)<1e-8))}));
   }
   const before=await p.evaluate(()=>JSON.stringify(bastardLoopVCut));await p.evaluate(()=>mygrainCardHistory.undo());await p.evaluate(()=>mygrainCardHistory.redo());assert.equal(await p.evaluate(()=>JSON.stringify(bastardLoopVCut)),before);
   assert(await p.evaluate(()=>vDivisionOriginal===bastardLoopVBuffer));
-  await p.evaluate(async()=>{const a=mygrainAiPatchAdapter;await a.execute({title:'V policy fixture',description:'No model call',parameters:{},loops:{V:{divisions:['1/32','1/16']}}},a.fingerprint());});
-  assert.deepEqual(await p.evaluate(()=>getSelectedBastardLoopVDivisions()),['1/8']);
+  await p.evaluate(async()=>{const a=mygrainAiPatchAdapter;await a.execute({title:'V policy fixture',description:'No model call',parameters:{globalBpmSlider:238},loops:{V:{divisions:['1/32','1/16']}}},a.fingerprint());});
+  assert.deepEqual(await p.evaluate(()=>getSelectedBastardLoopVDivisions()),['2','1']);
   if(engine==='chromium'){
    const evidence=await p.evaluate(async()=>{
-    const s=mygrainSongBeta;document.getElementById('songBetaName').value='V allowed divisions';await s.newSong();await s.newPart({name:'V generated eighth/quarter/half',repeats:1});
+    const s=mygrainSongBeta;document.getElementById('songBetaName').value='V allowed divisions';await s.newSong();await s.newPart({name:'V generated one/two bars',repeats:1});
     // Legacy manual fine cuts stay playable; randomisation limits are not a format migration.
     setBastardLoopVCut({enabled:true,repeat:true,start:0,end:1/32,grid:1/32},{skipSave:true});await s.newPart({name:'Legacy manual fine V cut',repeats:1});
     await s.newPart({name:'Pre-cut V source snapshot',repeats:1});await s.finishEditing();

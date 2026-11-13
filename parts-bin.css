@@ -1,0 +1,35 @@
+/* Jade plugin-session library; all controls remain inside the card at phone widths. */
+#partsBinCard{--parts-jade:#55c99f;box-sizing:border-box;min-width:0;max-width:100%;border:1px solid #419e7e;background:linear-gradient(145deg,#10372d,#10231f 70%);color:#e4fff4;padding:22px;border-radius:18px;scroll-margin-top:18px}
+#partsBinCard .parts-bin-header{display:flex;align-items:center;gap:16px;color:#83e4bd;margin-bottom:16px}
+#partsBinCard .parts-bin-header>svg{width:62px;height:62px;flex:none}
+#partsBinCard h3{font-size:clamp(25px,3vw,34px);margin:0;color:#b9f8dd}
+#partsBinCard .parts-bin-help{line-height:1.65;color:#d1eade;max-width:980px;margin:0 0 20px}
+#partsBinCard .parts-bin-help strong:first-child{display:block;color:#9bebc8;margin-bottom:4px}
+#partsBinCard .parts-bin-toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:12px}
+#partsBinCard .performance-btn,.parts-bin-dialog button{min-height:44px;border:1px solid #53ac8a;border-radius:10px;background:#1c5944;color:#edfff8;padding:10px 16px;font:inherit;cursor:pointer;white-space:normal}
+#partsBinCard .performance-btn:disabled{opacity:.5;cursor:default}
+#partsBinCard #partsBinAdd{background:#2d906d}
+#partsBinCard #partsBinSummary{font-size:12px;color:#a8cdbd;font-variant-numeric:tabular-nums}
+#partsBinCard .parts-bin-storage{font-size:13px;color:#c0ead6;margin:12px 0 6px}
+#partsBinCard #partsBinStatus{min-height:1.5em;color:#b6efd5;overflow-wrap:anywhere}
+#partsBinCard #partsBinStatus[data-error="true"]{color:#ffb4b4}
+#partsBinCard .parts-bin-preview{padding:16px;background:#091d17;border:1px solid #315b49;border-radius:12px;margin:20px 0;max-width:100%;box-sizing:border-box}
+#partsBinCard .parts-bin-preview label{display:block;font-weight:600;margin-bottom:10px;overflow-wrap:anywhere}
+#partsBinCard audio{display:block;width:100%;max-width:100%;height:44px;color-scheme:dark}
+#partsBinCard #partsBinList{list-style:none;padding:0;margin:0;display:grid;gap:10px}
+#partsBinCard .parts-bin-part{display:flex;align-items:center;justify-content:space-between;gap:16px;min-width:0;padding:15px;background:#153a2e;border:1px solid #347357;border-radius:12px}
+#partsBinCard .parts-bin-part-copy{min-width:0;overflow-wrap:anywhere}
+#partsBinCard .parts-bin-part-copy small{display:block;color:#b1cebf;margin-top:6px}
+#partsBinCard .parts-bin-part-actions{display:flex;gap:8px;flex:none}
+#partsBinCard [data-parts-action="delete"]{background:#452f2d;border-color:#8b6860}
+#sectionJumpPartsBinBtn{gap:9px;align-items:center;justify-content:center}
+#sectionJumpPartsBinBtn svg{width:24px;height:24px;flex:none}
+.parts-bin-dialog{box-sizing:border-box;width:min(500px,calc(100vw - 24px));max-height:calc(100dvh - 24px);overflow:auto;background:#102b23;color:#e4fff4;border:1px solid #55c99f;border-radius:16px;padding:24px;box-shadow:0 24px 70px #0009;font:16px/1.5 system-ui}
+.parts-bin-dialog::backdrop{background:#000b}
+.parts-bin-dialog h3{margin:0 0 12px;color:#a5f3cf}
+.parts-bin-dialog label{display:block;margin-bottom:6px}
+.parts-bin-dialog input{box-sizing:border-box;width:100%;min-width:0;border:1px solid #55c99f;border-radius:8px;padding:12px;background:#091c16;color:#fff;font:inherit}
+.parts-bin-dialog-actions{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:12px;margin-top:24px}
+.parts-bin-dialog button[type="submit"]{background:#257953}
+.parts-bin-dialog button:focus-visible,#partsBinCard button:focus-visible{outline:3px solid #b9f8dd;outline-offset:3px}
+@media(max-width:600px){#partsBinCard{padding:16px}#partsBinCard .parts-bin-part{flex-direction:column;align-items:stretch}#partsBinCard .parts-bin-part-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}#partsBinCard .performance-btn{padding:10px 8px}#partsBinCard .parts-bin-header>svg{width:48px;height:48px}}

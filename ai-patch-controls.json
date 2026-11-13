@@ -340,7 +340,7 @@
     "performanceBastardLoopXLevel": {
       "label": "Loop X level",
       "min": 0,
-      "max": 70,
+      "max": 100,
       "step": 1,
       "unit": "%"
     },
@@ -579,6 +579,41 @@
       "step": 10,
       "unit": "Hz",
       "readOnly": true
+    },
+    "performanceBastardLoopDLevel": {
+      "label": "Loop D level",
+      "min": 0,
+      "max": 70,
+      "step": 1,
+      "unit": "%"
+    },
+    "loopDPitch": {
+      "label": "Loop D transpose",
+      "min": -12,
+      "max": 12,
+      "step": 1,
+      "unit": "semitones"
+    },
+    "loopDMutilatorAmount": {
+      "label": "D Mutilator damage",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "%"
+    },
+    "loopDMutilatorTone": {
+      "label": "D Mutilator tone",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "%"
+    },
+    "loopDMutilatorMix": {
+      "label": "D Mutilator wet mix (0 bypasses)",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "%"
     }
   },
   "loops": {
@@ -604,7 +639,7 @@
       "recorded": false
     },
     "V": {
-      "source": "samples_vocal",
+      "source": "samples_ncrvocals",
       "reload": true,
       "divisions": true,
       "notes": false,
@@ -680,18 +715,18 @@
       "divisions": true,
       "notes": false,
       "recorded": false
+    },
+    "D": {
+      "source": "samples_loopstore",
+      "reload": true,
+      "divisions": false,
+      "notes": false,
+      "recorded": false
     }
   },
   "divisions": [
-    "4",
     "2",
-    "1",
-    "1/2",
-    "1/4",
-    "1/8",
-    "1/16",
-    "1/32",
-    "uncut"
+    "1"
   ],
   "maxReloads": 3,
   "drums": {
@@ -702,5 +737,812 @@
     ],
     "maxReloads": 3,
     "maxSteps": 64
+  },
+  "effects": {
+    "mutilator": {
+      "enabled": {
+        "type": "boolean"
+      },
+      "input": {
+        "enum": [
+          "all",
+          "A",
+          "B",
+          "C",
+          "D",
+          "V",
+          "W",
+          "P",
+          "O",
+          "L",
+          "X",
+          "Q",
+          "M",
+          "M+",
+          "generated",
+          "sample",
+          "K",
+          "K1",
+          "K2",
+          "K3",
+          "K4",
+          "K5",
+          "drums",
+          "drumKick",
+          "drumSnare",
+          "drumHat",
+          "drumPerc",
+          "drumClap",
+          "drumCymbals",
+          "drumEtc",
+          "drumRoll",
+          "N"
+        ]
+      },
+      "amount": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      },
+      "tone": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      },
+      "mix": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      },
+      "rhythm": {
+        "type": "boolean"
+      },
+      "strain": {
+        "enum": [
+          "gnaw",
+          "melt",
+          "rupture",
+          "scab",
+          "venom",
+          "hollow",
+          "splinter",
+          "diode",
+          "cinder",
+          "shred",
+          "vortex",
+          "maw"
+        ]
+      }
+    },
+    "bassFace": {
+      "enabled": {
+        "type": "boolean"
+      },
+      "input": {
+        "enum": [
+          "all",
+          "A",
+          "B",
+          "C",
+          "D",
+          "V",
+          "W",
+          "P",
+          "O",
+          "L",
+          "X",
+          "Q",
+          "M",
+          "M+",
+          "generated",
+          "sample",
+          "K",
+          "K1",
+          "K2",
+          "K3",
+          "K4",
+          "K5",
+          "drums",
+          "drumKick",
+          "drumSnare",
+          "drumHat",
+          "drumPerc",
+          "drumClap",
+          "drumCymbals",
+          "drumEtc",
+          "drumRoll",
+          "N"
+        ]
+      },
+      "amount": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      },
+      "tone": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      },
+      "mix": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      },
+      "body": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      },
+      "rhythm": {
+        "type": "boolean"
+      }
+    },
+    "wasp": {
+      "enabled": {
+        "type": "boolean"
+      },
+      "input": {
+        "enum": [
+          "all",
+          "A",
+          "B",
+          "C",
+          "D",
+          "V",
+          "W",
+          "P",
+          "O",
+          "L",
+          "X",
+          "Q",
+          "M",
+          "M+",
+          "generated",
+          "sample",
+          "K",
+          "K1",
+          "K2",
+          "K3",
+          "K4",
+          "K5",
+          "drums",
+          "drumKick",
+          "drumSnare",
+          "drumHat",
+          "drumPerc",
+          "drumClap",
+          "drumCymbals",
+          "drumEtc",
+          "drumRoll",
+          "N"
+        ]
+      },
+      "destination": {
+        "enum": [
+          "all",
+          "A",
+          "B",
+          "C",
+          "V",
+          "W",
+          "P",
+          "O",
+          "L",
+          "X",
+          "Q",
+          "M",
+          "M+",
+          "generated",
+          "sample",
+          "K",
+          "K1",
+          "K2",
+          "K3",
+          "K4",
+          "K5",
+          "drums",
+          "drumKick",
+          "drumSnare",
+          "drumHat",
+          "drumPerc",
+          "drumClap",
+          "drumCymbals",
+          "drumEtc",
+          "drumRoll",
+          "N"
+        ]
+      },
+      "method": {
+        "enum": [
+          "am",
+          "ring",
+          "duck",
+          "frequency",
+          "phase",
+          "lowpass",
+          "highpass",
+          "bandpass",
+          "notch"
+        ]
+      },
+      "depth": {
+        "type": "number",
+        "min": -1,
+        "max": 1
+      },
+      "blend": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      },
+      "melt": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      },
+      "cutoff": {
+        "type": "number",
+        "min": 30,
+        "max": 18000
+      },
+      "release": {
+        "type": "number",
+        "min": 5,
+        "max": 2000
+      }
+    },
+    "playground": {
+      "enabled": {
+        "type": "boolean"
+      },
+      "input": {
+        "enum": [
+          "all",
+          "A",
+          "B",
+          "C",
+          "D",
+          "V",
+          "W",
+          "P",
+          "O",
+          "L",
+          "X",
+          "Q",
+          "M",
+          "M+",
+          "generated",
+          "sample",
+          "K",
+          "K1",
+          "K2",
+          "K3",
+          "K4",
+          "K5",
+          "drums",
+          "drumKick",
+          "drumSnare",
+          "drumHat",
+          "drumPerc",
+          "drumClap",
+          "drumCymbals",
+          "drumEtc",
+          "drumRoll",
+          "N"
+        ]
+      },
+      "mode": {
+        "enum": [
+          "lowpass",
+          "highpass",
+          "bandpass",
+          "notch",
+          "comb",
+          "combNegative",
+          "allpass",
+          "peak",
+          "lowshelf",
+          "highshelf"
+        ]
+      },
+      "cutoff": {
+        "type": "number",
+        "min": 20,
+        "max": 20000
+      },
+      "q": {
+        "type": "number",
+        "min": 0.2,
+        "max": 8
+      },
+      "slope": {
+        "enum": [
+          12,
+          24,
+          36,
+          48,
+          60,
+          72,
+          84,
+          96
+        ]
+      },
+      "mix": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      },
+      "lfoBeats": {
+        "enum": [
+          0.25,
+          0.5,
+          1,
+          2,
+          4
+        ]
+      },
+      "lfoDepth": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      }
+    },
+    "wireWorld": {
+      "enabled": {
+        "type": "boolean"
+      },
+      "input": {
+        "enum": [
+          "all",
+          "A",
+          "B",
+          "C",
+          "D",
+          "V",
+          "W",
+          "P",
+          "O",
+          "L",
+          "X",
+          "Q",
+          "M",
+          "M+",
+          "generated",
+          "sample",
+          "K",
+          "K1",
+          "K2",
+          "K3",
+          "K4",
+          "K5",
+          "drums",
+          "drumKick",
+          "drumSnare",
+          "drumHat",
+          "drumPerc",
+          "drumClap",
+          "drumCymbals",
+          "drumEtc",
+          "drumRoll",
+          "N"
+        ]
+      },
+      "dispersion": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      },
+      "travel": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      },
+      "feedback": {
+        "type": "number",
+        "min": 0,
+        "max": 0.85
+      },
+      "damping": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      },
+      "direction": {
+        "enum": [
+          "down",
+          "up"
+        ]
+      },
+      "width": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      },
+      "level": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      }
+    },
+    "sonicCrystal": {
+      "enabled": {
+        "type": "boolean"
+      },
+      "input": {
+        "enum": [
+          "all",
+          "A",
+          "B",
+          "C",
+          "D",
+          "V",
+          "W",
+          "P",
+          "O",
+          "L",
+          "X",
+          "Q",
+          "M",
+          "M+",
+          "generated",
+          "sample",
+          "K",
+          "K1",
+          "K2",
+          "K3",
+          "K4",
+          "K5",
+          "drums",
+          "drumKick",
+          "drumSnare",
+          "drumHat",
+          "drumPerc",
+          "drumClap",
+          "drumCymbals",
+          "drumEtc",
+          "drumRoll",
+          "N"
+        ]
+      },
+      "tuning": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      },
+      "spacing": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      },
+      "coupling": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      },
+      "disorder": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      },
+      "defect": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      },
+      "loss": {
+        "type": "number",
+        "min": 0.05,
+        "max": 1
+      },
+      "cells": {
+        "enum": [
+          4,
+          8,
+          12
+        ]
+      },
+      "reflection": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      },
+      "width": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      },
+      "level": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      }
+    },
+    "resonator": {
+      "enabled": {
+        "type": "boolean"
+      },
+      "input": {
+        "enum": [
+          "all",
+          "A",
+          "B",
+          "C",
+          "D",
+          "V",
+          "W",
+          "P",
+          "O",
+          "L",
+          "X",
+          "Q",
+          "M",
+          "M+",
+          "generated",
+          "sample",
+          "K",
+          "K1",
+          "K2",
+          "K3",
+          "K4",
+          "K5",
+          "drums",
+          "drumKick",
+          "drumSnare",
+          "drumHat",
+          "drumPerc",
+          "drumClap",
+          "drumCymbals",
+          "drumEtc",
+          "drumRoll",
+          "N"
+        ]
+      },
+      "object": {
+        "enum": [
+          "door",
+          "wall",
+          "pipe",
+          "cone"
+        ]
+      },
+      "band": {
+        "enum": [
+          "full",
+          "bass",
+          "mid",
+          "treble"
+        ]
+      },
+      "drive": {
+        "type": "number",
+        "min": 0,
+        "max": 30
+      },
+      "damping": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      },
+      "level": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      }
+    },
+    "turntable": {
+      "enabled": {
+        "type": "boolean"
+      },
+      "input": {
+        "enum": [
+          "all",
+          "A",
+          "B",
+          "C",
+          "D",
+          "V",
+          "W",
+          "P",
+          "O",
+          "L",
+          "X",
+          "Q",
+          "M",
+          "M+",
+          "generated",
+          "sample",
+          "K",
+          "K1",
+          "K2",
+          "K3",
+          "K4",
+          "K5",
+          "drums",
+          "drumKick",
+          "drumSnare",
+          "drumHat",
+          "drumPerc",
+          "drumClap",
+          "drumCymbals",
+          "drumEtc",
+          "drumRoll",
+          "N"
+        ]
+      },
+      "year": {
+        "type": "number",
+        "min": 1920,
+        "max": 2026
+      },
+      "rpm": {
+        "enum": [
+          33,
+          45,
+          78
+        ]
+      },
+      "needle": {
+        "enum": [
+          "modern",
+          "old"
+        ]
+      },
+      "wow": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      },
+      "flutter": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      },
+      "hum": {
+        "type": "number",
+        "min": 0,
+        "max": 0.4
+      },
+      "clicks": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      },
+      "crackle": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      },
+      "wear": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      }
+    }
+  },
+  "cardEffects": {
+    "channels": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "V",
+      "W",
+      "P",
+      "O",
+      "L",
+      "X",
+      "M",
+      "M+",
+      "K1",
+      "K2",
+      "K3",
+      "K4",
+      "K5",
+      "Q",
+      "N",
+      "sample"
+    ],
+    "fields": {
+      "filterEnabled": {
+        "type": "boolean"
+      },
+      "filterType": {
+        "enum": [
+          "lowpass",
+          "highpass"
+        ]
+      },
+      "filterSlope": {
+        "enum": [
+          12,
+          24,
+          36,
+          48,
+          96
+        ]
+      },
+      "cutoff": {
+        "type": "number",
+        "min": 20,
+        "max": 20000
+      },
+      "resonance": {
+        "type": "number",
+        "min": 0.1,
+        "max": 4
+      },
+      "lfoWave": {
+        "enum": [
+          "sine",
+          "triangle",
+          "sawtooth",
+          "ramp",
+          "square"
+        ]
+      },
+      "lfoBeats": {
+        "enum": [
+          0.25,
+          0.5,
+          1,
+          2,
+          4,
+          8
+        ]
+      },
+      "lfoDepth": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      },
+      "lfoInvert": {
+        "type": "boolean"
+      },
+      "room": {
+        "type": "number",
+        "min": 0,
+        "max": 0.7
+      },
+      "reverbEnabled": {
+        "type": "boolean"
+      },
+      "reverbDecay": {
+        "type": "number",
+        "min": 0.5,
+        "max": 12
+      },
+      "delay": {
+        "type": "number",
+        "min": 0,
+        "max": 0.65
+      },
+      "delayEnabled": {
+        "type": "boolean"
+      },
+      "delayBeats": {
+        "enum": [
+          0.25,
+          0.5,
+          0.75,
+          1,
+          1.5,
+          2,
+          3,
+          4
+        ]
+      },
+      "feedback": {
+        "type": "number",
+        "min": 0,
+        "max": 0.65
+      },
+      "pingPong": {
+        "type": "boolean"
+      }
+    },
+    "spaceOnlyChannels": [
+      "N"
+    ]
   }
 }

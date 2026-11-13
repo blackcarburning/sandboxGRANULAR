@@ -11,7 +11,7 @@ class Genres(unittest.TestCase):
  def recipe(self,genre='experimental',tempo=120):
   r={'title':'Texture','description':'Modular and Terra pulse','parameters':{'globalBpmSlider':tempo},'loops':{k:{'enabled':False} for k in ai.LOOPS}}
   if genre=='experimental':
-   r['loops']['W']={'enabled':True,'reload':True,'divisions':['1/8']}
+   r['loops']['W']={'enabled':True,'reload':True,'divisions':['1']}
    r['loops']['L']={'enabled':True,'reload':True,'repository':'samples_terra','notes':[48,None,55,None]}
   return r
  def test_experimental_contract(self):

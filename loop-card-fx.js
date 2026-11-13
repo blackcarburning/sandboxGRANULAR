@@ -1,20 +1,21 @@
 /* One versioned, portable filter / stereo hall / tempo delay for every loop lane. */
 (function(root){
 'use strict';
-const KEYS=['A','B','C','D','V','W','P','O','L','X','M','M+','K1','K2','K3','K4','K5','Q','N'];
+const KEYS=['A','B','C','D','V','W','P','O','L','X','M','M+','K1','K2','K3','K4','K5','Q','N','sample'];
 const SLOPES=[12,24,36,48,96];
 const clamp=(v,min,max,fallback)=>Number.isFinite(Number(v))?Math.max(min,Math.min(max,Number(v))):fallback;
-const defaults=()=>({pan:0,filterEnabled:true,filterType:'lowpass',filterSlope:48,cutoff:18000,resonance:.707,lfoWave:'sine',lfoBeats:4,lfoDepth:0,lfoInvert:false,room:0,reverbDecay:4.5,reverbSize:.85,reverbPredelay:28,reverbDamping:6500,reverbLowcut:180,reverbWidth:1,delay:0,delayBeats:1,feedback:.25,delayCutoff:9000,pingPong:false});
+const defaults=()=>({pan:0,filterEnabled:false,filterType:'lowpass',filterSlope:48,cutoff:18000,resonance:.707,lfoWave:'sine',lfoBeats:4,lfoDepth:0,lfoInvert:false,room:0,reverbDecay:4.5,reverbSize:.85,reverbPredelay:28,reverbDamping:6500,reverbLowcut:180,reverbWidth:1,delay:0,delayBeats:1,feedback:.25,delayCutoff:9000,pingPong:false});
 function channel(value={}){
  const d=defaults(),s={...d};
  for(const[k,min,max]of[['pan',-1,1],['cutoff',20,20000],['resonance',.1,4],['lfoBeats',1/16,64],['lfoDepth',0,1],['room',0,1],['reverbDecay',.5,12],['reverbSize',0,1],['reverbPredelay',0,200],['reverbDamping',1000,18000],['reverbLowcut',20,1500],['reverbWidth',0,1],['delay',0,1],['delayBeats',1/12,6],['feedback',0,.7],['delayCutoff',200,18000]])s[k]=clamp(value[k],min,max,d[k]);
- s.reverbEnabled=value.reverbEnabled!==false;s.delayEnabled=value.delayEnabled!==false;s.filterEnabled=value.filterEnabled!==false;s.filterType=value.filterType==='highpass'?'highpass':'lowpass';s.filterSlope=SLOPES.includes(Number(value.filterSlope))?Number(value.filterSlope):d.filterSlope;
+ s.reverbEnabled=value.reverbEnabled!==false;s.delayEnabled=value.delayEnabled!==false;s.filterEnabled=value.filterEnabled===true;s.filterType=value.filterType==='highpass'?'highpass':'lowpass';s.filterSlope=SLOPES.includes(Number(value.filterSlope))?Number(value.filterSlope):d.filterSlope;
  s.lfoWave=['sine','triangle','sawtooth','ramp','square'].includes(value.lfoWave)?value.lfoWave:'sine';s.lfoInvert=value.lfoInvert===true;s.pingPong=value.pingPong===true;return s;
 }
 const prefix={A:'',B:'2',C:'3',D:'D',V:'V',W:'W',P:'P',O:'O',L:'L',X:'X',M:'M','M+':'MPlus'};
-function legacy(state,key){
+function legacy(state,key,preserveDefaults=Object.keys(state).length>0){
+ if(key==='sample')return channel({filterEnabled:false,reverbEnabled:false,delayEnabled:false});
  if(key==='N')return channel({filterEnabled:false});
- const m=state.modes||state,sl=state.sliders||{},sel=state.selects||{},s=defaults();
+ const m=state.modes||state,sl=state.sliders||{},sel=state.selects||{},s={...defaults(),filterEnabled:preserveDefaults};
  if(key==='Q'){
   const q=state.q||{};Object.assign(s,Object.fromEntries(Object.keys(s).filter(k=>Object.hasOwn(q,k)).map(k=>[k,q[k]])));
   // Q historically had two simultaneous filters: preserve both in migration.
@@ -23,11 +24,11 @@ function legacy(state,key){
  }
  if(key.startsWith('K')){
   const p=m.kMultitrack?.tracks?.[Number(key.slice(1))-1]?.processing||m.kMultitrack?.[Number(key.slice(1))-1]?.processing||{};
-  const mode=p.filterMode||m.bastardLoopKFilterMode||'lowpass-48';const[type,slope]=mode.split('-');
+  const mode=p.filterMode||m.bastardLoopKFilterMode||(preserveDefaults?'lowpass-48':'bypass');const[type,slope]=mode.split('-');
   return channel({...s,filterEnabled:mode!=='bypass',filterType:type,filterSlope:slope,cutoff:p.cutoff??m.bastardLoopKFilterCutoff??18000,resonance:p.resonance,lfoWave:p.lfoWave??m.bastardLoopKFilterLfoWaveform,lfoBeats:p.lfoDivision??m.bastardLoopKFilterLfoRate,lfoDepth:p.lfoAmount??m.bastardLoopKFilterLfoAmount,lfoInvert:p.lfoInvert??m.bastardLoopKFilterLfoInvert,delay:p.delayMix??0,delayBeats:p.delayDivision??1,feedback:p.delayFeedback??.25,delayCutoff:p.delayCutoff??9000,room:p.reverbMix??0,reverbDecay:p.reverbDecay??4.5});
  }
  const p='bastardLoop'+prefix[key],id='performanceBastardLoop'+prefix[key];
- const mode=sel[id+'FilterMode']??m[p+'FilterMode']??'lowpass-48', [type,slope]=String(mode).split('-');
+ const mode=sel[id+'FilterMode']??m[p+'FilterMode']??(preserveDefaults?'lowpass-48':'bypass'), [type,slope]=String(mode).split('-');
  Object.assign(s,{filterType:type,filterSlope:slope,cutoff:sl[id+'FilterCutoff']??m[p+'FilterCutoff']??18000,lfoWave:sel[id+'FilterLfoWaveform']??m[p+'FilterLfoWaveform'],lfoBeats:sel[id+'FilterLfoRate']??m[p+'FilterLfoRate']??4,lfoDepth:sl[id+'FilterLfoAmount']!==undefined?Number(sl[id+'FilterLfoAmount'])/100:m[p+'FilterLfoAmount']??0,lfoInvert:m[p+'FilterLfoInvert']===true,delay:sl[id+'DelayMix']!==undefined?Number(sl[id+'DelayMix'])/100:m[p+'DelayMix']??0,delayBeats:sel[id+'DelayDivision']??m[p+'DelayDivision']??1,pingPong:m[p+'DelayPingPongEnabled']===true});
  if(key==='L')Object.assign(s,{room:Number(sl[id+'ReverbMix']??0)/100,reverbSize:Number(sl[id+'ReverbSize']??45)/100,reverbDecay:.5+11.5*Number(sl[id+'ReverbDecay']??55)/100,reverbDamping:sl[id+'ReverbTone']??6400});
  if(key==='M'||key==='M+')Object.assign(s,{room:sl[id+'RoomReverbMix']!==undefined?Number(sl[id+'RoomReverbMix'])/100:m[p+'RoomReverbMix']??0,delayCutoff:sl[id+'DelayFilterCutoff']??m[p+'DelayFilterCutoff']??18000});
@@ -36,13 +37,38 @@ function legacy(state,key){
 }
 function normalize(value,state={}){
  if(value?.version!==undefined&&value.version!==1)throw Error('Unsupported loop effects version. Reload MYGRAIN.');
- return {version:1,channels:Object.fromEntries(KEYS.map(k=>{const v=value?.channels?.[k];const s=v?channel(v):legacy(state,k);if(v?.legacyHighpass!==undefined)s.legacyHighpass=clamp(v.legacyHighpass,20,10000,20);if(k==='N'){s.filterEnabled=false;s.lfoDepth=0;delete s.legacyHighpass}return[k,s]}))};
+ // Missing flags in old stored channels retain their historical On meaning.
+ // Only a genuinely new/default workspace starts with every card filter Off.
+ return {version:1,channels:Object.fromEntries(KEYS.map(k=>{const v=value?.channels?.[k];const s=v?channel({...v,filterEnabled:v.filterEnabled!==false}):legacy(state,k,Boolean(value)||Object.keys(state).length>0);if(v?.legacyHighpass!==undefined)s.legacyHighpass=clamp(v.legacyHighpass,20,10000,20);if(k==='sample')s.pan=0;if(k==='N'){s.filterEnabled=false;s.lfoDepth=0;delete s.legacyHighpass}return[k,s]}))};
+}
+function filterMeaningful(c,envelope=0){
+ if(!c.filterEnabled)return false;
+ // Do not confuse a static tonal filter or note envelope with an idle LFO.
+ return c.lfoDepth>0||envelope>0||Math.abs(c.resonance-.707)>.01||c.legacyHighpass>20||(c.filterType==='highpass'?c.cutoff>20:c.cutoff<18000);
+}
+function pruneFilters(value,activeKeys,envelopes={}){
+ const s=normalize(value),active=new Set(activeKeys);
+ for(const[key,c]of Object.entries(s.channels))if(!active.has(key)||!filterMeaningful(c,envelopes[key]))c.filterEnabled=false;
+ return s;
+}
+// Generation-only policy: flags must describe the effects actually selected,
+// not just inaudible wet mixes. Saved/manual normalization remains unchanged.
+function pruneEffects(value,activeKeys,envelopes={}){
+ const active=new Set(activeKeys),s=pruneFilters(value,active,envelopes);
+ for(const[key,c]of Object.entries(s.channels)){
+  c.reverbEnabled=active.has(key)&&c.reverbEnabled&&c.room>0;
+  c.delayEnabled=active.has(key)&&c.delayEnabled&&c.delay>0;
+ }
+ return s;
 }
 function convertState(original={}){
  const result=JSON.parse(JSON.stringify(original));result.modes={...result.modes};result.modes.loopFx=normalize(result.modes.loopFx??result.loopFx,result);return result;
 }
 function convertSnapshot(original){
- const state=convertState(original.state);const changed=JSON.stringify(original.state?.modes?.loopFx)!==JSON.stringify(state.modes.loopFx);
+ const state=convertState(original.state),comparison=JSON.parse(JSON.stringify(state.modes.loopFx));
+ // Adding a dry Dropbox lane must not rewrite an already-standard legacy archive.
+ if(!Object.hasOwn(original.state?.modes?.loopFx?.channels||{},'sample'))delete comparison.channels.sample;
+ const changed=JSON.stringify(original.state?.modes?.loopFx)!==JSON.stringify(comparison);
  return changed?{snapshot:{...original,state},changed:true}:{snapshot:original,changed:false};
 }
 function subtle(value,random=Math.random){
@@ -138,7 +164,7 @@ function createGraph(ctx,destination,initial,bpm=120,origin=0,startTime=ctx.curr
    osc.setPeriodicWave(ctx.createPeriodicWave(coefficients.real,coefficients.imag,{disableNormalization:true}));
    osc.frequency.value=frequency;osc.connect(b.depth);osc.start(at);
    if(b.osc){const previous=b.osc;try{previous.stop(at)}catch{};previous.onended=()=>previous.disconnect()}
-   b.osc=osc;b.lfoKey=lfoKey;
+   b.osc=osc;b.lfoKey=lfoKey;b.clock={origin:lfoOrigin,bpm:tempo,time:at,frequency,phase:((at-lfoOrigin)*frequency%1+1)%1};
   }
  }
  function updateFilter(s,tempo,immediate){
@@ -195,11 +221,11 @@ function createGraph(ctx,destination,initial,bpm=120,origin=0,startTime=ctx.curr
   for(const d of ds){smooth(d.delay.delayTime,Math.min(11,60/tempo*settings.delayBeats),immediate);smooth(d.filter.frequency,Math.min(ctx.sampleRate*.45,settings.delayCutoff),immediate);smooth(d.self.gain,settings.pingPong?0:settings.feedback,immediate);smooth(d.cross.gain,settings.pingPong?settings.feedback:0,immediate)}
  }
  function syncClock(origin,tempo=lastTempo,at=ctx.currentTime){
-  if(disposed)return;lfoOrigin=Number.isFinite(origin)?origin:0;lfoStart=Number.isFinite(at)?at:ctx.currentTime;if(settings.filterEnabled&&settings.lfoDepth>0)updateLfo(filterBranch,settings,tempo);lastTempo=tempo;
+  if(disposed)return;lfoOrigin=Number.isFinite(origin)?origin:0;lfoStart=Number.isFinite(at)?at:ctx.currentTime;if(settings.filterEnabled&&settings.lfoDepth>0)updateLfo(filterBranch,settings,tempo);lastTempo=tempo;for(const d of ds){d.delay.delayTime.cancelScheduledValues(lfoStart);d.delay.delayTime.setValueAtTime(Math.min(11,60/tempo*settings.delayBeats),Math.max(ctx.currentTime,lfoStart));}
  }
  update(initial,bpm,true);
- return {context:ctx,input,output,gate,panner,nodes,banks,update,syncClock,triggerEnvelope,get filters(){return filterBranch.filters},get lfo(){return filterBranch.osc},get lfoOutput(){return filterBranch.depth},setAudible(on){smooth(gate.gain,on?1:0)},dispose(){if(disposed)return;disposed=true;clearTimeout(filterTimer);clearTimeout(reverbTimer);releaseBranch(filterBranch);releaseBranch(oldBranch);for(const n of nodes){try{n.disconnect()}catch{};if('buffer'in n)n.buffer=null}},diagnostics(){return{hallOn,delayOn,filterOn:settings.filterEnabled,lfoOn:!!filterBranch.osc}},get settings(){return settings}};
+ return {context:ctx,input,output,gate,panner,nodes,banks,update,syncClock,triggerEnvelope,get filters(){return filterBranch.filters},get lfo(){return filterBranch.osc},get lfoOutput(){return filterBranch.depth},setAudible(on){smooth(gate.gain,on?1:0)},dispose(){if(disposed)return;disposed=true;clearTimeout(filterTimer);clearTimeout(reverbTimer);releaseBranch(filterBranch);releaseBranch(oldBranch);for(const n of nodes){try{n.disconnect()}catch{};if('buffer'in n)n.buffer=null}},diagnostics(){return{clock:filterBranch.clock?{...filterBranch.clock}:null,hallOn,delayOn,filterOn:settings.filterEnabled,lfoOn:!!filterBranch.osc}},get settings(){return settings}};
 }
-const api={releaseImpulseCache(ctx){impulses.delete(ctx)},KEYS,SLOPES,defaults,channel,normalize,convertState,convertSnapshot,subtle,estimatedBytes,impulse,lfoCoefficients,filterStageQ,createGraph};
+const api={releaseImpulseCache(ctx){impulses.delete(ctx)},KEYS,SLOPES,defaults,channel,normalize,filterMeaningful,pruneFilters,pruneEffects,convertState,convertSnapshot,subtle,estimatedBytes,impulse,lfoCoefficients,filterStageQ,createGraph};
 if(typeof module==='object'&&module.exports)module.exports=api;else root.MygrainLoopFx=Object.freeze(api);
 })(typeof window==='object'?window:globalThis);

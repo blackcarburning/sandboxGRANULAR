@@ -78,18 +78,24 @@ else root.mygrainProgressClock=(el,paint)=>createProgressClock(root,el,paint);
 function createMeterScheduler(win){
  const doc=win.document, entries=new Map(), active=new Set();let timer=null,hidden=false;
  const blocked=()=>doc.hidden||hidden||win.__mygrainSongRenderDeck||win.mygrainUiActivity?.busy||doc.documentElement.dataset.mygrainJumping==='true';
- function schedule(){if(active.size&&!blocked()&&timer===null)timer=win.setTimeout(tick,125);else if((!active.size||blocked())&&timer!==null){win.clearTimeout(timer);timer=null}}
- function sync(){for(const e of entries.values()){const next=e.visible&&!blocked();if(!next&&active.delete(e))e.suspend?.();else if(next)active.add(e)}schedule()}
+ function schedule(){
+  if(timer!==null){win.clearTimeout(timer);timer=null}
+  if(active.size&&!blocked()){
+   const now=win.performance.now(),delay=Math.max(1,Math.min(...[...active].map(e=>Math.max(0,e.due-now))));
+   timer=win.setTimeout(tick,delay);
+  }
+ }
+ function sync(){for(const e of entries.values()){const next=e.visible&&!blocked()&&(!e.enabled||e.enabled());if(!next&&active.delete(e))e.suspend?.();else if(next&&!active.has(e)){e.due=win.performance.now()+e.interval;active.add(e);e.resume?.()}}schedule()}
  function tick(){
   timer=null;if(blocked()){sync();return}
   // IO can lag a scroll/layout shift. Recheck only active meters immediately
   // before their read; a preceding label must not move a later meter offscreen.
   const now=win.performance.now();
-  for(const e of active){const r=e.el.getBoundingClientRect?.();if(r&&(!r.width||!r.height||r.bottom<=0||r.right<=0||r.top>=win.innerHeight||r.left>=win.innerWidth)){active.delete(e);e.visible=false;e.suspend?.()}else e.read(now)}
+  for(const e of active){const r=e.el.getBoundingClientRect?.();if(r&&(!r.width||!r.height||r.bottom<=0||r.right<=0||r.top>=win.innerHeight||r.left>=win.innerWidth)){active.delete(e);e.visible=false;e.suspend?.()}else if(e.due<=now){e.due=now+e.interval;e.read(now)}}
   schedule()
  }
  const observer=win.IntersectionObserver?new win.IntersectionObserver(changes=>{for(const c of changes){const e=entries.get(c.target);if(e)e.visible=c.isIntersecting&&c.intersectionRatio>0}sync()},{threshold:[0,0.001]}):null;
- function watch(el,read,suspend){if(!el||!observer||win.__mygrainSongRenderDeck)return()=>{};const old=entries.get(el);if(old){old.read=read;old.suspend=suspend;sync();return old.remove}const e={el,read,suspend,visible:false};e.remove=()=>{if(entries.get(el)!==e)return;active.delete(e);entries.delete(el);observer.unobserve(el);e.suspend?.();schedule()};entries.set(el,e);observer.observe(el);return e.remove}
+ function watch(el,read,suspend,options={}){if(!el||!observer||win.__mygrainSongRenderDeck)return()=>{};const old=entries.get(el);if(old){old.read=read;old.suspend=suspend;old.enabled=options.enabled;old.resume=options.resume;old.interval=Math.max(125,Number(options.interval)||125);sync();return old.remove}const e={el,read,suspend,visible:false,enabled:options.enabled,resume:options.resume,interval:Math.max(125,Number(options.interval)||125),due:0};e.remove=()=>{if(entries.get(el)!==e)return;active.delete(e);entries.delete(el);observer.unobserve(el);e.suspend?.();schedule()};entries.set(el,e);observer.observe(el);return e.remove}
  doc.addEventListener('visibilitychange',sync);
  for(const event of ['mygrain-ui-busy','mygrain-ui-settled','mygrain-jump-change'])win.addEventListener(event,sync);
  win.addEventListener('mygrain-account-lock',()=>{for(const e of [...entries.values()])e.remove()});
@@ -190,12 +196,15 @@ document.addEventListener('click',event=>{const button=event.target.closest('[da
 document.addEventListener('DOMContentLoaded',()=>{
  if(root.__mygrainSongRenderDeck)return;
  const opening=document.getElementById('start-overlay');if(opening)new MutationObserver(()=>{if(getComputedStyle(opening).display==='none'||getComputedStyle(opening).opacity==='0'){for(const card of jobs.keys()){observer.unobserve(card);observer.observe(card)}}}).observe(opening,{attributes:true,attributeFilter:['style']});
- const radio=()=>load('radiolab.js?v=20261027-fx-idle-1');
+ const radio=()=>load('radiolab.js?v=20261104-ftp-libraries-1');
  whenVisible(document.getElementById('radiolabCard'),radio);
- whenVisible(document.getElementById('performanceVideoLabCard'),async()=>{const status=document.getElementById('videolabStatus');if(status)status.textContent='Loading Video Lab controls…';await radio();await load('videolab.js?v=20261028-instagram-1')});
+ whenVisible(document.getElementById('performanceVideoLabCard'),async()=>{const status=document.getElementById('videolabStatus');if(status)status.textContent='Loading Video Lab controls…';await radio();await load('videolab.js?v=20261104-ftp-libraries-1')});
  const card=document.createElement('section');card.id='waspCard';card.className='performance-feature-card wasp-card';card.innerHTML='<h3>F · THE WASP</h3><p>Two stings. Open to load controls.</p>';
- document.getElementById('finalPanSection')?.after(card);
- const nav=document.createElement('button');nav.type='button';nav.className='section-jump-option';nav.dataset.jumpTarget='#waspCard';nav.textContent='F · The Wasp';nav.onclick=()=>root.mygrainJumpToButton?.(nav);document.querySelector('[data-jump-target="#finalPanSection"]')?.parentElement.append(nav);
- whenVisible(card,async()=>{await load(root.mygrainPhone?'wasp-filter-phone.js?v=20261026-poles-1':'wasp-filter-desktop.js?v=20261026-mobile-vocals-1');card.removeAttribute('id');await load('wasp-ui.js?v=20261026-single-1');card.remove();nav.remove()});
+ (document.getElementById('turntableCard')||document.getElementById('finalPanSection'))?.after(card);
+ const nav=document.createElement('button');nav.id='sectionJumpWaspBtn';nav.type='button';nav.className='section-jump-option';nav.dataset.jumpTarget='#waspCard';nav.innerHTML='<span class="jump-button-label">The\nWasp</span>';nav.onclick=()=>root.mygrainJumpToButton?.(nav);document.querySelector('[data-jump-target="#finalPanSection"]')?.parentElement.append(nav);
+ const pgCard=document.createElement('section');pgCard.id='filterPlaygroundCard';pgCard.className='performance-feature-card filter-playground-card';pgCard.innerHTML='<h3>FP · FILTER PLAYGROUND</h3><p>Independent final-mix filter. Open to load controls.</p>';card.before(pgCard);const resonator=document.getElementById('resonatorCard');if(resonator)card.after(resonator);root.mygrainAcousticUi?.place();
+ const pgNav=document.createElement('button');pgNav.id='sectionJumpPlaygroundBtn';pgNav.type='button';pgNav.className='section-jump-option';pgNav.dataset.jumpTarget='#filterPlaygroundCard';pgNav.innerHTML='<span class="jump-button-label">Filter\nPlayground</span>';pgNav.onclick=()=>root.mygrainJumpToButton?.(pgNav);nav.after(pgNav);
+ let ready;const open=()=>ready||(ready=(async()=>{await load(root.mygrainPhone?'wasp-filter-phone.js?v=20261026-poles-1':'wasp-filter-desktop.js?v=20261026-mobile-vocals-1');card.removeAttribute('id');pgCard.removeAttribute('id');await load('wasp-ui.js?v=20261112-effects-bottom-1');card.remove();pgCard.remove()})().catch(error=>{ready=null;throw error}));
+ whenVisible(card,open);whenVisible(pgCard,open);
 });
 })(typeof window==='undefined'?globalThis:window);

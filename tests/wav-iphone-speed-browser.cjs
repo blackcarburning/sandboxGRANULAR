@@ -37,7 +37,7 @@ const before = process.env.MYGRAIN_PREVIEW_BASELINE_HTML;
           status:response.status(), bytes:Number(response.headers()['content-length'])});
       });
       const start = Date.now();
-      await player.locator('button').tap();
+      await player.locator('.wav-preview-play').tap();
       await page.waitForFunction(() => document.querySelector('#wavRepositoryBrowserList audio').__mygrainIphonePreview.playing);
       const elapsed = Date.now()-start;
       const details = await page.evaluate(() => {
@@ -57,7 +57,7 @@ const before = process.env.MYGRAIN_PREVIEW_BASELINE_HTML;
       const result={variant,tapToPlayMs:elapsed,downloadBytesPerSecond:100000,latencyMs:80,requests,...details};
       results.push(result);console.log(JSON.stringify(result));
       // Replay must not download another copy.
-      await player.locator('button').tap();await player.locator('button').tap();
+      await player.locator('.wav-preview-play').tap();await player.locator('.wav-preview-play').tap();
       assert.equal(requests.length,1);
       await page.evaluate(()=>closeWavRepositoryBrowser());
       await context.close();

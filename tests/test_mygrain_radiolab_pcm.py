@@ -273,8 +273,8 @@ class RadioLabPCMTests(unittest.TestCase):
                 self.assertEqual(len(body) % 4, 0)
                 self.assertLess(time.monotonic() - started, 1)
                 self.assert_clean()
-        self.assertEqual(RADIO.MAX_PCM_SECONDS, 120)
-        self.assertEqual(RADIO.MAX_PCM_BYTES, 32 * 1024 * 1024)
+        self.assertEqual(RADIO.MAX_PCM_SECONDS, 600)
+        self.assertEqual(RADIO.MAX_PCM_BYTES, 224 * 1024 * 1024)
         self.assertEqual((RADIO.MAX_USER_STREAMS, RADIO.MAX_GLOBAL_STREAMS), (4, 8))
 
     def test_invalid_format_is_explicit_400_without_upstream_or_decoder(self):

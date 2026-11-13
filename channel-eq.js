@@ -26,7 +26,7 @@
         if (value != null && (typeof value !== 'object' || Array.isArray(value))) throw new Error('Invalid channel EQ settings.');
         if (value?.bands != null && (!Array.isArray(value.bands) || value.bands.length !== 4)) throw new Error('Channel EQ requires four bands.');
         const fallback = defaults();
-        return { ...(value?.automation != null ? { automation: automation(value.automation) } : {}), enabled: value?.enabled === true, bands: fallback.bands.map((base, index) => {
+        return { ...(value?.manualBypass === true ? { manualBypass: true } : {}), ...(value?.automation != null ? { automation: automation(value.automation) } : {}), enabled: value?.enabled === true && value?.manualBypass !== true, bands: fallback.bands.map((base, index) => {
             const band = value?.bands?.[index];
             if (band != null && (typeof band !== 'object' || Array.isArray(band))) throw new Error('Invalid EQ band.');
             return { enabled: band?.enabled !== false, type: TYPES.includes(band?.type) ? band.type : base.type,
@@ -89,7 +89,7 @@
         return { snapshot, changed: true };
     }
     function create() {
-        let state = normalize(), watched = null;
+        let state = normalize(), watched = null, preEffectsRouting = false;
         const overrides = new Map(), worklets = new WeakMap(), readyContexts = new WeakSet();
         const effective = key => overrides.get(key) || state.channels[key];
         const groups = new Set(), listeners = new Set();
@@ -183,7 +183,7 @@
         function update(group, initial = false, automated = false) {
             const fade = automated ? .03 : .012;
             const enabled = effective(group.key).enabled, old = group.wire;
-            if (old?.processor) { sendAutomation(group); meter(group); return; }
+            if (old?.processor && !effective(group.key).manualBypass) { sendAutomation(group); meter(group); return; }
             if (!enabled && !old) { meter(group); return; }
             const offline = typeof group.context.startRendering === 'function', crossfade = !initial && !offline && group.context.state === 'running';
             const next = enabled || crossfade ? wireFor(group, enabled) : null;
@@ -236,11 +236,12 @@
             settings: () => normalize(state), get: key => ({ ...channel({ ...effective(key), automation: null }), ...(state.channels[key].automation ? { automation: state.channels[key].automation } : {}) }),
             prepareAutomation,
             automate(key, value) {
-                if (!['X', 'L'].includes(key)) return;
+                if (!KEYS.includes(key) || state.channels[key].manualBypass === true) return;
                 const next = channel(value), previous = effective(key);
+                if (JSON.stringify(next) === JSON.stringify(previous)) return;
                 overrides.set(key, next);
                 prepareAutomation(key);
-                if (JSON.stringify(next) !== JSON.stringify(previous)) for (const group of groups) if (group.key === key) update(group, false, true);
+                for (const group of groups) if (group.key === key) update(group, false, true);
             },
             clearAutomationOverride(key) {
                 if (!overrides.delete(key)) return;
@@ -257,6 +258,16 @@
                 for (const group of groups) if (group.key === key) update(group);
                 emit();
             },
+            resetForGeneration() {
+                // Restore also disarms live writes and removes playback overrides.
+                const next = api.settings();
+                for (const value of Object.values(next.channels)) {
+                    delete value.automation;
+                    value.enabled = false;
+                    value.manualBypass = true;
+                }
+                api.restore(next);
+            },
             restore(value) {
                 const next = normalize(value), changed = KEYS.filter(key => overrides.has(key) || JSON.stringify(next.channels[key]) !== JSON.stringify(state.channels[key]));
                 overrides.clear();
@@ -265,14 +276,32 @@
                 for (const group of groups) if (changed.includes(group.key)) update(group);
                 emit('restore');
             },
+            enablePreEffectsRouting() { preEffectsRouting = true; },
             connect(key, source, destination, owner = null) {
                 if (!KEYS.includes(key)) throw new Error('Unknown EQ channel.');
+                // The legacy downstream wrappers still terminate here. Once the
+                // input EQ adapter is installed this is only the final output gate.
+                destination = root.mygrainDawFx?.layerInput(destination) || destination;
+                if (!preEffectsRouting) return api.connectInput(key, source, destination, owner);
+                source.connect(destination);
+                let done = false;
+                const route = { disconnect() {
+                    if (done) return; done = true;
+                    owner?.removeEventListener?.('ended', route.disconnect);
+                    disconnect(source, destination);
+                } };
+                owner?.addEventListener?.('ended', route.disconnect, { once: true });
+                return route;
+            },
+            connectInput(key, source, destination, owner = null) {
+                if (!KEYS.includes(key)) throw new Error('Unknown EQ channel.');
+                // No external-host output gate here: this is before all sends.
                 const context = source.context;
                 let group = [...groups].find(g => g.key === key && g.context === context && g.destination === destination);
                 if (!group) { group = { key, context, destination, dynamicReady: readyContexts.has(context), links: new Set(), wire: null, retired: new Set(), timers: new Set() }; groups.add(group); if (effective(key).enabled) update(group, true); }
                 const link = { source, disposed: false }; group.links.add(link);
                 source.connect(group.wire ? group.wire.input : destination); meter(group);
-                if (effective(key).enabled || (['X','L'].includes(key) && root.mygrainEqAutomation?.info(key).write)) prepareAutomation(key, context);
+                if (effective(key).enabled || root.mygrainEqAutomation?.info(key).write) prepareAutomation(key, context);
                 const route = { disconnect() {
                     if (link.disposed) return; link.disposed = true;
                     owner?.removeEventListener?.('ended', route.disconnect);

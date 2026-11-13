@@ -246,3 +246,22 @@ test('masked error storms retain a counted error and the preceding cut control',
     setup.advance(); setup.host.emit('error', { message: 'Script error.', filename: '', lineno: 0, colno: 0 });
     assert.equal(setup.recorder.snapshot().events.filter(e => e.type === 'javascript-error').length, 2);
 });
+
+test('interaction breadcrumbs coalesce slider motion, omit free text, share persistence and preserve errors',()=>{
+ const f=fixture(),card={id:'loopDCard'};
+ function control(type,id,value){return{type,id,value,tagName:'INPUT',closest(selector){return selector.startsWith('[role=')?card:this;},getAttribute(){return null;}};}
+ const slider=control('range','loopDReverbMix',10),secret=control('text','privateName','PRIVATE_FILENAME');
+ const writes=f.local.writes,timers=f.timers.size;
+ f.host.document.emit('pointerdown',{target:slider});
+ for(let i=0;i<1000;i++){slider.value=i%100;f.host.document.emit('input',{target:slider});}
+ slider.value=75;f.host.document.emit('change',{target:slider});
+ f.host.document.emit('input',{target:secret});f.host.document.emit('change',{target:secret});
+ let log=f.recorder.snapshot();assert.equal(log.breadcrumbs.filter(e=>e.action==='slider-start').length,1);assert.equal(log.breadcrumbs.filter(e=>e.action==='slider-end').length,1);
+ assert.equal(log.breadcrumbs.at(-1).value,75);assert.equal(log.breadcrumbs.at(-1).card,'loopDCard');assert(!JSON.stringify(log).includes('PRIVATE_FILENAME'));
+ assert.equal(f.local.writes,writes);assert.equal(f.timers.size,timers,'No new UI persistence timer');
+ f.recorder.event('javascript-error',{message:'keep this fault'},true);
+ for(let i=0;i<500;i++)f.recorder.event('ui-breadcrumb',{action:'button',control:'knownControl'});
+ log=f.recorder.snapshot();assert.equal(log.breadcrumbs.length,120);assert(log.events.some(e=>e.message==='keep this fault'));
+ f.heartbeat();assert(JSON.parse(f.local.getItem(diagnostics.prefix+f.recorder.id)).breadcrumbs.length>0);
+ f.recorder.clear();assert.equal(f.recorder.snapshot().breadcrumbs.length,0);
+});

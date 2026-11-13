@@ -231,7 +231,7 @@
         frame.title = 'Isolated song audio renderer';
         frame.setAttribute('aria-hidden', 'true');
         frame.style.cssText = 'position:fixed;width:1200px;height:900px;opacity:0;pointer-events:none;z-index:-1;top:0;left:0;border:0';
-        frame.srcdoc = html.replace(/<script\b[^>]*\bsrc\s*=\s*["']https?:\/\/[^>]*>[\s\S]*?<\/script>/gi, '').replace('<head>', `<head><base href="${base.href}"><script src="song-beta-render-deck.js?v=20261103-turntable-1"><\/script>`);
+        frame.srcdoc = html.replace(/<script\b[^>]*\bsrc\s*=\s*["']https?:\/\/[^>]*>[\s\S]*?<\/script>/gi, '').replace('<head>', `<head><base href="${base.href}"><script src="song-beta-render-deck.js?v=20261111-effect-output-1"><\/script>`);
         root.document.body.append(frame);
         let capture, cancelRecording;
         try {
@@ -252,18 +252,28 @@
             if (root.document.hidden) throw new Error('Keep MYGRAIN in the foreground while preparing song audio.');
             deck.saveAudioBufferToDB = async () => {};
             deck.clearAudioBufferFromDB = async () => {};
+            await waitWithAbort(deck.mygrainResonator?.prepare(context, part.snapshot.state.modes.resonatorR), signal);
+            await waitWithAbort(deck.mygrainAcousticFx?.prepare(context, part.snapshot.state.modes), signal);
             await waitWithAbort(deck.mygrainWasp?.prepare(context, part.snapshot.state.modes.wasp), signal);
             await waitWithAbort(deck.mygrainTurntable?.prepare(context, part.snapshot.state.modes.turntable), signal);
+            await waitWithAbort(deck.mygrainCookingPot?.prepare(context, part.snapshot.state.modes), signal);
             deck.mygrainSongBetaAdapter.recall(part, { start: false });
             // Load the current persistent EQ DSP before scheduling the first
-            // voice; asynchronous cold IIR-to-worklet swaps must not be baked in.
+            // voice; one context-wide module load covers every channel, including
+            // newly automated lanes. Cold IIR-to-worklet swaps must not be baked in.
             if (deck.mygrainChannelEq) await waitWithAbort(deck.mygrainChannelEq.prepareAutomation('X', context), signal);
+            await waitWithAbort(deck.mygrainResonator?.whenReady(), signal);
+            await waitWithAbort(deck.mygrainAcousticFx?.whenReady(), signal);
             await waitWithAbort(deck.mygrainWasp?.whenReady(), signal);
             await waitWithAbort(deck.mygrainTurntable?.whenReady(), signal);
+            await waitWithAbort(deck.mygrainCookingPot?.whenReady(), signal);
             if (deck.mygrainQ?.playable()) {
                 await waitWithAbort(deck.mygrainQ.preparePlayback(), signal);
                 deck.mygrainQ.ensureGraph();
             }
+            // D stretches from its immutable source. Finish this CPU work before
+            // choosing capture/start frames, not while starting scheduled audio.
+            if (deck.mygrainD?.playable()) deck.mygrainD.playback();
             await options.prepareDeck?.(deck);
             const frames = Math.round(((options.durationSeconds ?? root.MygrainSongBeta.sourcePartDurationSeconds(timing)) + (options.tailSeconds || 0)) * context.sampleRate);
             const captureTiming = renderCaptureTiming(context, deck, options.startLeadSeconds);

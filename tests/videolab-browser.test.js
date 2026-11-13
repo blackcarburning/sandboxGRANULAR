@@ -23,7 +23,7 @@ async function fixture() {
         document.cookie='videolab_fixture=1; path=/';
         window.fixtureLoads=[];window.fixtureAuditions=[];window.fixtureSources=[];
         const nativeFetch=window.fetch.bind(window);
-        window.fetch=(url,options)=>nativeFetch(url,window.ignoreCaptureAbort&&options?.method==='POST'&&String(url).endsWith('/captures')?{...options,signal:undefined}:options);
+        window.fetch=async(url,options)=>{const response=await nativeFetch(url,window.ignoreCaptureAbort&&options?.method==='POST'&&String(url).endsWith('/captures')?{...options,signal:undefined}:options);if(String(url).includes('/captures/')&&String(url).endsWith('/audio')){if(window.suspendDuringCapture)await fixtureContext.suspend();const read=response.arrayBuffer.bind(response);response.arrayBuffer=async()=>{const body=await read();if(window.holdDecode){window.decodeWaiting=true;await new Promise(resolve=>window.releaseDecode=resolve);window.decodeWaiting=false;}return body;};}return response;};
         document.getElementById('testStart').addEventListener('click',async()=>{
             if(!window.fixtureContext){
                 window.fixtureContext=new (window.AudioContext||window.webkitAudioContext)({sampleRate:48000});
@@ -119,6 +119,7 @@ test('iPhone-primary finite WAV import, exact trim/audition/normalised Save and 
         await page.goto(app.url);
         await ready(page);
         assert.equal(await page.locator('#videolabDuration').inputValue(), '120');
+        assert.equal(await page.locator('#videolabDuration').getAttribute('max'), '600');
         assert.equal(await page.locator('#videolabStart').inputValue(), '00:00');
         assert.equal(await page.locator('#videolabStart').getAttribute('type'), 'text');
         assert.match(await page.locator('label[for="videolabStart"]').textContent(), /mm:ss \(minutes:seconds\)/);
@@ -136,15 +137,17 @@ test('iPhone-primary finite WAV import, exact trim/audition/normalised Save and 
         await page.waitForFunction(() => document.getElementById('videolabStatus').textContent.includes('mm:ss'));
         assert.equal(app.state.jobs.size, 0);
         await page.locator('#videolabStart').fill('02:30');
+        await page.locator('#videolabDuration').fill('600');
         await fetchTake(page);
+        assert.equal(await page.evaluate(() => testController.recorder.duration), 2);
         assert.equal(await page.evaluate(() => fixtureAuditions.length), 0);
         const job = Array.from(app.state.jobs.values())[0];
-        assert.deepEqual(job.settings, { url: 'https://www.youtube.com/watch?v=abcdefghijk', startSeconds: 150, durationSeconds: 120 });
+        assert.deepEqual(job.settings, { url: 'https://www.youtube.com/watch?v=abcdefghijk', startSeconds: 150, durationSeconds: 600 });
         assert.equal(await page.evaluate(() => testController.recorder.sampleRate), sampleRate);
         assert.equal(await page.locator('#videolabTrimPanel').isVisible(), true);
         await trim(page);
         assert.equal(await page.evaluate(() => mygrainVideolab.state.trimmedSeconds), 1);
-        const selected = await page.evaluate(() => testController.recorder.chunks[0].map(channel => Array.from(channel.subarray(24000, 72000))));
+        const selected = await page.evaluate(() => Array.from({length:testController.recorder.channels},(_,channel)=>testController.recorder.chunks.flatMap(chunk=>Array.from(chunk[channel])).slice(24000,72000)));
         let peak = 0;
         for (const channel of selected) for (const value of channel) peak = Math.max(peak, Math.abs(value));
         await page.locator('#videolabNormalize').click();
@@ -159,6 +162,13 @@ test('iPhone-primary finite WAV import, exact trim/audition/normalised Save and 
         }
         if (await page.evaluate(() => mygrainVideolab.state.previewing)) await page.locator('#videolabPreview').click();
         await page.locator('#videolabSampleName').fill('Selected sine interval');
+            await page.evaluate(() => {window.ftpChecks=[];window.mygrainFtp={upload:async options=>{ftpChecks.push({name:options.name,bytes:options.body.byteLength});return 'Folder/take.wav';},copyLibrary:async options=>{ftpChecks.push({source:options.source,id:options.id});return 'Folder/saved.wav';}};});
+            await page.locator('#videolabUploadFtp').click();
+            await page.waitForFunction(()=>ftpChecks.length===1 && !testController.state.busy);
+            assert((await page.evaluate(()=>ftpChecks[0].bytes))>44);
+            await page.evaluate(()=>testController.uploadFtp({filename:'saved-fixture.wav'}));
+            assert.equal(await page.evaluate(()=>ftpChecks[1].source),'video');
+
         await page.locator('#videolabSave').click();
         await ready(page);
         assert.equal(app.state.uploads.length, 1);
@@ -424,4 +434,25 @@ test('public Reel source, automatic selection, bookmark, soundtrack capture and 
         for (const width of [320, 390, 844]) { await page.setViewportSize({width, height: width === 844 ? 390 : 844}); await noOverflow(page); }
         assert.deepEqual(errors, []);
     } finally { await browser.close(); await app.close(); }
+});
+
+
+test('capture retains PCM with a suspended audio engine and unavailable native decoder; failures stay visible', {timeout:30000}, async()=>{
+ const app=await fixture(),browser=await launch();
+ try{
+  const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+  await page.goto(app.url);await ready(page);await setVideo(page);await start(page);
+  await page.evaluate(()=>{window.suspendDuringCapture=true;fixtureContext.decodeAudioData=()=>{throw Error('Native decoder unavailable');};});
+  await fetchTake(page);
+  assert.equal(await page.evaluate(()=>fixtureContext.state),'suspended');
+  assert.equal(await page.evaluate(()=>testController.recorder.duration),2);
+  assert.equal(await page.evaluate(()=>mygrainVideolab.state.hasTake),true);
+  assert.match(await page.locator('#videolabTake').textContent(),/2.000/);
+  await page.evaluate(()=>{testController.recorder.clear();testController.recorder=null;window.suspendDuringCapture=false;});
+  await start(page);app.state.mode='bad';await page.locator('#videolabFetch').click();
+  await page.waitForFunction(()=>!mygrainVideolab.state.capturing);
+  assert.match(await page.locator('#videolabTake').textContent(),/Capture failed during decoding/);
+  assert.match(await page.locator('#videolabStatus').textContent(),/No take was created/);
+
+ }finally{await browser.close();await app.close();}
 });

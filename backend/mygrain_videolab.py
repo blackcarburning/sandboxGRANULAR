@@ -23,10 +23,10 @@ SOURCE_ROOT = None
 ACCOUNTS = None
 ACCOUNT_STORE = None
 INVALIDATE_SOURCE_CACHE = lambda: None
-MAX_BYTES = 64 * 1024 * 1024
-MAX_PCM_BYTES = 32 * 1024 * 1024
-MAX_SECONDS = 180
-DEADLINE_SECONDS = 120
+MAX_BYTES = 128 * 1024 * 1024
+MAX_PCM_BYTES = 224 * 1024 * 1024
+MAX_SECONDS = 600
+DEADLINE_SECONDS = 720
 TTL_SECONDS = 900
 GLOBAL_LIMIT = 2
 USER_LIMIT = 1
@@ -153,7 +153,7 @@ def write_private(path, body):
 
 def normalize_wav(body):
     if not 44 <= len(body) <= MAX_BYTES or body[:4] != b'RIFF' or body[8:12] != b'WAVE' or struct.unpack_from('<I', body, 4)[0] + 8 != len(body):
-        raise RequestError('Upload a complete finite PCM WAV, at most 64 MiB.')
+        raise RequestError('Upload a complete finite PCM WAV, at most 128 MiB.')
     offset, count, fields, pcm = 12, 0, None, None
     while offset < len(body):
         count += 1
@@ -184,11 +184,11 @@ def normalize_wav(body):
         raise RequestError('Inconsistent PCM WAV format.')
     duration = len(pcm) / byte_rate
     if not 0.02 < duration <= MAX_SECONDS:
-        raise RequestError('WAV duration must be longer than 0.02 seconds and at most 180 seconds.')
+        raise RequestError('WAV duration must be longer than 0.02 seconds and at most 600 seconds.')
     padded = pcm + (b'\x00' if len(pcm) % 2 else b'')
     normalized = b'RIFF' + struct.pack('<I', 36 + len(padded)) + b'WAVEfmt ' + struct.pack('<IHHIIHH', 16, *fields) + b'data' + struct.pack('<I', len(pcm)) + padded
     if len(normalized) > MAX_BYTES:
-        raise RequestError('WAV exceeds 64 MiB.')
+        raise RequestError('WAV exceeds 128 MiB.')
     return normalized, {'duration': duration, 'sampleRate': rate, 'channels': channels, 'bitsPerSample': bits}
 
 
@@ -490,7 +490,7 @@ def run_capture(job, token, store):
             if job['cancel'].is_set():
                 return
             if time.monotonic() >= job['started'] + DEADLINE_SECONDS:
-                raise RequestError('Capture exceeded the 120-second deadline.')
+                raise RequestError('Capture exceeded the 720-second deadline.')
             job['status'] = 'working'
         runtime = pathlib.Path(os.environ.get('MYGRAIN_VIDEOLAB_JOBS_ROOT', '/var/lib/mygrain-videolab/jobs'))
         if not runtime.is_absolute():
@@ -536,7 +536,7 @@ def run_capture(job, token, store):
             if job['cancel'].is_set():
                 return
             if now >= deadline:
-                raise RequestError('Capture exceeded the 120-second deadline. Try a shorter public video.')
+                raise RequestError('Capture exceeded the 720-second deadline. Try a shorter public video.')
             if now - last_session_check >= 1:
                 user = store.session_user(token)
                 if user is None or str(user['id']) != job['owner'][0]:
@@ -650,7 +650,23 @@ def send_audio(handler, body, filename=None):
     for name, value in NO_CACHE.items():
         handler.send_header(name, value)
     handler.end_headers()
-    handler.wfile.write(body)
+    # A single sendall uses the socket timeout for the entire WAV. Write bounded
+    # chunks so a slow, progressing mobile download is not cut off after 30s.
+    previous_timeout = handler.connection.gettimeout()
+    deadline = time.monotonic() + 600
+    try:
+        handler.connection.settimeout(60)
+        view = memoryview(body)
+        for offset in range(0, len(view), 64 * 1024):
+            if time.monotonic() >= deadline:
+                raise TimeoutError('Video Lab audio transfer deadline exceeded.')
+            handler.wfile.write(view[offset:offset + 64 * 1024])
+    except OSError:
+        # Headers are already sent: never append a JSON 400 to a partial WAV.
+        # Content-Length lets the browser reject an incomplete take safely.
+        handler.close_connection = True
+    finally:
+        handler.connection.settimeout(previous_timeout)
 
 
 def handle_videolab_request(handler, method, inner):

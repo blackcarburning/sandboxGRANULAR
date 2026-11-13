@@ -1,0 +1,5 @@
+global.window={};
+const assert=require('node:assert/strict'),{Controller}=require('../song-beta');
+const c={snapshots:new Map(),cache:new Map(),renderSources:new Map(),isRenderCompatible:Controller.prototype.isRenderCompatible,needsCurrentMutilator:Controller.prototype.needsCurrentMutilator};
+const part={id:'f'.repeat(32),sha256:'a'.repeat(64),loopDVersion:1,render:{version:1,sourceSha256:'a'.repeat(64),loopDVersion:1,keyboardVersion:1,grainVersion:5,portableVersion:1,kReverbVersion:1}},decoded={snapshot:{state:{modes:{loopD:{enabled:true}}},assets:[{key:'bastardD'}]}};
+assert(c.isRenderCompatible(part,decoded));decoded.snapshot.state.modes.loopD.maximiser=0;assert(c.isRenderCompatible(part,decoded));decoded.snapshot.state.modes.loopD.maximiser=100;assert(!c.isRenderCompatible(part,decoded));part.render.loopDVersion=2;assert(c.isRenderCompatible(part,decoded));part.loopDVersion=2;part.render.loopDVersion=1;assert(!c.isRenderCompatible(part));console.log('PASS D maximiser legacy freeze reuse and stale-render rejection');

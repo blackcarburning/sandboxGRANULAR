@@ -82,7 +82,7 @@ test('placement and repeat have four independent derived-buffer cache identities
     assert.equal(cut.gate(audioContext, source, { enabled: true, fromStart: true, repeat: true, start: 0, end: 1 }), source);
 });
 
-test('both placements fade every section and truncated repeat inside the resolved loop duration', () => {
+test('placements fade exposed edges and crossfade internal repeats inside the resolved loop duration', () => {
     for (const fromStart of [false, true]) {
         for (const repeat of [false, true]) {
             const source = audioBuffer(2, 1600, 1000);
@@ -93,14 +93,9 @@ test('both placements fade every section and truncated repeat inside the resolve
                 const samples = result.getChannelData(channel);
                 assert.ok(samples.slice(0, placement).every(value => value === 0));
                 assert.ok(samples.slice(end).every(value => value === 0));
-                for (let first = placement; first < end; first += 450) {
-                    const last = Math.min(first + 450, end) - 1;
-                    assert.equal(samples[first], 0);
-                    assert.equal(samples[last], 0);
-                    assert.equal(samples[first + 1], .125);
-                    assert.equal(samples[first + 4], .5);
-                    assert.equal(samples[last - 4], .5);
-                }
+                if(repeat&&fromStart){assert.ok(samples.slice(placement,end).every(v=>v===.5));}
+                else {assert.equal(samples[placement],0);assert.equal(samples[end-1],0);assert.ok(samples[placement+1]>0&&samples[placement+1]<.5);}
+                for(let at=placement+450;repeat&&at<end;at+=450)assert.equal(samples[at],samples[at-1]);
                 assert.ok(source.getChannelData(channel).every(value => value === .5));
             }
         }
@@ -169,8 +164,8 @@ test('editor toggles stay independent, describe source placement and reset both 
     } finally { globalThis.document = previousDocument; }
 });
 
-test('grid options include 1/32 and every sixteenth up to one bar', () => {
-    assert.deepEqual(cut.grids, [1 / 32, ...Array.from({ length: 16 }, (unused, index) => (index + 1) / 16)]);
+test('grid options include two bars, 1/32 and every sixteenth up to one bar', () => {
+    assert.deepEqual(cut.grids, [2, 1 / 32, ...Array.from({ length: 16 }, (unused, index) => (index + 1) / 16)]);
     assert.equal(cut.normalize({ grid: .3 }).grid, 1 / 16);
     assert.equal(cut.normalize({ grid: '0.03125', snap: false }).grid, 1 / 32);
 });
@@ -194,15 +189,10 @@ test('a middle section stays at its original start then repeats only to the orig
     assert.deepEqual([...repeated.getChannelData(0)], [0, 0, 0, 0, 5, 6, 7, 8, 9, 5, 6, 7, 8, 9, 5, 6]);
 });
 
-test('repeated sections including the truncated last segment fade within each section', () => {
-    const repeated = cut.gate(audioContext, audioBuffer(1, 1600, 1000), { enabled: true, repeat: true, start: 0, end: 5 / 16 });
-    const samples = repeated.getChannelData(0);
-    for (const first of [0, 500, 1000, 1500]) {
-        const last = Math.min(first + 500, 1600) - 1;
-        assert.equal(samples[first], 0);
-        assert.equal(samples[last], 0);
-        assert.equal(samples[first + 4], .5);
-    }
+test('repeated sections including a truncated tail crossfade without volume dips', () => {
+    const source=audioBuffer(1,1600,1000);
+    const samples=cut.gate(audioContext,source,{enabled:true,repeat:true,start:0,end:5/16}).getChannelData(0);
+    assert.ok(samples.every(v=>v===.5));assert.ok(source.getChannelData(0).every(v=>v===.5));
 });
 
 test('repeat obeys the resolved loop duration and leaves audio after the loop silent', () => {

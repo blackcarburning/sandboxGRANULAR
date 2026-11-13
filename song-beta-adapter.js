@@ -132,7 +132,7 @@
     }
 
     const additiveSongLanes = [
-        { name: 'D loop', slots: ['bastardD'], settings: /^(?:loopD|bastard(?:Loop)?D|performanceBastardLoopD)/i, references: /^(?:d|bastard(?:loop)?d)$/i },
+        { name: 'D loop', slots: ['bastardD'], settings: /^(?:loopD|bastard(?:Loop)?D|performanceBastardLoopD)(?:$|[A-Z])/, references: /^(?:d|bastard(?:loop)?d)$/i },
         { name:'Q sample', slots:['qSourceSample'], settings:/^qSourceSample/, references:/^qsourcesample$/i, qSample:true },
         { name: 'Keyboard Sample', slots: ['keyboardSample'], settings: /^(?:keyboardSample|performanceKeyboardSample)/, references: /^keyboardsample$/i, keyboardSource: 'sample' },
         { name: 'ETC', slots: ['drumEtc'], settings: /^(?:etc|drumEtc|drumMachineEtc.*)$/i, references: /^etc$/i },
@@ -458,8 +458,11 @@
                 await new Promise(resolve => setTimeout(resolve, 25));
             }
             await ensurePatchZipAudioReady();
+            await window.mygrainResonator?.whenReady();
+            await window.mygrainAcousticFx?.whenReady();
             await window.mygrainWasp?.whenReady();
             await window.mygrainTurntable?.whenReady();
+            await window.mygrainCookingPot?.whenReady();
             while (engineStarting || stateSaveSuspended) {
                 if (Date.now() > deadline) throw new Error('Wait for MYGRAIN to finish restoring its current state, then try again.');
                 await new Promise(resolve => setTimeout(resolve, 25));
@@ -475,13 +478,16 @@
             ) throw new Error('Finish recording before saving or replacing a part.');
         },
 
-        async capture({ liveOnly = false } = {}) {
+        async capture({ liveOnly = false, projectCapture = false } = {}) {
+            await window.mygrainResonator?.whenReady();
+            await window.mygrainAcousticFx?.whenReady();
             await window.mygrainWasp?.whenReady();
             await window.mygrainTurntable?.whenReady();
+            await window.mygrainCookingPot?.whenReady();
             if (!isAudioGraphReady() || engineStarting || stateSaveSuspended) throw new Error('Start MYGRAIN and let its current sounds finish loading before saving a part.');
             adapter.assertNotRecording();
             flushPendingSliderUpdates();
-            if (!liveOnly) await window.mygrainQ?.prepareCapture();
+            if (!liveOnly || projectCapture) await window.mygrainQ?.prepareCapture();
             const state = saveState({ force: true, snapshotOnly: true });
             if (!state) throw new Error('Could not capture current settings.');
             const snapshot = {
@@ -499,7 +505,7 @@
                     performanceSourceLayerSolo: cloneJson(performanceSourceLayerSolo),
                     performanceSourceLayerSoloSnapshot: cloneJson(performanceSourceLayerSoloSnapshot),
                     controls: Array.from(document.querySelectorAll('input[type="checkbox"], input[type="number"], input[type="radio"]'))
-                        .filter(input => input.id && !input.closest('#songBetaCard, #aiPatchCard, #bastardLoopCutOverlay, #bastardLoop2CutOverlay, #bastardLoop3CutOverlay, #bastardLoopVCutOverlay, #bastardLoopWCutOverlay, #bastardLoopDCutOverlay, #bastardLoopPCutOverlay, #bastardLoopOCutOverlay, #qArpOverlay, #qChordEditorOverlay, #drumMachineLane-roll, #kTrackControlSection, #channelEqDialog, .loop-fx, #waspCard, #turntableCard'))
+                        .filter(input => input.id && !input.closest('#partsBinCard, #partsBinDialog, #dawBridgeCard, #dawInputCard, #songBetaCard, #aiPatchCard, #bastardLoopCutOverlay, #bastardLoop2CutOverlay, #bastardLoop3CutOverlay, #bastardLoopVCutOverlay, #bastardLoopWCutOverlay, #bastardLoopDCutOverlay, #bastardLoopPCutOverlay, #bastardLoopOCutOverlay, #qArpOverlay, #qChordEditorOverlay, #drumMachineLane-roll, #kTrackControlSection, #channelEqDialog, .loop-fx, #waspCard, #filterPlaygroundCard, #turntableCard, #resonatorCard, #bassFaceCard, .acoustic-card, #mutilatorInput, [data-resonator-proxy], [data-mutilator-owned]'))
                         .map(input => ({ id: input.id, type: input.type, value: input.value, checked: input.checked })),
                     metadata: Object.fromEntries(metadataBindings.map(([key, getMetadata]) => [key, cloneJson(getMetadata())]))
                 },
@@ -536,7 +542,10 @@
                 throw new Error('This is not a supported complete song-part snapshot.');
             }
             const { snapshot, lanes } = normalizeSongAudioInventory(original);
+            window.MygrainDrumTone?.sampleState(snapshot.state.modes.drumMachineSampleProcessing);
             window.MygrainChannelEq?.normalize(snapshot.state.modes.channelEq);
+            window.MygrainResonator?.normalize(snapshot.state.modes.resonatorR);
+            window.MygrainAcousticFx?.normalizeAll(snapshot.state.modes);
             window.MygrainWasp?.normalize(snapshot.state.modes.wasp);
             validateSongRollCycle(snapshot);
             if (!Array.isArray(snapshot.extra.sequencerSteps) || snapshot.extra.sequencerSteps.length !== Number(snapshot.state.patternLength)) throw new Error('Part sequencer pattern is incomplete.');
@@ -547,7 +556,7 @@
             // repair. Arm can use this normalized snapshot and existing renders
             // without copying an entire source ZIP just to add empty audio slots.
             const explicitOnly = lanes.length > 0 && lanes.every(lane => ['D loop', 'K five-track recorder', 'W loop', 'Loop filters / space'].includes(lane));
-            const fxBytes = (snapshot.state.modes.turntable?.enabled ? Math.ceil(audioContext.sampleRate * .08) * 2 * 4 * (snapshot.state.modes.turntable.route === 'drums' ? 3 : 1) : 0) + (window.MygrainLoopFx?.estimatedBytes(snapshot.state.modes.loopFx, audioContext.sampleRate) || 0) + (window.MygrainNoise?.estimatedBytes(audioContext.sampleRate) || 0);
+            const fxBytes = (window.MygrainAcousticFx?.estimatedBytes(snapshot.state.modes, audioContext.sampleRate) || 0) + (window.MygrainBassFace?.estimatedBytes(snapshot.state.modes.bassFace) || 0) + (snapshot.state.modes.loopD?.mutilator?.enabled && snapshot.state.modes.loopD.mutilator.input && !['D','DAW'].includes(snapshot.state.modes.loopD.mutilator.input) ? 1024*1024 : 0) + (window.MygrainResonator?.audible(snapshot.state.modes.resonatorR) ? window.MygrainResonator.estimatedBytes(audioContext.sampleRate) : 0) + (snapshot.state.modes.turntable?.enabled ? Math.ceil(audioContext.sampleRate * .08) * 2 * 4 * (snapshot.state.modes.turntable.route === 'drums' ? 3 : 1) : 0) + (window.MygrainLoopFx?.estimatedBytes(snapshot.state.modes.loopFx, audioContext.sampleRate) || 0) + (window.MygrainNoise?.estimatedBytes(audioContext.sampleRate) || 0);
             return { snapshot, decodedBytes, fxBytes, upgrade: lanes.length ? { lanes, explicitOnly } : null };
         },
 
@@ -558,6 +567,8 @@
 
         async decode(arrayBuffer, cache) {
             const { snapshot } = adapter.inspectPart(arrayBuffer);
+            await window.mygrainResonator?.prepare(audioContext, snapshot.state.modes.resonatorR);
+            await window.mygrainAcousticFx?.prepare(audioContext, snapshot.state.modes);
             await window.mygrainWasp?.prepare(audioContext, snapshot.state.modes.wasp);
             await window.mygrainTurntable?.prepare(audioContext, snapshot.state.modes.turntable);
             const entries = parseStoredZipEntries(arrayBuffer);
@@ -611,6 +622,7 @@
         },
 
         detachEditingSources() {
+            window.mygrainSampleGridBrowser?.close(false);
             adapter.assertNotRecording();
             stopSongAudio({ hardCut: true });
             for (const [, , set] of audioBindings) set(null);
@@ -620,6 +632,7 @@
         },
 
         async clearCurrentPatchAudio() {
+            window.mygrainSampleGridBrowser?.close(false);
             adapter.assertNotRecording();
             await persistence;
             sourceMutationSerial += 1;
@@ -730,6 +743,8 @@
             const fxBytes = (editingPreparationDepth
                 ? (window.MygrainLoopFx?.estimatedBytes(null, audioContext.sampleRate) || 0)
                 : (Number(info.fxBytes) || 0) + (window.MygrainLoopFx?.estimatedBytes(window.mygrainLoopFx?.settings(), audioContext.sampleRate) || 0))
+                + (window.MygrainAcousticFx?.estimatedBytes(window.mygrainAcousticFx?.settings(), audioContext.sampleRate, true) || 0)
+                + (window.MygrainBassFace?.estimatedBytes(window.mygrainBassFace?.settings()) || 0) + (window.mygrainD?.settings().mutilator?.enabled && window.mygrainD.settings().mutilator.input && !['D','DAW'].includes(window.mygrainD.settings().mutilator.input) ? 1024*1024 : 0)
                 + (window.MygrainNoise?.estimatedBytes(audioContext.sampleRate) || 0);
             const bytes = 16 * 1048576 + fxBytes + Math.max(residency.bytes + newBytes + decodeScratch, finalBytes + persistScratch);
             const emptyDecodeScratch = Math.max(0, ...[...groups.values()].map(entry => entry.record.bytes * 2 + (entry.nativePcm16 ? 0 : entry.bytes * 2)));
@@ -797,6 +812,7 @@
         },
 
         recall(part, options = {}) {
+            window.mygrainSampleGridBrowser?.close(false);
             if (!isAudioGraphReady() || audioContext.state !== 'running') throw new Error('Audio engine is not ready. Arm again.');
             const prepared = options.prepared || adapter.prepare(part, { takeOwnership: options.takeOwnership === true });
             for (const key of prepared.pcm16Keys || []) {
@@ -822,7 +838,7 @@
                 syncPatternLengthControls(snapshot.state.patternLength, { skipSave: true });
                 for (const control of snapshot.extra.controls || []) {
                     const input = document.getElementById(control.id);
-                    if (!input || input.closest('#songBetaCard, #aiPatchCard, #bastardLoopCutOverlay, #bastardLoop2CutOverlay, #bastardLoop3CutOverlay, #bastardLoopVCutOverlay, #bastardLoopWCutOverlay, #bastardLoopDCutOverlay, #bastardLoopPCutOverlay, #bastardLoopOCutOverlay, #qArpOverlay, #qChordEditorOverlay, #drumMachineLane-roll, #kTrackControlSection, #channelEqDialog, .loop-fx, #waspCard, #turntableCard') || input.type !== control.type) continue;
+                    if (!input || input.closest('#partsBinCard, #partsBinDialog, #dawBridgeCard, #dawInputCard, #songBetaCard, #aiPatchCard, #bastardLoopCutOverlay, #bastardLoop2CutOverlay, #bastardLoop3CutOverlay, #bastardLoopVCutOverlay, #bastardLoopWCutOverlay, #bastardLoopDCutOverlay, #bastardLoopPCutOverlay, #bastardLoopOCutOverlay, #qArpOverlay, #qChordEditorOverlay, #drumMachineLane-roll, #kTrackControlSection, #channelEqDialog, .loop-fx, #waspCard, #filterPlaygroundCard, #turntableCard, #resonatorCard, #bassFaceCard, .acoustic-card, #mutilatorInput, [data-resonator-proxy], [data-mutilator-owned]') || input.type !== control.type) continue;
                     if (input.type === 'checkbox' || input.type === 'radio') input.checked = Boolean(control.checked);
                     else input.value = control.value;
                     input.dispatchEvent(new Event('change', { bubbles: true }));
@@ -867,6 +883,7 @@
                 batchedRestore.restore();
             }
             refreshSongAudioUi();
+            if (options.persist === false) return startTime;
             saveState();
             const persisted = audioBindings.filter(binding => binding[3]).map(([, getBuffer, , key]) => [key, getBuffer()]);
             persistence = persistence.catch(() => {}).then(async () => {
@@ -1060,9 +1077,21 @@
             assertReady(completedKRecording, aiPatch, draftEdit);
             const before = capture(), epoch = generation;
             busy = true; update();
-            function finish(commit = true) {
+            function finish(commit = true, generated = true) {
                 try {
                     if (!commit || epoch !== generation) return;
+                    if (!aiPatch && generated) {
+                        if (label === 'Mega / Sparse patch') {
+                            applyGeneratedLXEnvelope();
+                            saveState({ force: true });
+                        }
+                    }
+                    // Include direct card history actions (Q patterns, D gaps and vocal
+                    // cuts), not only the globally wrapped generation functions.
+                    // A source-load failure can leave a newly randomised partial patch.
+                    // Its final muted cards must also have all effect switches Off.
+                    if (!aiPatch && (label === 'Mega / Sparse patch' || /random|generat|re-cut|^Loop [A-Z] (pattern|notes|cut|sound)$|^drum (patterns|sounds)|^OSC3 sound$|^(Clap|Cymbals|Etc|Roll) pattern$/i.test(label))
+                        && [window.mygrainLoopFx?.finishRandomization(), window.mygrainBassFace?.finishRandomization()].some(Boolean)) saveState();
                     const entry = delta(before, capture(), label);
                     if (entry.json.length || entry.buffers.length || entry.piano) {
                         undo.push(entry); if (undo.length > historyLimit) undo.shift(); redo.length = 0;
@@ -1072,11 +1101,11 @@
             }
             try {
                 // Reset inside the history transaction, never on a rejected UI click.
-                if (!aiPatch && /random|re-cut|^Loop [QOX] (pattern|cut)$|^(Clap|Cymbals|Etc|Roll) pattern$/i.test(label)) { window.mygrainTurntable?.off(); }
+                if (!aiPatch && /random|re-cut|^Loop [QOX] (pattern|cut)$|^(Clap|Cymbals|Etc|Roll) pattern$/i.test(label)) { window.mygrainTurntable?.off(); window.mygrainChannelEq?.resetForGeneration(); }
                 const result = action();
-                if (result?.then) return Promise.resolve(result).then(value => { finish(); return value; }, error => { finish(!aiPatch); throw error; });
+                if (result?.then) return Promise.resolve(result).then(value => { finish(); return value; }, error => { finish(!aiPatch, false); throw error; });
                 finish(); return result;
-            } catch (error) { if (busy) finish(!aiPatch); throw error; }
+            } catch (error) { if (busy) finish(!aiPatch, false); throw error; }
         }
         function recordAI(mode, action) {
             // AI already validated its response before entering this boundary.
@@ -1098,6 +1127,7 @@
             return run('Record to K', action, true);
         }
         async function restore(entry, direction, reservationGuard) {
+            window.mygrainSampleGridBrowser?.close(false);
             reservationGuard();
             const current = capture(), target = current.json;
             for (const change of entry.json) {
@@ -1249,10 +1279,22 @@
         ]);
         for (const [name, label] of Object.entries(actions)) {
             const original = window[name];
-            if (typeof original === 'function') window[name] = function (...args) { return run(label, () => {
-                if (/random|generat|^loadBastardLoop[LX]SampleFromSource$|^loadDropboxSampleLayerFromSource$/i.test(name)) { window.mygrainTurntable?.off(); }
+            if (typeof original !== 'function') continue;
+            const execute = function (...args) { return run(label, () => {
+                if (/random|generat|^loadBastardLoop[LX]SampleFromSource$|^loadDropboxSampleLayerFromSource$/i.test(name)) { window.mygrainTurntable?.off(); window.mygrainChannelEq?.resetForGeneration(); }
                 return original.apply(this, args);
             }, false, false, draftActions.has(name)); };
+            // Consent precedes history capture and generation resets: Cancel changes nothing.
+            window[name] = name === 'runMegaRandomization' ? async function (...args) {
+                const options = args[0] || {};
+                const pluginMode=!!(window.mygrainDawBridge?.connected||window.mygrainDawBridge?.diagnostics().connecting||window.mygrainDawFx?.connected||window.mygrainDawFx?.connecting);
+                if (!options.sparseMode && !pluginMode && typeof options.tempoDecision !== 'boolean') {
+                    const decision = await promptMegaTempo();
+                    if (decision === null) { setStatus('Mega Randomise cancelled.'); return; }
+                    args[0] = {...options, tempoDecision: decision};
+                }
+                return execute.apply(this, args);
+            } : execute;
         }
         update();
     }

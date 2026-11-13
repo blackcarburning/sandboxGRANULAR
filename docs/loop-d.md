@@ -1,6 +1,7 @@
 # D: pattern-fitted loops
 
-D loads the recursive `SAMPLES_LOOPS` library or a local audio file. It retains
+D defaults to shared `SAMPLES_LOOPSTORE`; its Loop library dropdown also offers
+the recursive `SAMPLES_LOOPS` library. Local audio import remains available. It retains
 original PCM separately from its playback cache. WSOLA fits either one source
 repeat or a nearest whole repeat count to the exact current pattern frame count.
 Source BPM in the filename informs the repeat count. BPM, pattern length, pitch
@@ -35,8 +36,8 @@ UI synchronization must not resurrect a stopped source. Resumed sources use the
 shared transport origin, retaining pattern phase rather than starting at zero.
 
 D and V use X's shared sample browser, including search, favourites, collections,
-native media preview and per-row Load actions. D is scoped to SAMPLES_LOOPS;
-V is scoped to SAMPLES_VOCAL and imports the complete selected vocal.
+native media preview and per-row Load actions. D uses its selected library;
+V defaults to SAMPLES_NCRVOCALS and also offers SAMPLES_VOCAL; both import the complete selected vocal. See `vocal-libraries.md`.
 The separate D picker and its preview AudioContext are no longer used.
 
 `tests/loop-d-v-shared-browser.cjs` exercises both mobile browser engines,
@@ -106,3 +107,94 @@ parts and server Song rendering are unchanged; no render-version bump is needed.
 Verification: `node tests/loop-d-load-status-browser.cjs` against the isolated D
 fixture server covers delayed download, failure rollback, retry, random, browser
 selection and imported files in Chromium/WebKit at phone and desktop widths.
+
+
+## Optional transport-locked Mutilator — 2026-11-10
+
+The original Mutilator was a static filter/distortion, not a BPM modulator. All
+seven original strains add distinct one-bar, straight-16th filter patterns when
+**Tempo-locked rhythm** is On (Off is the original static processor):
+Gnaw accented bites, Melt curved acid swells, Rupture 3–3–3–3–4 fractures,
+Scab stepped decays, Venom offbeat stabs, Hollow sparse openings and Splinter
+busy broken accents. Tone sets the centre; Damage controls both distortion and
+sweep depth. Existing shaper curves and dry/wet gains are retained. Source shift
+moves the loop against the common grid, not the Mutilator clock.
+
+A native looping AudioBufferSource drives filter.detune through a gain: 16,384
+samples at 8,192 Hz (exactly one bar at 120 BPM), playbackRate = BPM / 120.
+The shared transport origin supplies the offset even for late enabling, strain
+changes, recovery and offline starts. Small continuous attacks/releases keep
+triggers on the grid; no JavaScript timer schedules the rhythm. Tone/Damage/Mix
+edits retain the modulation source and the D PCM source. Bypass stops/releases
+all Mutilator nodes and its 64 KiB control buffer. No asynchronous preload.
+
+At a BPM handoff D retires its old graph at the scheduled boundary, including
+EQ and modulation cleanup. Its old parameter-change wrapper no longer starts
+D a second time after the shared transport has scheduled the new voice. Explicit
+Stop still removes both current and retired D voices.
+
+`tests/mutilator-clock-browser.cjs` checks native output and control PCM across
+7 strains, 3 tempos, 44.1/48 kHz, late activation and a 40-bar run in Chromium and
+WebKit, plus phone live edits, beat-boundary retiming and ZIP recall. Run against
+a disposable authenticated fixture with MYGRAIN_TEST_URL and MYGRAIN_TEST_OUTPUT;
+never production account data. Existing Mutilator/Dropbox browser tests cover
+randomisation cleanup, Undo/Redo, AI and effect checkboxes.
+
+### Original / rhythm switch and five further strains
+
+The D card now has a visible Tempo-locked rhythm switch. Missing `rhythm`
+defaults to false, restoring the original static filter/distortion. It changes
+only modulation, not the D source. The recent BPM-locked code is retained
+intact behind On, including beat-boundary handoff and late-activation phase.
+All seven original static strain outputs are PCM-identical to their pre-clock
+implementation in Chromium and WebKit.
+
+Diode (asymmetric bite), Cinder (scorched fuzz), Shred (serrated fold), Vortex
+(hollow notch) and Maw (gated snarl) bring the strain selector to 12. Each also
+has its own rhythm pattern when the switch is enabled. All strains remain
+available to existing Mutate / AI / Sparse / Mega integration. Generation
+retains the chosen rhythm preference and still actively disables processing
+on disabled/muted D. Off/mix-zero/damage-zero has no modulation source.
+
+`mutilatorVersion: 2` / render upload `mutilator=2` identifies switch-aware
+PCM. Old accidentally always-rhythmic freezes (version 1) refresh; unmarked
+pre-clock static originals retain their signatures and remain reusable.
+Original strains use engine revisions 1/2 (static) or 3 (rhythm); new strains
+use 4 (static) / 5 (rhythm). No ZIP rewriting on preparation. The switch uses
+only canonical `modes.loopD.mutilator.rhythm`, not a duplicate extra control.
+
+
+## 2026-11-10: reload / Sparse / Mega policy
+
+Saved controls and power survive reload. Sparse keeps Wasp, Mutilator, Filter
+Playground, Turntable and Olaf’s Resonator off. Mega randomises their settings
+and independently chooses each effect in or out; Mutilator may only run when
+Loop D is active, loaded and audible. Bypassed Mutilator settings are randomised
+too without changing the manual per-card random button’s readiness requirement.
+The confirmation and completion dialogue describe this policy and history
+captures the final effect choices. See `effect-reload-mega.md`.
+
+## Shared store default · v2026.11.12.DSTORE.1
+
+`modes.loopD.repository` is the canonical next-load choice: `samples_loopstore`
+(default) or `samples_loops`. The ID-less card selector and D browser selector
+mirror it. Changing the library is one history edit, never an audio replacement;
+Choose, Random, Mega/Sparse and AI fresh D loads use the selected source. Reels
+still retain the loaded original and vary gaps only. Local import keeps the
+library choice. Legacy D metadata from SAMPLES_LOOPS retains that selection on
+restore; absent/null D state defaults to Loop Store. JSON/ZIP/local persistence
+retains selection and original PCM.
+
+The shared source key resolves directly to `mygrain_loopstore.ROOT`, never an
+account mirror or Dropbox. Listing matches the store's published top-level WAVs;
+hidden/pending/recovery directories and symlinks are excluded. Loads/previews use
+existing authenticated, account-pinned source routes; shared-store notes/reactions
+remain unavailable, while private favourites remain usable. Fresh arrivals are
+listed without stale TTL caching. Stored original BPM reaches D through the
+source response header, preserving intended repeat counts at another tempo.
+
+The library field is validated on the backend but stripped only from audio
+content signatures: changing the next-load choice must not invalidate unchanged
+Song PCM. Source ZIPs/metadata and selector settings are not rewritten; original
+audio in portable snapshots renders without requesting either library. Existing
+render capabilities/DSP are unchanged.

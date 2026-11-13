@@ -1,0 +1,19 @@
+#masterBakerCard{display:block!important;--accent:#ff6358;background:#d40000!important;border:2px solid #ff8478;border-radius:14px;color:#fff;padding:16px;min-width:0;box-shadow:0 8px 30px #52000066}#masterBakerCard .master-baker-header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:10px;background:#9c0808;border-radius:10px}#masterBakerCard .master-baker-header>svg{width:70px;height:70px;flex:none;color:#fff1c7}#masterBakerCard .master-baker-header>div{flex:1;min-width:150px}#masterBakerCard h3{font-size:1.6rem;margin:3px 0;color:#fff}#masterBakerCard .master-baker-header span{font-size:.68rem;letter-spacing:.14em;color:#ffe4b8}#masterBakerCard .master-baker-header p{font-size:.78rem;margin:4px 0;overflow-wrap:anywhere}#masterBakerCard .master-baker-nav{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:12px 0}#masterBakerCard .master-baker-nav p{font-size:.78rem;flex:1;min-width:180px}#masterBakerCard button{letter-spacing:normal}#masterBakerCard [data-master-baker-power]{background:#321313;color:white;border-color:#ffc8ac}#masterBakerCard [data-master-baker-power][aria-pressed=true]{background:#ffefcc;color:#6a0000}#masterBakerCard .live-controls{grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr))}#masterBakerCard .mastering-actions{display:flex;flex-wrap:wrap;gap:8px}#masterBakerCard .vu-bank svg{max-height:120px}#cookingPotCard .pot-master-baker{background:#620b0b;color:#fff}#cookingPotCard .pot-master-baker td:last-child{font-size:10px;letter-spacing:.05em}.pot-master-baker svg{width:38px;height:38px;flex:none}[data-master-baker-jump]{background:#d40000!important;color:#fff!important;border-color:#ffb4a4!important}[data-master-baker-jump] svg{width:30px;height:30px}@media(max-width:600px){#masterBakerCard{padding:9px}#masterBakerCard .master-baker-header{gap:8px}#masterBakerCard h3{font-size:1.3rem}#masterBakerCard .master-baker-header>svg{width:50px;height:50px}}
+
+#masterBakerCard [hidden]{display:none!important}
+
+/* iPhone: reuse the existing buttons below Perf rather than adding edge clutter. */
+.history-edge-controls.master-baker-phone-edge{gap:6px;height:min(352px,calc(100svh - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px) - 24px));box-sizing:border-box}
+.history-edge-controls.master-baker-phone-edge :is(.history-edge-button,#audioClockWidgetBtn.clock-edge-start){position:relative;top:auto;left:auto;margin:0;flex:1 1 0;min-height:44px;width:34px;min-width:34px;padding:6px 4px;box-sizing:border-box;font-size:8px!important;letter-spacing:0;white-space:nowrap;border-left:0;border-right:1px solid rgba(255,255,255,.65);border-radius:0 12px 12px 0}
+.history-edge-controls.master-baker-phone-edge :is(#sectionJumpMasterBakerBtn,#sectionJumpCookingPotBtn) svg{display:none}
+.history-edge-controls.master-baker-phone-edge #sectionJumpCookingPotBtn{display:grid!important}
+.history-edge-controls.master-baker-phone-edge #sectionJumpCookingPotBtn .jump-button-label{font-size:7px!important;letter-spacing:0}
+
+.history-edge-controls.master-baker-phone-edge #sectionJumpMasterBakerBtn span{font-size:7px!important;letter-spacing:0;white-space:pre-line;line-height:1.1;overflow-wrap:normal;word-break:normal}
+
+/* The history-edge links have distinct IDs from the menu controls. Newlines
+   create two vertical columns and must override the generic nowrap rule. */
+.history-edge-controls.master-baker-phone-edge :is(#historyEdgeMasterBakerBtn,#historyEdgeCookingPotBtn){
+ white-space:pre-line!important;line-height:1.1;font-size:7px!important;
+ overflow-wrap:normal!important;word-break:normal!important;
+}

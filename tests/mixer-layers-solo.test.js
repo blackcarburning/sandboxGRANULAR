@@ -57,9 +57,10 @@ function fixture() {
         document: { getElementById: id => nodes.get(id) || null, querySelectorAll: () => grains },
         performanceSourceLayerSolo: [], grainLayerSolo: [], loopLayerSolo: [], performanceSourceLayerSoloSnapshot: null,
         oscillatorsEnabled: true, granularLayersEnabled: true, generatedSampleLayerEnabled: true, generatedDryLoopEnabled: true,
-        generatedSampleSolo: false, sourceWaveformSoloKinds: new Set(), audioContext: null, activeGrains: new Map(),
-        setStatus() {}, saveState() {}, updatePerformanceSoloMixGains() {}, rescheduleActiveGrainsFromNow() {}
+        generatedSampleSolo: false, drumMachineLaneSolos: [], sourceWaveformSoloKinds: new Set(), audioContext: null, activeGrains: new Map(),
+        syncDrumMachineLaneSoloGains() {}, restoreDrumMachineLaneSolos(value) { this.drumMachineLaneSolos=value; }, setStatus() {}, saveState() {}, updatePerformanceSoloMixGains() {}, rescheduleActiveGrainsFromNow() {}
     });
+    context.window = context;
     sources.forEach(([id]) => { context[id] = nodes.get(id); });
     vm.runInContext(`
         function setOscillatorsEnabled(value) { oscillatorsEnabled = value; }
@@ -123,9 +124,9 @@ function assertGrainStatus(state, text) {
     assertSynchronized(state);
 }
 
-test('Layers has exactly one read-only polite status immediately after the Granular quick-layer row', () => {
+test('Layers retains exactly one read-only polite grain-solo status', () => {
     assert.equal((html.match(/id="performanceGrainLayerSoloStatus"/g) || []).length, 1);
-    assert.match(html, /id="performanceLayerGranularSoloBtn"[^>]*>Solo Off<\/button>\s*<\/div>\s*<div class="performance-feature-meta" id="performanceGrainLayerSoloStatus" role="status" aria-live="polite" hidden><\/div>\s*<button[^>]*id="performanceGranularKeysBtn"/);
+    assert.match(html, /id="performanceLayerStringsSoloBtn"[^>]*>Solo Off<\/button>\s*<\/div>\s*<div class="performance-feature-meta" id="performanceGrainLayerSoloStatus" role="status" aria-live="polite" hidden><\/div>\s*<button[^>]*id="performanceGranularKeysBtn"/);
 });
 
 test('grain solo status follows A, A+B, B and clearing without pressing the Granular source solo', () => {

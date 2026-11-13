@@ -16,8 +16,47 @@ class TurntableTests(unittest.TestCase):
         SONGS.validate_turntable(None)
         SONGS.validate_turntable(self.settings())
 
+    def test_rpm_modulation_revision_only_changes_affected_audio(self):
+        namespace = dict(SONGS.__dict__)
+        original = inspect.getsource(SONGS.validate_part_zip).replace("4 if state['modes']['turntable'].get('rpm', 33) != 33 and any(state['modes']['turntable'].get(key, 0) > 0 for key in ('wow', 'flutter')) else ", "")
+        exec(original, namespace)
+        value = self.settings()
+        value['enabled'] = True
+        for rpm, amount, changed in [(33, .5, False), (45, .5, True), (78, .5, True), (78, 0, False)]:
+            value.update(rpm=rpm, wow=amount, flutter=amount)
+            body = rewrite_part(part_zip(), lambda p: p['state']['modes'].update(turntable=value))
+            self.assertEqual(SONGS.validate_part_zip(body)['contentSha256'] != namespace['validate_part_zip'](body)['contentSha256'], changed)
+
+    def test_rpm_hash_legacy_and_changes(self):
+        value = self.settings()
+        value['enabled'] = True
+        def digest(v):
+            return SONGS.validate_part_zip(rewrite_part(part_zip(), lambda p: p['state']['modes'].update(turntable=v)))['contentSha256']
+        legacy = dict(value)
+        legacy.pop('rpm')
+        SONGS.validate_turntable(legacy)
+        self.assertEqual(digest(value), digest(legacy))
+        value['rpm'] = 78
+        self.assertNotEqual(digest(value), digest(legacy))
+        value['enabled'] = legacy['enabled'] = False
+        self.assertEqual(digest(value), digest(legacy))
+
+    def test_mains_legacy_and_silent_compatibility(self):
+        value = self.settings()
+        value['enabled'] = True
+        def digest(v):
+            return SONGS.validate_part_zip(rewrite_part(part_zip(), lambda p: p['state']['modes'].update(turntable=v)))['contentSha256']
+        legacy = dict(value)
+        legacy.pop('mainsHz')
+        SONGS.validate_turntable(legacy)
+        self.assertEqual(digest(value), digest(legacy))
+        value['mainsHz'] = 60
+        self.assertNotEqual(digest(value), digest(legacy))
+        value['hum'] = legacy['hum'] = 0
+        self.assertEqual(digest(value), digest(legacy))
+
     def test_invalid_settings(self):
-        for key, value in [('enabled', 1), ('year', 1900), ('year', 9999), ('needle', 'broken'), ('route', 'vocals'), ('hum', float('nan')), ('wow', 2), ('output', -99)]:
+        for key, value in [('mainsHz', 55), ('mainsHz', True), ('rpm', 44), ('rpm', True), ('enabled', 1), ('year', 1900), ('year', 9999), ('needle', 'broken'), ('route', 'vocals'), ('hum', float('nan')), ('wow', 2), ('output', -99)]:
             settings = self.settings()
             settings[key] = value
             with self.subTest(key=key), self.assertRaises(ValueError):

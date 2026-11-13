@@ -186,6 +186,145 @@ class SongBackendTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'dimensions'):
             SONGS.validate_part_zip(invalid)
 
+    def test_d_loop_render_marker_preserves_sources_and_rejects_unknown_versions(self):
+        song = self.upload(self.create())
+        part = song['parts'][0]
+        path = f'/api/songs/{song["id"]}/parts/{part["id"]}/render?sha256={part["sha256"]}'
+        result = self.request('POST', f'{path}&loopd=1', body=render_wav(part))
+        self.assertEqual(result.status, 200)
+        self.assertEqual(result.response['song']['parts'][0]['render']['loopDVersion'], 1)
+        self.assertEqual(result.response['song']['parts'][0]['sha256'], part['sha256'])
+        self.assertEqual(result.response['song']['revision'], song['revision'])
+        self.assertEqual(self.request('POST', f'{path}&loopd=3', body=render_wav(part)).status, 400)
+
+    def test_d_maximiser_identity_and_stale_render_admission(self):
+        legacy = rewrite_part(part_zip(), lambda m: m['state']['modes'].update({'loopD': {'enabled': True}}))
+        # Rename the portable asset to D without changing its original PCM bytes.
+        output = BytesIO()
+        with zipfile.ZipFile(BytesIO(legacy)) as source, zipfile.ZipFile(output, 'w') as target:
+            for name in source.namelist():
+                data = source.read(name)
+                if name == 'song-part.json':
+                    m = json.loads(data); m['assets'][0].update(key='bastardD', path='audio/bastardD.wav'); data = json.dumps(m)
+                target.writestr(name.replace('bastardL.wav', 'bastardD.wav'), data)
+        legacy = output.getvalue()
+        zero = rewrite_part(legacy, lambda m: m['state']['modes']['loopD'].update(maximiser=0))
+        loud = rewrite_part(legacy, lambda m: m['state']['modes']['loopD'].update(maximiser=100))
+        self.assertEqual(SONGS.validate_part_zip(legacy)['contentSha256'], SONGS.validate_part_zip(zero)['contentSha256'])
+        self.assertNotEqual(SONGS.validate_part_zip(legacy)['contentSha256'], SONGS.validate_part_zip(loud)['contentSha256'])
+        self.assertEqual(SONGS.validate_part_zip(loud)['loopDVersion'], 2)
+        for invalid in [-1, 101, True, '100', float('nan')]:
+            with self.assertRaises(ValueError):
+                SONGS.validate_part_zip(rewrite_part(legacy, lambda m: m['state']['modes']['loopD'].update(maximiser=invalid)))
+        song = self.create()
+        result = self.request('POST', f'/api/songs/{song["id"]}/parts?name=Maximised&repeats=1', body=loud)
+        self.assertEqual(result.status, 201)
+        song = result.response['song']; part = song['parts'][0]
+        path = f'/api/songs/{song["id"]}/parts/{part["id"]}/render?sha256={part["sha256"]}'
+        self.assertEqual(self.request('POST', f'{path}&loopd=1', body=render_wav(part)).status, 400)
+        accepted = self.request('POST', f'{path}&loopd=2&samplecuts=1', body=render_wav(part))
+        self.assertEqual(accepted.status, 200)
+        self.assertEqual(accepted.response['song']['parts'][0]['render']['loopDVersion'], 2)
+        self.assertEqual(accepted.response['song']['parts'][0]['sha256'], part['sha256'])
+        self.assertEqual(accepted.response['song']['revision'], song['revision'])
+
+    def test_sample_crossfades_reject_stale_upload_and_legacy_metadata_download(self):
+        body=rewrite_part(part_zip(),lambda m:m['state']['modes'].update(bastardLoopLEnabled=True))
+        song=self.create()
+        reply=self.request('POST',f'/api/songs/{song["id"]}/parts?name=Samples&repeats=1',body=body)
+        self.assertEqual(reply.status,201);song=reply.response['song'];part=song['parts'][0]
+        path=f'/api/songs/{song["id"]}/parts/{part["id"]}/render'
+        wav=render_wav(part)
+        self.assertEqual(self.request('POST',path+f'?sha256={part["sha256"]}',body=wav).status,400)
+        fresh=self.request('POST',path+f'?sha256={part["sha256"]}&samplecuts=1',body=wav)
+        self.assertEqual(fresh.status,200)
+        self.assertEqual(fresh.response['song']['parts'][0]['render']['sampleCutVersion'],1)
+        self.assertEqual(self.request('GET',path).wfile.getvalue(),wav)
+        folder,stored=SONGS.read_song(song['id'],SONGS.owner_hash({'X-Mygrain-Song-Key':'a'*64}))
+        stored['parts'][0].pop('sampleCutVersion',None)
+        stored['parts'][0]['render'].pop('sampleCutVersion',None)
+        SONGS.write_song(folder,stored,advance_revision=False)
+        self.assertEqual(self.request('GET',path).status,404)
+        self.assertEqual(self.request('POST',path+f'?sha256={part["sha256"]}',body=wav).status,400)
+        refreshed=self.request('POST',path+f'?sha256={part["sha256"]}&samplecuts=1',body=wav)
+        self.assertEqual(refreshed.status,200)
+        self.assertEqual(refreshed.response['song']['parts'][0]['sha256'],part['sha256'])
+        self.assertEqual(refreshed.response['song']['revision'],song['revision'])
+
+    def test_post_card_character_routing_revision_is_scoped_and_enforced(self):
+        modes = {'loopFx': {'version': 1, 'channels': {'A': {'filterEnabled': True}, 'B': {'filterEnabled': False}}},
+                 'bassFace': {'enabled': True, 'input': 'A', 'amount': .4, 'mix': 1}}
+        self.assertEqual(SONGS.unified_inputs_version(modes), 2)
+        modes['bassFace']['input'] = 'B'
+        self.assertEqual(SONGS.unified_inputs_version(modes), 0)
+        modes['bassFace']['input'] = 'all'
+        self.assertEqual(SONGS.unified_inputs_version(modes), 2)
+        modes['loopFx']['channels']['A']['filterEnabled'] = False
+        self.assertEqual(SONGS.unified_inputs_version(modes), 1)
+        modes['bassFace']['enabled'] = False
+        self.assertEqual(SONGS.unified_inputs_version(modes), 0)
+        modes['loopD'] = {'enabled': True, 'mutilator': {'enabled': True, 'mix': 1, 'amount': .4}}
+        self.assertEqual(SONGS.unified_inputs_version(modes), 2)
+        # An actual persisted portable part must reject a stale capability even
+        # if an old manifest metadata record omitted the newly computed flag.
+        modes = {'loopD': {'enabled': True, 'mutilator': {'enabled': True, 'strain': 'gnaw', 'mix': 1, 'amount': .4, 'tone': .5}}}
+        body = rewrite_part(part_zip(), lambda m: m['state']['modes'].update(modes))
+        song = self.create()
+        response = self.request('POST', f'/api/songs/{song["id"]}/parts?name=Route&repeats=1', body=body)
+        self.assertEqual(response.status, 201)
+        song = response.response['song']; part = song['parts'][0]
+        self.assertEqual(part['unifiedInputsVersion'], 2)
+        path = f'/api/songs/{song["id"]}/parts/{part["id"]}/render?sha256={part["sha256"]}&mutilator=2&characterfx=1&effectoutput=1&loopfx=1'
+        self.assertEqual(self.request('POST', path + '&unifiedinputs=1', body=render_wav(part)).status, 400)
+        response = self.request('POST', path + '&unifiedinputs=2', body=render_wav(part))
+        self.assertEqual(response.status, 200)
+        self.assertEqual(response.response['song']['parts'][0]['render']['unifiedInputsVersion'], 2)
+        self.assertEqual(response.response['song']['revision'], song['revision'])
+        self.assertEqual(response.response['song']['parts'][0]['sha256'], part['sha256'])
+
+    def test_eq_before_effects_revision_and_stale_admission(self):
+        modes = {'channelEq': {'version': 1, 'channels': {'A': {'enabled': True}}},
+                 'bassFace': {'enabled': True, 'input': 'A', 'amount': .4, 'mix': 1}}
+        self.assertEqual(SONGS.unified_inputs_version(modes), 3)
+        modes['channelEq']['channels']['A']['manualBypass'] = True
+        self.assertEqual(SONGS.unified_inputs_version(modes), 2)
+        del modes['channelEq']['channels']['A']['manualBypass']
+        modes['bassFace']['enabled'] = False
+        self.assertEqual(SONGS.unified_inputs_version(modes), 0)
+        modes['bassFace']['enabled'] = True
+        body = rewrite_part(part_zip(), lambda m: m['state']['modes'].update(modes))
+        song = self.create()
+        response = self.request('POST', f'/api/songs/{song["id"]}/parts?name=EQRoute&repeats=1', body=body)
+        self.assertEqual(response.status, 201)
+        song = response.response['song']; part = song['parts'][0]
+        self.assertEqual(part['unifiedInputsVersion'], 3)
+        path = f'/api/songs/{song["id"]}/parts/{part["id"]}/render?sha256={part["sha256"]}&channeleq=3&characterfx=1&effectoutput=1&loopfx=1'
+        self.assertEqual(self.request('POST', path + '&unifiedinputs=2', body=render_wav(part)).status, 400)
+        response = self.request('POST', path + '&unifiedinputs=3', body=render_wav(part))
+        self.assertEqual(response.status, 200)
+        self.assertEqual(response.response['song']['parts'][0]['render']['unifiedInputsVersion'], 3)
+        self.assertEqual(response.response['song']['revision'], song['revision'])
+        self.assertEqual(response.response['song']['parts'][0]['sha256'], part['sha256'])
+
+    def test_only_enabled_d_with_saved_audio_requires_d_render(self):
+        def archive(enabled, has_audio):
+            def mutate(manifest):
+                manifest['state']['modes']['loopD'] = {'enabled': enabled}
+                if has_audio:
+                    manifest['assets'][0]['key'] = 'bastardD'
+                    manifest['assets'][0]['path'] = 'audio/bastardD.wav'
+            body = rewrite_part(part_zip(), mutate)
+            if not has_audio:
+                return body
+            output = BytesIO()
+            with zipfile.ZipFile(BytesIO(body)) as source, zipfile.ZipFile(output, 'w') as target:
+                for name in source.namelist():
+                    target.writestr(name.replace('bastardL.wav', 'bastardD.wav'), source.read(name))
+            return output.getvalue()
+        for enabled, has_audio in [(True, True), (False, True), (True, False)]:
+            details = SONGS.validate_part_zip(archive(enabled, has_audio))
+            self.assertEqual(details.get('loopDVersion', 0), int(enabled and has_audio))
+
     def test_k_hall_render_marker_preserves_original_patch_and_rejects_unknown_versions(self):
         self.assertEqual(self.request('GET').response['features']['kHallReverbRenders'], 1)
         song = self.upload(self.create())

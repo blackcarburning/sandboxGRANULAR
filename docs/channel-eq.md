@@ -197,3 +197,13 @@ back, sticky EQ actions after scrolling, real taps and editor/browser dismissal.
 Private sample mirrors are absent in the fixture: any resulting sample failure
 dialog is checked for safe containment and dismissed before browser tap checks.
 Physical iPhone fullscreen verification remains separate from engine emulation.
+
+## Export/save regression — 2026-11-03
+
+`tests/channel-eq-patch-browser.cjs` now seeds distinct completed automation takes
+on all 28 channels (including D, K1–K5 and every drum lane), with both Read-on
+and Read-off states. It checks preset JSON, local saved state, legacy preset ZIP
+and current editable patch ZIP round trips, exact curves and band settings,
+unchanged audio asset bytes, and pre-EQ legacy defaults in Chromium and WebKit.
+The shared codec already retains this data; no save-format or DSP change is
+needed. Armed/incomplete Write sessions remain transient, not saved takes.

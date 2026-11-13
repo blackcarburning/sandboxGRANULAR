@@ -274,7 +274,7 @@ def read_audio(root, path):
     return body
 
 
-def handle(handler, user, accounts):
+def handle(handler, user, accounts, library=None):
     parsed = urlsplit(handler.path)
     prefix = '/api/ftp/'
     action = parsed.path.split(prefix, 1)[1]
@@ -284,6 +284,36 @@ def handle(handler, user, accounts):
     path = query.get('path', [''])[0]
     root = home(user)
     try:
+        if action == 'library' and handler.command == 'GET':
+            if library is None:
+                raise ValueError('Audio libraries are unavailable.')
+            source = query.get('source', [''])[0]
+            rows = []
+            for row in library(source):
+                info = row['path'].lstat()
+                if not stat.S_ISREG(info.st_mode):
+                    continue
+                rows.append({key: row[key] for key in ('id', 'name', 'filename')} | {'size': info.st_size, 'version': version(info)})
+            return handler.send_json({'ok': True, 'files': rows}, extra_headers=NO_CACHE)
+        if action == 'library-copy' and handler.command == 'POST':
+            payload = handler.read_json()
+            if library is None or not isinstance(payload, dict):
+                raise ValueError('Choose an audio library file.')
+            row = next((row for row in library(payload.get('source')) if row['id'] == payload.get('id')), None)
+            if row is None:
+                raise FileNotFoundError('Saved audio not found.')
+            folder = payload.get('folder', '')
+            parts(folder)
+            if len(parts(row['filename'])) != 1:
+                raise ValueError('Invalid library filename.')
+            target = '/'.join(filter(None, (folder, row['filename'])))
+            fd = os.open(row['path'], os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+            with os.fdopen(fd, 'rb') as media:
+                info = os.fstat(media.fileno())
+                if not stat.S_ISREG(info.st_mode) or version(info) != payload.get('version'):
+                    raise ValueError('Source changed. Refresh the library and try again.')
+                upload(root, target, media, info.st_size)
+            return handler.send_json({'ok': True, 'path': target}, status=201, extra_headers=NO_CACHE)
         if action.startswith('daw-'):
             global DAW_MODULE
             with DAW_LOCK:

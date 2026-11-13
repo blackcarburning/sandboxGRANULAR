@@ -37,7 +37,9 @@ def channel(value=None):
                        'gain': number(band.get('gain'), 0, -24, 24),
                        'q': number(band.get('q'), math.sqrt(.5), .1, 18),
                        'slope': band.get('slope') if band.get('slope') in SLOPES else 12})
-    output = {'enabled': value.get('enabled') is True, 'bands': result}
+    output = {'enabled': value.get('enabled') is True and value.get('manualBypass') is not True, 'bands': result}
+    if value.get('manualBypass') is True:
+        output['manualBypass'] = True
     if value.get('automation') is not None:
         output['automation'] = automation(value['automation'])
     return output
@@ -67,6 +69,8 @@ def normalize(value=None):
 
 
 def audible(value):
-    """A bypassed manual EQ can still be enabled by an active read curve."""
+    """Legacy read curves may enable EQ; explicit manual bypass always wins."""
+    if value.get('manualBypass') is True:
+        return False
     curve = value.get('automation') or {}
     return value['enabled'] or (curve.get('read') is True and any(p['enabled'] for p in curve.get('points', [])))

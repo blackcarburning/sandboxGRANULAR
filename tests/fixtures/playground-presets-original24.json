@@ -1,0 +1,266 @@
+[
+  {
+    "id": "acid-mosaic",
+    "metadata": {
+      "id": "acid-mosaic",
+      "section": "BPM / Grid-locked blocks",
+      "name": "Acid mosaic",
+      "description": "One bar of eight stepped cutoff accents, a two-bar moving peak and alternating Q. 1/8-note grid.",
+      "shape": "square"
+    },
+    "settingsSha256": "f81509e3464289c53b2ea64bd0a71fe3d576278c64c826317b6ab1ecf604f604"
+  },
+  {
+    "id": "bass-portcullis",
+    "metadata": {
+      "id": "bass-portcullis",
+      "section": "BPM / Grid-locked blocks",
+      "name": "Bass portcullis",
+      "description": "Sixteen high-pass shutters per bar, four peak positions and half-time Q accents.",
+      "shape": "square"
+    },
+    "settingsSha256": "ea6c652dc11e87551aaae504488495adacb82a504e6f4bacf95e3fd668b6fea2"
+  },
+  {
+    "id": "broken-telephone",
+    "metadata": {
+      "id": "broken-telephone",
+      "section": "BPM / Grid-locked blocks",
+      "name": "Broken telephone",
+      "description": "Band-pass syllables on a 1/8 grid, with an offset peak and stuttering resonance width.",
+      "shape": "square"
+    },
+    "settingsSha256": "06254de18923ea05f3cf13d729503f374ef2e318c167028114646ee1de7eee84"
+  },
+  {
+    "id": "comb-lock",
+    "metadata": {
+      "id": "comb-lock",
+      "section": "BPM / Grid-locked blocks",
+      "name": "Comb lock",
+      "description": "Positive comb teeth jump between eight positions while the peak answers every two bars.",
+      "shape": "square"
+    },
+    "settingsSha256": "c1ebd6597195d0b939f61da5e34c8f44ccef413fab7eb3b4e25fd9015ff7fbc4"
+  },
+  {
+    "id": "notch-code",
+    "metadata": {
+      "id": "notch-code",
+      "section": "BPM / Grid-locked blocks",
+      "name": "Notch code",
+      "description": "A sixteen-step spectral barcode. Cutoff, peak and Q each follow a different block sequence.",
+      "shape": "square"
+    },
+    "settingsSha256": "27524ff7f32593abe2690f122b246681d242547e8440c928a40eed905835a85f"
+  },
+  {
+    "id": "ascending-stairwell",
+    "metadata": {
+      "id": "ascending-stairwell",
+      "section": "BPM / Ramps & saws",
+      "name": "Ascending stairwell",
+      "description": "Eight rising ramps per bar with changing heights; a slow peak climb and inverted Q answer.",
+      "shape": "ramp"
+    },
+    "settingsSha256": "141cac131bb261074011c14595a7bd22250d4931c308121253d05f4f8826d6b3"
+  },
+  {
+    "id": "descending-teeth",
+    "metadata": {
+      "id": "descending-teeth",
+      "section": "BPM / Ramps & saws",
+      "name": "Descending teeth",
+      "description": "Eight falling band-pass teeth per bar, with rising peak motion and gentle Q steps.",
+      "shape": "saw"
+    },
+    "settingsSha256": "0c3cab1d7f75b3022995f3489dd9cc1b37ed71db81196db30cb47552e36a6ff1"
+  },
+  {
+    "id": "glass-elevator",
+    "metadata": {
+      "id": "glass-elevator",
+      "section": "BPM / Ramps & saws",
+      "name": "Glass elevator",
+      "description": "Two-bar high-pass ascent beneath a falling resonant peak; Q rides a one-bar triangle.",
+      "shape": "ramp"
+    },
+    "settingsSha256": "11443527ebf3b54bb3764d39e04aa213720e2433e4bd5b586331aca21488c216"
+  },
+  {
+    "id": "reverse-vacuum",
+    "metadata": {
+      "id": "reverse-vacuum",
+      "section": "BPM / Ramps & saws",
+      "name": "Reverse vacuum",
+      "description": "Negative comb suction: four rising/falling cells, slow resonant drift and a narrow Q breath.",
+      "shape": "ramp"
+    },
+    "settingsSha256": "c676fd3b2eeed564d90268b79d79575ba60528b72cc44b81d60dc7eaf3e0a9d5"
+  },
+  {
+    "id": "shelf-surf",
+    "metadata": {
+      "id": "shelf-surf",
+      "section": "BPM / Ramps & saws",
+      "name": "Shelf surf",
+      "description": "Low-shelf ramps trade warm pulses and lean gaps; moving peak and Q keep the surface alive.",
+      "shape": "saw"
+    },
+    "settingsSha256": "3304024c07646b170a1ffcb14b1bc76640fdb8f683a9a79413a8cc1399976e7c"
+  },
+  {
+    "id": "dotted-orbit",
+    "metadata": {
+      "id": "dotted-orbit",
+      "section": "BPM / Polyrhythms",
+      "name": "Dotted orbit",
+      "description": "Dotted cutoff circles against triplet peak movement and a straight two-bar Q pulse.",
+      "shape": "freehand"
+    },
+    "settingsSha256": "689a2a2fd29dae46b459e1b20f4e63e6df71fb645488a9c4e7409871fcc04a2f"
+  },
+  {
+    "id": "half-double",
+    "metadata": {
+      "id": "half-double",
+      "section": "BPM / Polyrhythms",
+      "name": "Half-time / double-time",
+      "description": "A half-speed bass sweep, double-speed stepped peak and straight Q ramps share the main BPM.",
+      "shape": "freehand"
+    },
+    "settingsSha256": "f69c9ab994143680e524240c464a1f4d59abea0dc3f03ea7344769bf645cf9c3"
+  },
+  {
+    "id": "independent-city",
+    "metadata": {
+      "id": "independent-city",
+      "section": "BPM / Polyrhythms",
+      "name": "Independent city · 93 / 127 BPM",
+      "description": "Cutoff follows the main BPM; peak runs at independent 93 BPM and Q at 127 BPM. Deliberate phase drift.",
+      "shape": "freehand"
+    },
+    "settingsSha256": "cd3b3ff4104642d30b1cb13bcd6bd233e703c5eb1c1c12359a613e7b6099c386"
+  },
+  {
+    "id": "triplet-switchyard",
+    "metadata": {
+      "id": "triplet-switchyard",
+      "section": "BPM / Polyrhythms",
+      "name": "Triplet switchyard",
+      "description": "Triplet block cutoffs, dotted falling peak ramps and a straight Q pulse: three interlocking clocks.",
+      "shape": "square"
+    },
+    "settingsSha256": "af3a76cf267f24aedacf19e5d758acb00467a8bb2356d8b870cb16e65501b7f8"
+  },
+  {
+    "id": "deep-current",
+    "metadata": {
+      "id": "deep-current",
+      "section": "Hz / Free-running motion",
+      "name": "Deep current · 0.07 / 0.11 / 0.17 Hz",
+      "description": "Three slow independent oscillations turn a steep low-pass into a long, evolving tide.",
+      "shape": "freehand"
+    },
+    "settingsSha256": "fc6e7a85095bcb3427f71d9fa88ee5c8e050e89044c8fbd350f2cad723befb30"
+  },
+  {
+    "id": "flutter-engine",
+    "metadata": {
+      "id": "flutter-engine",
+      "section": "Hz / Free-running motion",
+      "name": "Flutter engine · 7.3 Hz",
+      "description": "Fast cutoff flutter against a 0.23 Hz resonant sweep and 1.7 Hz Q tremor.",
+      "shape": "freehand"
+    },
+    "settingsSha256": "f40f360ad237976b9ad79ef424850cdc7fa683470141c61cd917c165fc6a2656"
+  },
+  {
+    "id": "liquid-phase",
+    "metadata": {
+      "id": "liquid-phase",
+      "section": "Hz / Free-running motion",
+      "name": "Liquid phase · 0.19 / 0.31 Hz",
+      "description": "All-pass cascades, counter-running cutoff/peak movement and slow Q drift.",
+      "shape": "freehand"
+    },
+    "settingsSha256": "ae437a3ec85038d010070d0ec8f64efbccdfcacaa6d5ba656bbaaf01b3202cac"
+  },
+  {
+    "id": "radio-creep",
+    "metadata": {
+      "id": "radio-creep",
+      "section": "Hz / Free-running motion",
+      "name": "Radio creep · 0.13 / 0.47 Hz",
+      "description": "A wandering narrow-band receiver with asymmetrical drift and a slow resonance breath.",
+      "shape": "freehand"
+    },
+    "settingsSha256": "70a0b3657c61f039f4a8b319cfd5e11096fd08674c75d0ab7b99b34e9b64f6b0"
+  },
+  {
+    "id": "shimmer-shelf",
+    "metadata": {
+      "id": "shimmer-shelf",
+      "section": "Hz / Free-running motion",
+      "name": "Shimmer shelf · 0.41 / 2.9 Hz",
+      "description": "High-shelf colour slowly rises and falls while its resonant edge shivers independently.",
+      "shape": "freehand"
+    },
+    "settingsSha256": "80df44596ccc196a6820a5b776387457725155fb5dd88aac5ce1f98666e3be18"
+  },
+  {
+    "id": "alien-loom",
+    "metadata": {
+      "id": "alien-loom",
+      "section": "Experimental / Strange machinery",
+      "name": "Alien loom",
+      "description": "Negative comb with a fractured 0.37 Hz cutoff, dotted BPM peak blocks and a 1.13 Hz Q drift.",
+      "shape": "freehand"
+    },
+    "settingsSha256": "c1ddcd55773393d7103da1fbefafd1180026d5e2c78e876de2acfda71266649b"
+  },
+  {
+    "id": "clockwork-reef",
+    "metadata": {
+      "id": "clockwork-reef",
+      "section": "Experimental / Strange machinery",
+      "name": "Clockwork reef",
+      "description": "A synced comb ramp grows through four heights while two unrelated Hz clocks move the peak and width.",
+      "shape": "ramp"
+    },
+    "settingsSha256": "89a747ac56ad9ec889f7558b5e765172b572dcb408a50f0fa7d082acd485a916"
+  },
+  {
+    "id": "insect-choir",
+    "metadata": {
+      "id": "insect-choir",
+      "section": "Experimental / Strange machinery",
+      "name": "Insect choir",
+      "description": "18.7 Hz fractured band-pass motion, 3.17 Hz peak flutter and slow Q breathing. Deliberately nervous.",
+      "shape": "freehand"
+    },
+    "settingsSha256": "f85b61e754e95fefb0503f02f87d36cf02916a29e412045f0c0cd51193701310"
+  },
+  {
+    "id": "spectral-origami",
+    "metadata": {
+      "id": "spectral-origami",
+      "section": "Experimental / Strange machinery",
+      "name": "Spectral origami",
+      "description": "A 16-pole notch folds around stepped BPM cutoff, a 0.43 Hz asymmetric peak and dotted Q movement.",
+      "shape": "square"
+    },
+    "settingsSha256": "095a379eaa6aa6260e6fe4292b81737f1fa109868df0773da05d58a108349f68"
+  },
+  {
+    "id": "tidal-interference",
+    "metadata": {
+      "id": "tidal-interference",
+      "section": "Experimental / Strange machinery",
+      "name": "Tidal interference",
+      "description": "An independent 83 BPM low-pass tide crosses a main-tempo triplet peak and a slow 0.07 Hz Q current.",
+      "shape": "freehand"
+    },
+    "settingsSha256": "54a272dfd8fc08cc21499ba29a19279210079ddc735ded5f275120cee74e9b9d"
+  }
+]

@@ -211,7 +211,7 @@ def downloader_class():
 
     class PinnedYoutubeDL(YoutubeDL):
         def build_request_director(self, handlers, preferences=None):
-            return PinnedDirector(self.params['http_headers'], time.monotonic() + 115)
+            return PinnedDirector(self.params['http_headers'], time.monotonic() + 360)
 
         @property
         def _opener(self):
@@ -339,7 +339,7 @@ def checked_instagram_metadata(info, video, start):
 
 def decode(source, destination, start, duration):
     skip, remaining = int(start * RATE), int(duration * RATE)
-    deadline = time.monotonic() + 110
+    deadline = time.monotonic() + 710
     command = ['/usr/bin/gst-launch-1.0', '-q', 'fdsrc', 'fd=0', '!', 'decodebin', '!', 'audioconvert', '!', 'audioresample', '!',
                'audio/x-raw,format=S16LE,rate=44100,channels=1,layout=interleaved', '!', 'fdsink', 'fd=1', 'sync=false']
     with source.open('rb') as input_file:
@@ -424,12 +424,12 @@ def restrict_process():
     if int(status.split('CapEff:')[1].splitlines()[0].strip(), 16) != 0:
         raise PolicyError('Video Lab processing must not have capabilities.')
     resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
-    resource.setrlimit(resource.RLIMIT_CPU, (100, 100))
+    resource.setrlimit(resource.RLIMIT_CPU, (600, 600))
     resource.setrlimit(resource.RLIMIT_FSIZE, (MAX_BYTES, MAX_BYTES))
     resource.setrlimit(resource.RLIMIT_AS, (64 * 1024 ** 3, 64 * 1024 ** 3))
     resource.setrlimit(resource.RLIMIT_NOFILE, (128, 128))
     resource.setrlimit(resource.RLIMIT_NPROC, (64, 64))
-    signal.alarm(118)
+    signal.alarm(718)
 
 
 def main():
@@ -443,7 +443,7 @@ def main():
         os.environ['GST_REGISTRY'] = str(work / 'registry.bin')
         start, duration = float(sys.argv[3]), float(sys.argv[4])
         source_type = sys.argv[5] if len(sys.argv) > 5 else 'youtube'
-        if source_type not in ('youtube', 'instagram') or not re.fullmatch(r'[A-Za-z0-9_-]{5,28}' if source_type == 'instagram' else r'[A-Za-z0-9_-]{11}', video) or not math.isfinite(start) or not math.isfinite(duration) or not 0 <= start <= 21600 or not 0.02 < duration <= 180:
+        if source_type not in ('youtube', 'instagram') or not re.fullmatch(r'[A-Za-z0-9_-]{5,28}' if source_type == 'instagram' else r'[A-Za-z0-9_-]{11}', video) or not math.isfinite(start) or not math.isfinite(duration) or not 0 <= start <= 21600 or not 0.02 < duration <= 600:
             raise PolicyError('Invalid capture bounds.')
         print(json.dumps(acquire(work, video, start, duration, source_type), ensure_ascii=True), flush=True)
     except Exception as error:

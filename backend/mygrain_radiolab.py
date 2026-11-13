@@ -26,12 +26,12 @@ FOLDER = 'SAMPLES_RADIOLAB'
 SOURCE_ROOT = None
 ACCOUNTS = None
 INVALIDATE_SOURCE_CACHE = lambda: None
-MAX_UPLOAD_BYTES = 64 * 1024 * 1024
-MAX_DURATION_SECONDS = 180
+MAX_UPLOAD_BYTES = 128 * 1024 * 1024
+MAX_DURATION_SECONDS = 600
 MAX_STREAM_SECONDS = 30 * 60
 MAX_STREAM_BYTES = 256 * 1024 * 1024
-MAX_PCM_SECONDS = 120
-MAX_PCM_BYTES = 32 * 1024 * 1024
+MAX_PCM_SECONDS = 600
+MAX_PCM_BYTES = 224 * 1024 * 1024
 PCM_SAMPLE_RATE = 44100
 PCM_CHANNELS = 2
 PCM_FRAME_BYTES = PCM_CHANNELS * 2
@@ -159,7 +159,7 @@ def open_regular(path, maximum):
 
 def checked_wav(body):
     if not 44 <= len(body) <= MAX_UPLOAD_BYTES or body[:4] != b'RIFF' or body[8:12] != b'WAVE':
-        raise RequestError('Upload a complete PCM WAV recording, at most 64 MB.')
+        raise RequestError('Upload a complete PCM WAV recording, at most 128 MB.')
     if struct.unpack_from('<I', body, 4)[0] + 8 != len(body):
         raise RequestError('The WAV recording has an invalid length.')
     offset = 12
@@ -376,7 +376,7 @@ def read_upload(handler):
     except ValueError as error:
         raise RequestError('Invalid upload length.') from error
     if not 44 <= length <= MAX_UPLOAD_BYTES:
-        raise RequestError('Upload a PCM WAV recording, at most 64 MB.')
+        raise RequestError('Upload a PCM WAV recording, at most 128 MB.')
     body = handler.rfile.read(length)
     if len(body) != length:
         raise RequestError('The WAV upload was incomplete; nothing was saved.')
@@ -562,7 +562,7 @@ class PCMDecoder:
         self.stopped = threading.Event()
         self.error = None
         self.closed = False
-        self.deadline = time.monotonic() + MAX_PCM_SECONDS
+        self.deadline = time.monotonic() + MAX_PCM_SECONDS + PCM_START_TIMEOUT + 1
 
     def start(self):
         with self.lock:

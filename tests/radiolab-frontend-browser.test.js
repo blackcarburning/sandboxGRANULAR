@@ -130,6 +130,13 @@ test('current recording waveform trims via pointer, touch and keyboard in phone 
             const normalized = await page.evaluate(() => previewBuffers.at(-1));
             assert.deepEqual(normalized.channels, raw.channels.map(channel => channel.map(value => value * 4)));
             await page.locator('#radiolabName').fill('Trimmed fixture');
+            await page.evaluate(() => {window.ftpChecks=[];window.mygrainFtp={upload:async options=>{ftpChecks.push({name:options.name,bytes:options.body.byteLength});return 'Folder/take.wav';},copyLibrary:async options=>{ftpChecks.push({source:options.source,id:options.id});return 'Folder/saved.wav';}};});
+            await page.locator('#radiolabUploadFtp').click();
+            await page.waitForFunction(()=>ftpChecks.length===1 && !testController.state.busy);
+            assert((await page.evaluate(()=>ftpChecks[0].bytes))>44);
+            await page.evaluate(()=>testController.uploadFtp({filename:'saved-fixture.wav'}));
+            assert.equal(await page.evaluate(()=>ftpChecks[1].source),'radio');
+
             const attempts = uploads.length;
             await page.locator('#radiolabSave').tap();
             await page.waitForFunction(() => !mygrainRadiolab.state.busy && !mygrainRadiolab.state.previewingTake);
@@ -532,7 +539,7 @@ test('recording cards provide private Play/Stop, Load, Rename, Re-trim and confi
         assert.equal(await modal.locator('select').count(), 1);
         const first = page.locator('.radiolab-sample-row').filter({ has: page.getByRole('heading', { name: 'Evening bulletin', exact: true }) });
         assert.equal(await first.getAttribute('data-filename'), 'Named radio + café.wav');
-        assert.deepEqual(await first.locator('[data-action]').evaluateAll(buttons => buttons.map(button => button.dataset.action)), ['play', 'load', 'rename', 'trim', 'delete']);
+        assert.deepEqual(await first.locator('[data-action]').evaluateAll(buttons => buttons.map(button => button.dataset.action)), ['play', 'load', 'rename', 'trim', 'delete', 'ftp']);
         assert.equal(await first.locator('[data-action="rename"]').textContent(), 'Rename file');
         assert.equal(await first.locator('[data-action="trim"]').textContent(), 'Re-trim');
         assert.equal(await first.locator('[data-action="play"]').getAttribute('aria-label'), 'Play Named radio + café.wav');

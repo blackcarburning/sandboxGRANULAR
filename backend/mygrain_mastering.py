@@ -162,17 +162,19 @@ def process(source, output, preset='clean', loop=True, target=None):
         return {'engine': VERSION, 'preset': preset, 'loop': loop, 'frames': frames, 'sampleRate': rate, 'latencySamples': delay, 'seamStep': seam, 'before': before, 'after': after, 'comparisonGain': min(1, 10 ** ((before['lufs'] - after['lufs']) / 20)), 'originalGain': min(1, 10 ** ((after['lufs'] - before['lufs']) / 20)), 'gainDb': gain, 'makeupDb': makeup, 'targetLufs': target}
 
 
-LIVE_VERSION = 'live-master-3'
-LIVE_LIMITS = {'subcut': (0, 60), 'drive': (-24, 36), 'bass': (0, 100), 'compression': (0, 100), 'ceiling': (-6, -.3), 'lowEQ': (-12, 12), 'midEQ': (-12, 12), 'highEQ': (-12, 12), 'lowComp': (0, 100), 'midComp': (0, 100), 'highComp': (0, 100), 'exciter': (0, 100), 'outputDrive': (0, 24), 'maximiser': (0, 1), 'targetLufs': (-24, -6)}
+LIVE_VERSION = 'live-master-4'
+LIVE_LIMITS = {'subcut': (0, 60), 'drive': (-24, 36), 'bass': (0, 100), 'compression': (0, 100), 'ceiling': (-6, -.3), 'lowEQ': (-12, 12), 'midEQ': (-12, 12), 'highEQ': (-12, 12), 'lowComp': (0, 100), 'midComp': (0, 100), 'highComp': (0, 100), 'exciter': (0, 100), 'outputDrive': (0, 24), 'maximiser': (0, 1), 'targetLufs': (-24, -6), 'tape': (0, 1), 'tapeDrive': (0, 24), 'tapeSpeed': (7.5, 30)}
 
 
 LIVE_PRESETS = set(PRESETS) | {'loud', 'hot'}
-V2_LIVE_LIMITS = {k:v for k,v in LIVE_LIMITS.items() if k not in ('maximiser', 'targetLufs')}
+V2_LIVE_LIMITS = {k:v for k,v in LIVE_LIMITS.items() if k not in ('maximiser', 'targetLufs', 'tape', 'tapeDrive', 'tapeSpeed')}
 OLD_LIVE_LIMITS = {k: v for k, v in LIVE_LIMITS.items() if k in ('subcut', 'drive', 'bass', 'compression', 'ceiling')}
 OLD_LIVE_LIMITS.update(drive=(-24, 24), ceiling=(-6, -1))
 
 def live_settings(value, legacy=False):
     limits = OLD_LIVE_LIMITS if legacy is True else V2_LIVE_LIMITS if legacy == 'v2' else LIVE_LIMITS
+    if not legacy and isinstance(value, dict) and not set(value).intersection(('tape', 'tapeDrive', 'tapeSpeed')):
+        value = {**value, 'tape': 0, 'tapeDrive': 6, 'tapeSpeed': 15}
     if not isinstance(value, dict) or set(value) != set(limits):
         raise ValueError('Provide all live mastering controls.')
     for key, (low, high) in limits.items():
@@ -180,6 +182,8 @@ def live_settings(value, legacy=False):
             raise ValueError('Invalid live mastering ' + key)
     if not legacy and value['maximiser'] not in (0, 1):
         raise ValueError('Maximiser must be off or on.')
+    if not legacy and (value['tape'] not in (0, 1) or value['tapeSpeed'] not in (7.5, 15, 30)):
+        raise ValueError('Choose tape Off/On and 7.5, 15 or 30 ips.')
     return {key: float(value[key]) for key in limits}
 
 
@@ -293,7 +297,7 @@ def signature(path):
 def save_info(root, name, data):
     path = metadata_path(root, name)
     path.parent.mkdir(mode=0o700, exist_ok=True)
-    safe = {key: data[key] for key in ('kind', 'preset', 'targetLufs', 'sourceName', 'engine', 'liveSettings') if key in data}
+    safe = {key: data[key] for key in ('kind', 'preset', 'targetLufs', 'sourceName', 'engine', 'liveSettings', 'userNamed') if key in data}
     safe['signature'] = signature(Path(root) / name)
     temp = path.with_suffix('.' + secrets.token_hex(8) + '.tmp')
     try:
@@ -309,13 +313,13 @@ def info(root, name):
         data = json.loads(path.read_text())
         if data['signature'] != signature(Path(root) / name) or data.get('kind') not in ('waves', 'reels'):
             return None
-        if data.get('engine') in (LIVE_VERSION, 'live-master-1', 'live-master-2'):
+        if data.get('engine') in (LIVE_VERSION, 'live-master-1', 'live-master-2', 'live-master-3'):
             values = live_settings(data['liveSettings'], True if data['engine'] == 'live-master-1' else 'v2' if data['engine'] == 'live-master-2' else False)
             if data['preset'] not in LIVE_PRESETS:
                 return None
-            return {**{k: data[k] for k in ('kind', 'preset', 'sourceName') if k in data}, 'engine': data['engine'], 'liveSettings': values, 'label': 'master-live-' + data['preset'] + '.wav'}
+            return {**{k: data[k] for k in ('kind', 'preset', 'sourceName', 'userNamed') if k in data}, 'engine': data['engine'], 'liveSettings': values, 'label': 'master-live-' + data['preset'] + '.wav'}
         target = target_lufs(data['preset'], data['targetLufs'])
-        return {**{k: data[k] for k in ('kind', 'preset', 'sourceName') if k in data},
+        return {**{k: data[k] for k in ('kind', 'preset', 'sourceName', 'userNamed') if k in data},
                 'targetLufs': target, 'label': master_label(data['preset'], target) + '.wav'}
     except (OSError, KeyError, ValueError, TypeError):
         return None
@@ -348,20 +352,24 @@ def decorate(root, files):
                     continue
                 adopted = {'kind': entry.get('kind', 'waves'), 'preset': report['preset'],
                            'targetLufs': report.get('targetLufs', PRESETS.get(report['preset'], (-16,))[0])}
-                if report.get('engine') in (LIVE_VERSION, 'live-master-1', 'live-master-2'):
+                if report.get('engine') in (LIVE_VERSION, 'live-master-1', 'live-master-2', 'live-master-3'):
                     adopted.update(engine=report['engine'], liveSettings=live_settings(report['settings'], True if report['engine'] == 'live-master-1' else 'v2' if report['engine'] == 'live-master-2' else False))
                 save_info(root, name, adopted)
             except (OSError, ValueError, KeyError, TypeError):
                 continue
     canonical = lambda name: re.fullmatch(r'master-(?:[a-z]+-minus[0-9.]+LUFS|live-[a-z]+)(?:-[^/\\]+)?\.wav', name)
-    used = {f['name'] for f in files if canonical(f['name'])}
+    details = {f['name']: info(root, f['name']) for f in files}
+    used = {f['name'] for f in files if canonical(f['name']) or (details[f['name']] or {}).get('userNamed') is True}
     for file in files:
         if replacement_info(root, file['name']):
             file['mastered'] = True
-        data = info(root, file['name'])
+        data = details[file['name']]
         if data:
-            label = file['name'] if canonical(file['name']) else data['label']
-            if not canonical(file['name']):
+            # Explicit renames own their visible title; preserve generated
+            # labels only for untouched historical masters.
+            named = data.get('userNamed') is True or canonical(file['name'])
+            label = file['name'] if named else data['label']
+            if not named:
                 counter = 2
                 while label in used:
                     label = data['label'][:-4] + f'-{counter}.wav'
@@ -378,7 +386,7 @@ def copy_info(source_root, source_name, target_root, target_name):
         data = {'kind': 'replacement'}
     if data:
         # Copy only mastering settings/category, never source notes or comments.
-        save_info(target_root, target_name, {k: data[k] for k in ('kind', 'preset', 'targetLufs', 'engine', 'liveSettings') if k in data})
+        save_info(target_root, target_name, {k: data[k] for k in ('kind', 'preset', 'targetLufs', 'engine', 'liveSettings', 'userNamed') if k in data})
 
 
 def rename_info(root, old, new):
@@ -386,7 +394,7 @@ def rename_info(root, old, new):
     if path.is_file():
         data = json.loads(path.read_text())
         if data.get('signature') == signature(Path(root) / new):
-            save_info(root, new, data)
+            save_info(root, new, {**data, 'userNamed': True})
         path.unlink(missing_ok=True)
 
 
@@ -414,11 +422,12 @@ def read_patches(root, checked):
     ids = set()
     for item in data['patches']:
         if (not isinstance(item, dict) or not re.fullmatch(r'[a-f0-9]{32}', str(item.get('id', '')))
-                or item['id'] in ids or item.get('engine') != LIVE_VERSION or item.get('preset') not in LIVE_PRESETS
+                or item['id'] in ids or item.get('engine') not in (LIVE_VERSION, 'live-master-3') or item.get('preset') not in LIVE_PRESETS
                 or type(item.get('loop')) is not bool):
             raise ValueError('Private mastering patch library needs repair; nothing was changed.')
         patch_name(item.get('name'))
-        live_settings(item.get('settings'))
+        item['settings'] = live_settings(item.get('settings'))
+        item['engine'] = LIVE_VERSION
         ids.add(item['id'])
     return data
 
@@ -463,7 +472,7 @@ def handle_patches(handler, method, inner, accounts, user, root, checked):
             library['patches'].remove(selected)
         elif action == 'save':
             name = patch_name(payload.get('name'))
-            if payload.get('engine') != LIVE_VERSION or payload.get('preset') not in LIVE_PRESETS or type(payload.get('loop')) is not bool:
+            if payload.get('engine') not in (LIVE_VERSION, 'live-master-3') or payload.get('preset') not in LIVE_PRESETS or type(payload.get('loop')) is not bool:
                 raise ValueError('Invalid mastering patch settings.')
             settings = live_settings(payload.get('settings'))
             if any(p['name'].casefold() == name.casefold() and p is not selected for p in library['patches']):
@@ -513,12 +522,12 @@ def handle(handler, method, inner, accounts, user, root, checked, reels=None):
         if type(replace_original) is not bool or (replace_original and is_reel):
             raise ValueError('Replace original is available for saved WAVs only.')
         kind = 'reels' if is_reel else 'waves'
-        if not isinstance(name, str) or not name or name.startswith('.') or '/' in name or '\\' in name or Path(name).suffix.lower() != '.wav' or preset not in (LIVE_PRESETS if payload.get('engine') == LIVE_VERSION else PRESETS) or type(loop) is not bool:
+        if not isinstance(name, str) or not name or name.startswith('.') or '/' in name or '\\' in name or Path(name).suffix.lower() != '.wav' or preset not in (LIVE_PRESETS if payload.get('engine') in (LIVE_VERSION, 'live-master-3') else PRESETS) or type(loop) is not bool:
             raise ValueError('Invalid mastering request.')
         engine = payload.get('engine')
-        if engine not in (None, LIVE_VERSION):
+        if engine not in (None, LIVE_VERSION, 'live-master-3'):
             raise ValueError('Invalid mastering engine.')
-        live = live_settings(payload.get('liveSettings')) if engine == LIVE_VERSION else None
+        live = live_settings(payload.get('liveSettings')) if engine in (LIVE_VERSION, 'live-master-3') else None
         loudness_target = None if live is not None else target_lufs(preset, payload.get('targetLufs'))
         metadata = {'kind': kind, 'preset': preset, 'targetLufs': loudness_target, 'sourceName': name}
         if live is not None:

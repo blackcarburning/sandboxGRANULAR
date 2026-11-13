@@ -26,9 +26,9 @@
         const row = document.createElement('div'); row.className = 'channel-eq-entry'; row.dataset.eqChannel = channelKey;
         row.innerHTML = `<button type="button" class="performance-btn" data-eq-open="${channelKey}">4-band EQ</button><label class="channel-eq-switch"><input type="checkbox" data-eq-on="${channelKey}" aria-label="${names[channelKey]} EQ on"> EQ On</label>`;
         parent.append(row); entries.push(row);
-        if (['X', 'L'].includes(channelKey)) mountAutomation(row, channelKey);
+        if (dsp.KEYS.includes(channelKey)) mountAutomation(row, channelKey);
         row.querySelector('button').addEventListener('click', event => open(channelKey, event.currentTarget));
-        row.querySelector('input').addEventListener('change', event => { const enabled = event.currentTarget.checked; edit(channelKey, value => { value.enabled = enabled; }); });
+        row.querySelector('input').addEventListener('change', event => { const enabled = event.currentTarget.checked; edit(channelKey, value => { value.enabled = enabled; value.manualBypass = !enabled; }); });
     }
     for (const channelKey of ['A', 'B', 'C', 'D', 'V', 'W', 'P', 'O', 'L', 'X', 'Q', 'M', 'M+']) {
         const selector = channelKey === 'Q' ? '#bastardLoopQCard' : `[aria-label="Bastardloop${channelKey === 'A' ? '' : ' ' + channelKey} controls"]`;
@@ -38,10 +38,15 @@
     mount(document.querySelector('[aria-label="Dropbox sample layer controls"]'), 'sample');
     mount(document.getElementById('generatedWaveformEditor'), 'generated');
     for (let i = 0; i < 5; i++) mount(document.querySelector(`[data-k-track="${i}"] .k-track-heading`), `K${i + 1}`);
-    for (const kind of ['kick', 'snare', 'hat', 'perc', 'clap', 'cymbals', 'etc', 'roll']) mount(document.querySelector(`#drumMachineLane-${kind} .drum-machine-track-actions`), 'drum' + kind[0].toUpperCase() + kind.slice(1));
+    for (const kind of ['kick', 'snare', 'hat', 'perc', 'clap', 'cymbals', 'etc', 'roll']) {
+        const card = document.getElementById(`drumMachineLane-${kind}`);
+        mount(card, 'drum' + kind[0].toUpperCase() + kind.slice(1));
+        // A dedicated full-width row: never compete with the title or loading buttons.
+        card.querySelector('.drum-machine-controls-grid, .drum-roll-controls').after(entries[entries.length - 1]);
+    }
     function mountAutomation(parent, channelKey) {
         const controls = document.createElement('span'); controls.className = 'ceq-automation'; controls.dataset.eqAutomation = channelKey;
-        controls.innerHTML = `<button type="button" class="ceq-action ceq-read" data-eq-auto="read" aria-label="${channelKey} EQ automation Read" title="Read: play recorded EQ movements with this sequence" aria-pressed="false">R</button><button type="button" class="ceq-action ceq-write" data-eq-auto="write" aria-label="${channelKey} EQ automation Write" title="Write: record one complete sequence from its next start, then switch to Read" aria-pressed="false">W</button><button type="button" class="ceq-action" data-eq-auto="remove" aria-label="Delete ${channelKey} EQ automation">Delete automation</button><span class="ceq-auto-status" role="status"></span>`;
+        controls.innerHTML = `<button type="button" class="ceq-action ceq-read" data-eq-auto="read" aria-label="${channelKey} EQ automation Read" title="Read: play recorded EQ movements with this sequence" aria-pressed="false">R</button><button type="button" class="ceq-action ceq-write" data-eq-auto="write" aria-label="${channelKey} EQ automation Write" title="${channelKey.startsWith('drum') ? 'Write: one-loop count-in, then record the following loop and switch to Read' : 'Write: record one complete sequence from its next start, then switch to Read'}" aria-pressed="false">W</button><button type="button" class="ceq-action" data-eq-auto="remove" aria-label="Delete ${channelKey} EQ automation">Delete automation</button><span class="ceq-auto-status" role="status"></span>`;
         parent.append(controls);
         controls.addEventListener('click', event => {
             const action = event.target.dataset.eqAuto; if (!action) return;
@@ -116,7 +121,7 @@
     function stopMonitor(keepImage = false) { if (frame !== null) cancelAnimationFrame(frame); frame = null; runtime.watch(null); if (!keepImage) dialog.querySelector('.ceq-spectrum').setAttribute('d', ''); }
     function monitor() {
         if (window.mygrainUiActivity?.busy) { stopMonitor(true); return; }
-        const active = dialog.open && key && (runtime.get(key).enabled || automation.info(key).read) && !document.hidden && typeof audioContext !== 'undefined' && audioContext?.state === 'running';
+        const active = dialog.open && key && (runtime.get(key).enabled || (!runtime.get(key).manualBypass && automation.info(key).read)) && !document.hidden && typeof audioContext !== 'undefined' && audioContext?.state === 'running';
         if (!active) { stopMonitor(); if (dialog.open && !drag) status(runtime.get(key).enabled ? 'EQ enabled · output spectrum waits for audio playback.' : 'EQ bypassed · no filters or analyser running. Dashed line previews your settings.'); return; }
         runtime.watch(key);
         if (frame === null) frame = requestAnimationFrame(tick);
@@ -124,7 +129,7 @@
     function tick(time) {
         frame = null;
         if (window.mygrainUiActivity?.busy) { stopMonitor(true); return; }
-        if (!dialog.open || !key || (!runtime.get(key).enabled && !automation.info(key).read) || document.hidden || audioContext?.state !== 'running') { stopMonitor(); return; }
+        if (!dialog.open || !key || (!runtime.get(key).enabled && (runtime.get(key).manualBypass || !automation.info(key).read)) || document.hidden || audioContext?.state !== 'running') { stopMonitor(); return; }
         if (!drag && automation.info(key).read) renderCurve();
         if (time - lastDraw > 66) {
             lastDraw = time;
@@ -148,7 +153,7 @@
     function open(channelKey, source) {
         key = channelKey; selected = 0; opener = source;
         const autoPanel = document.getElementById('channelEqAutomation');
-        autoPanel.replaceChildren(); autoPanel.hidden = !['X', 'L'].includes(key);
+        autoPanel.replaceChildren(); autoPanel.hidden = !dsp.KEYS.includes(key);
         if (!autoPanel.hidden) mountAutomation(autoPanel, key);
         syncAutomation();
         if (!dialog.open) dialog.showModal(); sync();
@@ -178,7 +183,7 @@
     dialog.addEventListener('cancel', () => { cancelDrag(); stopMonitor(); });
     dialog.addEventListener('keydown', event => event.stopPropagation());
     dialog.addEventListener('keyup', event => event.stopPropagation());
-    document.getElementById('channelEqEnabled').addEventListener('change', event => edit(key, value => { value.enabled = event.target.checked; }));
+    document.getElementById('channelEqEnabled').addEventListener('change', event => edit(key, value => { value.enabled = event.target.checked; value.manualBypass = !event.target.checked; }));
     document.getElementById('channelEqReset').addEventListener('click', () => edit(key, value => { const enabled = value.enabled; Object.assign(value, dsp.defaults(), { enabled }); }));
     for (const card of dialog.querySelectorAll('[data-eq-band]')) card.addEventListener('change', event => {
         const field = event.target.dataset.eqField; if (!field) return;

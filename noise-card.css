@@ -10,3 +10,15 @@
 #noiseCard summary{cursor:pointer;margin-bottom:12px}
 #noiseCard .control-group{margin:0}
 #noiseCard [data-noise-status]{font-variant-numeric:tabular-nums}
+
+#noiseCard .noise-preset-bank{min-width:0;width:100%;max-width:100%;box-sizing:border-box;margin:14px 0;padding:14px;border:1px solid #8bcbd4;border-radius:12px;background:rgba(58,110,119,.13)}
+#noiseCard .noise-preset-bank label{font-weight:700;letter-spacing:.04em}
+#noiseCard .noise-preset-bank select{min-height:46px;padding:10px;border:1px solid #8bcbd4;border-radius:8px;background:#10272d;color:#e4f5f6;font-size:14px;font-weight:600;letter-spacing:normal}
+#noiseCard .noise-preset-bank p{margin:10px 0 0;min-height:4.5em}
+body #noiseCard #noiseNPreset,body.simplified-ui #noiseCard #noiseNPreset{background:#10272d!important;color:#e4f5f6!important;color-scheme:dark}
+#noiseCard #noiseNPreset optgroup{background:#18363c;color:#a2e6ec}
+#noiseCard #noiseNPreset option{background:#10272d;color:#e4f5f6}
+
+#noiseCard .noise-preset-controls{display:grid;grid-template-columns:46px minmax(0,1fr) 46px;align-items:stretch;gap:8px;margin-top:7px;min-width:0}
+#noiseCard .noise-preset-controls select{min-width:0;width:100%;max-width:100%;box-sizing:border-box}
+#noiseCard .noise-preset-controls button{width:46px;max-width:46px;min-width:46px;min-height:46px;padding:0;font-size:22px;line-height:1;touch-action:manipulation}

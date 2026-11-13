@@ -34,13 +34,20 @@ class AiPatchTests(unittest.TestCase):
     def test_controls_match_real_sliders(self):
         import re
         html = (pathlib.Path(__file__).parents[1] / 'index.html').read_text()
-        self.assertEqual(len(ai.CONTROLS), 81)
+        self.assertEqual(len(ai.CONTROLS), 86)
         for key, spec in ai.CONTROLS.items():
             tag = re.search(r'<input[^>]+id="' + key + r'"[^>]*>', html).group()
             attrs = dict(re.findall(r'(\w+)="([^"]*)"', tag))
             self.assertGreaterEqual(spec['min'], int(attrs['min']))
             self.assertLessEqual(spec['max'], int(attrs['max']))
             self.assertEqual(spec['step'], int(attrs['step']))
+
+    def test_d_loop_raw_source_and_controls(self):
+        self.assertEqual(ai.LOOPS["D"]["source"], "samples_loopstore")
+        recipe = {**RECIPE, "parameters": {"performanceBastardLoopDLevel": 40, "loopDPitch": -5}, "loops": {"D": {"reload": True, "enabled": True}}}
+        self.assertEqual(ai.validate_recipe(recipe), recipe)
+        with self.assertRaises(ValueError):
+            ai.validate_recipe({**recipe, "loops": {"D": {"divisions": ["1/8"]}}})
 
     def test_drums_and_q_styles(self):
         recipe = {**RECIPE, 'loops': {'Q': {'chords': [[48, 52, 55]], 'style': 'warm', 'chordSteps': 8}, 'X': {'notes': [36, None] * 32}}, 'drums': {'enabled': True, 'tracks': {'kick': {'reload': True, 'steps': [1, 0, 0, 0]}, 'hat': {'steps': [0, 0, 1, 0]}}}}
@@ -66,7 +73,7 @@ class AiPatchTests(unittest.TestCase):
 
     def test_all_loop_controls_and_bounded_sources(self):
         lanes = {key: {'enabled': False} for key in ai.LOOPS}
-        lanes.update(A={'enabled': True, 'reload': True, 'divisions': ['1/8', '1/4']},
+        lanes.update(A={'enabled': True, 'reload': True, 'divisions': ['2', '1']},
                      L={'enabled': True, 'reload': True, 'notes': [60, None, 67]},
                      Q={'enabled': True, 'instrument': 'strings', 'chords': [[48, 52, 55]]})
         recipe = {**RECIPE, 'parameters': {'globalBpmSlider': 104}, 'loops': lanes}
@@ -97,7 +104,7 @@ class AiPatchTests(unittest.TestCase):
         for key in retired:
             with self.subTest(key=key), self.assertRaises(ValueError):
                 ai.validate_recipe({**RECIPE, 'parameters': {key: 1650}})
-        self.assertEqual(len(ai.validate_request({'prompt': 'warm bass', 'current': CURRENT, 'loops': LOOPS})[1]), 81)
+        self.assertEqual(len(ai.validate_request({'prompt': 'warm bass', 'current': CURRENT, 'loops': LOOPS})[1]), 86)
 
     def test_filters_cannot_cancel_each_other(self):
         with patch.object(ai, 'run_model', return_value={**RECIPE, 'parameters': {'lpfCutoff': 500, 'hpfCutoff': 800}}):
@@ -149,6 +156,8 @@ class AiPatchTests(unittest.TestCase):
         usage = ai.reported_usage(raw)
         self.assertEqual(usage, {'available': True, 'inputTokens': 9000, 'outputTokens': 200, 'totalTokens': 9200, 'cachedInputTokens': 8000, 'cacheWriteTokens': 0, 'reasoningTokens': 80})
         self.assertEqual(ai.reported_usage({k: v for k, v in raw.items() if k != 'total'})['totalTokens'], 9200)
+        self.assertEqual(ai.reported_usage({**raw, 'total': 25000})['totalTokens'], 9200)
+        self.assertEqual(ai.reported_usage({'input': 45, 'output': 5, 'cacheRead': 0, 'cacheWrite': 0, 'total': 25000})['totalTokens'], 50)
         for invalid in (None, [], {}, {**raw, 'input': True}, {**raw, 'output': -1}, {**raw, 'input': '1000'}, {'input': 0, 'output': 0, 'cacheRead': 0, 'cacheWrite': 0}):
             with self.subTest(invalid=invalid): self.assertEqual(ai.reported_usage(invalid), {'available': False})
 
@@ -188,6 +197,7 @@ class AiPatchTests(unittest.TestCase):
             self.assertEqual(h.result[2]['Cache-Control'], 'no-store')
             h2 = Handler(); ai.handle_ai_patch_request(h2, 'POST', '/api/ai-patch-direction')
             self.assertEqual(h2.result[0], 429)
+            self.assertEqual(h2.result[1]['code'], 'ai_cooldown')
         self.assertFalse(ai.INFLIGHT.locked())
 
     def test_global_concurrency(self):
@@ -195,6 +205,8 @@ class AiPatchTests(unittest.TestCase):
         try:
             h = Handler(); ai.handle_ai_patch_request(h, 'POST', '/api/ai-patch-direction')
             self.assertEqual(h.result[0], 429)
+            self.assertEqual(h.result[1]['code'], 'ai_busy')
+            self.assertEqual(h.result[2]['Retry-After'], '2')
         finally: ai.INFLIGHT.release()
 
     def test_errors_do_not_sign_out_or_hold_worker(self):

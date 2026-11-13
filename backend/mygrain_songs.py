@@ -29,6 +29,246 @@ CHANNEL_EQ = _eq_import.module_from_spec(_eq_spec)
 _eq_spec.loader.exec_module(CHANNEL_EQ)
 
 
+_acoustic_spec = _eq_import.spec_from_file_location('mygrain_acoustic_fx', pathlib.Path(__file__).with_name('mygrain_acoustic_fx.py'))
+ACOUSTIC_FX = _eq_import.module_from_spec(_acoustic_spec)
+_acoustic_spec.loader.exec_module(ACOUSTIC_FX)
+
+_mutilator_spec = _eq_import.spec_from_file_location('mygrain_mutilator', pathlib.Path(__file__).with_name('mygrain_mutilator.py'))
+MUTILATOR = _eq_import.module_from_spec(_mutilator_spec)
+_mutilator_spec.loader.exec_module(MUTILATOR)
+
+# Optional character inserts use normalized existing-control snapshots, never factory IDs.
+CHARACTER_INPUTS = ('all', 'A', 'B', 'C', 'D', 'V', 'W', 'P', 'O', 'L', 'X', 'Q', 'M', 'M+', 'generated', 'sample', 'K', 'K1', 'K2', 'K3', 'K4', 'K5', 'drums', 'drumKick', 'drumSnare', 'drumHat', 'drumPerc', 'drumClap', 'drumCymbals', 'drumEtc', 'drumRoll', 'N', 'DAW')
+BASS_FACE_STRAINS = ('velvet-valve', 'warm-biscuit', 'tape-hug', 'copper-heart', 'pillowy-punch', 'subtle-beast', 'rubber-soul', 'rounded-square', 'bloom-box', 'iron-cheek', 'diode-disco', 'octave-orbit', 'neon-fangs', 'gravel-grin', 'acid-jaw', 'molten-molar', 'bass-barnacle', 'saw-tooth-smile', 'carbon-crunch', 'hot-rod', 'broken-speaker', 'doom-dentist', 'octopus-prime', 'pixel-piranha', 'ripped-cone', 'feral-fold', 'voltage-vampire', 'black-hole-teeth', 'mutant-mandible', 'full-bass-face')
+def validate_master_baker(value):
+    if value is None:
+        return
+    if not isinstance(value, dict) or value.get('version') != 1 or type(value.get('enabled')) is not bool:
+        raise ValueError('Invalid Master Baker settings.')
+    if value.get('preset', 'clean') not in ('clean', 'punch', 'dense', 'loud', 'hot', 'level'):
+        raise ValueError('Invalid Master Baker preset.')
+    # Same bounds as the shared live/WAV engine; no arbitrary controls accepted.
+    limits = {'subcut': (0, 60), 'drive': (-24, 36), 'bass': (0, 100), 'compression': (0, 100), 'ceiling': (-6, -.3), 'lowEQ': (-12, 12), 'midEQ': (-12, 12), 'highEQ': (-12, 12), 'lowComp': (0, 100), 'midComp': (0, 100), 'highComp': (0, 100), 'exciter': (0, 100), 'outputDrive': (0, 24), 'maximiser': (0, 1), 'targetLufs': (-24, -6), 'tape': (0, 1), 'tapeDrive': (0, 24), 'tapeSpeed': (7.5, 30)}
+    settings = value.get('settings', {})
+    if not isinstance(settings, dict) or set(settings) - set(limits):
+        raise ValueError('Invalid Master Baker controls.')
+    for key, v in settings.items():
+        low, high = limits[key]
+        if type(v) not in (float, int) or not math.isfinite(v) or not low <= v <= high or key in ('tape', 'maximiser') and v not in (0, 1) or key == 'tapeSpeed' and v not in (7.5, 15, 30):
+            raise ValueError('Invalid Master Baker ' + key)
+
+
+def needs_effect_output_render(state):
+    modes = state.get('modes', {})
+    wasp = modes.get('wasp') or {}
+    if wasp.get('enabled') or (wasp.get('playground') or {}).get('enabled') or (modes.get('turntable') or {}).get('enabled'):
+        return True
+    if any((modes.get(k) or {}).get('enabled') for k in ('resonatorR', 'wireWorld', 'sonicCrystal', 'bubbleChamber', 'bassFace')):
+        return True
+    return bool(((modes.get('loopD') or {}).get('mutilator') or {}).get('enabled'))
+
+
+SAMPLE_CUT_LANES = {
+    'bastardA': 'bastardLoopEnabled', 'bastardB': 'bastardLoop2Enabled',
+    'bastardC': 'bastardLoop3Enabled', 'bastardV': 'bastardLoopVEnabled',
+    'bastardW': 'bastardLoopWEnabled', 'bastardP': 'bastardLoopPEnabled',
+    'bastardO': 'bastardLoopOEnabled', 'bastardM': 'bastardLoopMEnabled',
+    'bastardMPlus': 'bastardLoopMPlusEnabled', 'bastardK': 'bastardLoopKEnabled',
+    'dropboxSample': 'dropboxSampleLayerEnabled', 'bastardL': 'bastardLoopLEnabled',
+    'bastardX': 'bastardLoopXEnabled',
+}
+
+
+def sample_cut_version(snapshot):
+    modes = snapshot.get('state', {}).get('modes', {})
+    for asset in snapshot.get('assets', []):
+        key = asset.get('key')
+        if key == 'bastardD' and modes.get('loopD', {}).get('enabled') is True:
+            return 1
+        if key in SAMPLE_CUT_LANES and modes.get(SAMPLE_CUT_LANES[key]) is True:
+            if key in ('bastardL', 'bastardX') and modes.get('bastardLoop' + key[-1] + 'SourceMode') == 'synth':
+                continue
+            return 1
+    return 0
+
+
+def routed_solo_effects(state, extra=None):
+    """Derived from saved source masks; never persist monitoring effect selections."""
+    modes = state.get('modes', {})
+    def selected(v):
+        return [str(k).strip() for k in (v if isinstance(v, list) else str(v or '').split(',')) if str(k).strip().lower() not in ('', 'none')]
+    loops = selected(modes.get('loopLayerSolo'))
+    source = selected((extra or {}).get('performanceSourceLayerSolo'))
+    sources = set()
+    for key in ('A','B','C','D','V','W','P','O','L','X','Q','M','M+'):
+        if 'bastard' + ('mplus' if key == 'M+' else key.lower()) in loops:
+            sources.add(key)
+    if 'dropbox' in loops: sources.add('sample')
+    if 'noise' in loops: sources.add('N')
+    if 'bastardk' in loops: sources.update('K' + str(i) for i in range(1, 6))
+    lanes = ('kick','snare','hat','perc','clap','cymbals','etc','roll') if 'drums' in loops else selected(modes.get('drumMachineLaneSolos'))
+    sources.update('drum' + lane[0].upper() + lane[1:].lower() for lane in lanes)
+    if modes.get('generatedSampleSolo') is True or 'loop' in source or 'generated' in selected(modes.get('sourceWaveformSolo')):
+        sources.add('generated')
+    if source or loops or selected(modes.get('grainLayerSolo')) or selected(modes.get('sourceWaveformSolo')):
+        sources.add('*')
+    def matches(selection):
+        return bool(sources) if selection == 'all' else any(k != '*' and (selection == k or selection == 'K' and k in ('K1','K2','K3','K4','K5') or selection == 'drums' and k.startswith('drum')) for k in sources)
+    values = {**modes, 'mutilator': (modes.get('loopD') or {}).get('mutilator') or {}, 'resonator': modes.get('resonatorR') or {}, 'playground': (modes.get('wasp') or {}).get('playground') or {}}
+    out = []
+    for key in ('resonator','turntable','playground','mutilator','bassFace','sonicCrystal','bubbleChamber','wireWorld','wasp'):
+        v = values.get(key) or {}
+        if v.get('enabled') is not True: continue
+        if key == 'resonator':
+            inputs = [s.get('source') or 'drumKick' for i, s in enumerate(v.get('slots', [{'enabled': True, 'source': 'drumKick', 'level': .45}])) if s.get('enabled', i == 0) and s.get('level', .45) > 0]
+        elif key == 'wasp':
+            if v.get('blend', .5) <= 0: continue
+            inputs = [k for s in v.get('routes', [])[:2] if s.get('enabled') and s.get('depth') != 0 for k in (s.get('source') or 'V', s.get('destination') or 'X')]
+        elif key == 'turntable':
+            inputs = [v.get('input') or ('drums' if v.get('route') == 'drums' else 'all')]
+        elif key == 'playground':
+            if v.get('mix', .5) <= 0: continue
+            inputs = [v.get('input') or 'all']
+        elif key in ('mutilator', 'bassFace'):
+            if v.get('mix', .5) <= 0 or v.get('amount', .5) <= 0: continue
+            inputs = [v.get('input') or ('D' if key == 'mutilator' else 'X')]
+        else:
+            if v.get('level', .5) <= 0: continue
+            inputs = [v.get('source') or 'all']
+        if any(matches(k) for k in inputs): out.append(key)
+    return out
+
+
+def effect_output_render_version(state, extra=None):
+    modes = state.get('modes', {})
+    if routed_solo_effects(state, extra):
+        return 5
+    if (modes.get('masterBaker') or {}).get('enabled') is True:
+        return 4
+    if (modes.get('effectOutput') or {}).get('mainMuted') is True:
+        return 3
+    def selected(value):
+        values = value if isinstance(value, list) else str(value or '').split(',')
+        return any(str(v).strip().lower() not in ('', 'none') for v in values)
+    if (modes.get('generatedSampleSolo') is True
+            or any(selected(modes.get(k)) for k in ('loopLayerSolo', 'grainLayerSolo', 'sourceWaveformSolo', 'drumMachineLaneSolos'))
+            or selected((extra or {}).get('performanceSourceLayerSolo'))):
+        return 2
+    return 1 if needs_effect_output_render(state) else 0
+
+
+COOKING_POT_KEYS = ('mutilator', 'bassFace', 'turntable', 'resonator', 'wireWorld', 'sonicCrystal', 'bubbleChamber', 'wasp', 'playground')
+def validate_cooking_pot(value):
+    if value is None:
+        return
+    if not isinstance(value, dict) or value.get('version') != 1 or type(value.get('enabled')) is not bool:
+        raise ValueError('Invalid cooking pot settings.')
+    order = value.get('order')
+    if not isinstance(order, list) or len(order) != len(COOKING_POT_KEYS) or any(not isinstance(k, str) for k in order) or set(order) != set(COOKING_POT_KEYS):
+        raise ValueError('The cooking pot must contain each of the nine effects exactly once.')
+
+def needs_cooking_pot_render(state):
+    return bool((state.get('modes', {}).get('cookingPot') or {}).get('enabled') and needs_effect_output_render(state))
+
+def cooking_pot_render_version(state):
+    if not needs_cooking_pot_render(state):
+        return 0
+    modes = state['modes']
+    w = modes.get('wasp') or {}
+    values = {**modes, 'mutilator': (modes.get('loopD') or {}).get('mutilator') or {}, 'resonator': modes.get('resonatorR') or {}, 'wasp': w, 'playground': w.get('playground') or {}}
+    def slots(v):
+        raw = v.get('slots') or []
+        return [{**{'enabled': i == 0, 'level': .45, 'source': 'drumKick' if i == 0 else 'X'}, **(raw[i] if i < len(raw) else {})} for i in range(2)]
+    def scope(key):
+        v = values.get(key) or {}
+        if key == 'resonator':
+            return [x['source'] for x in slots(v) if x['enabled'] and x['level'] > 0]
+        if key == 'wasp':
+            return ['all']
+        if key == 'turntable':
+            return [v.get('input') or ('drums' if v.get('route') == 'drums' else 'all')]
+        return [v.get('input') or v.get('source') or ('D' if key == 'mutilator' else 'X' if key == 'bassFace' else 'all')]
+    def leaves(keys):
+        return {leaf for key in keys for leaf in ([f'K{i}' for i in range(1, 6)] if key == 'K' else [k for k in CHARACTER_INPUTS if k.startswith('drum') and k != 'drums'] if key == 'drums' else [key])}
+    active = []
+    for key in (modes.get('cookingPot') or {}).get('order', COOKING_POT_KEYS):
+        v = values.get(key) or {}
+        if not v.get('enabled'):
+            continue
+        if key == 'resonator' and not scope(key):
+            continue
+        if key in ('mutilator', 'bassFace') and (v.get('mix', .5) <= 0 or v.get('amount', .5) <= 0):
+            continue
+        if key in ('wireWorld', 'sonicCrystal', 'bubbleChamber') and v.get('level', .5) <= 0:
+            continue
+        selections = [[x['source']] for x in slots(v) if x['enabled'] and x['level'] > 0] if key == 'resonator' else [scope(key)]
+        if any('all' not in selection and not leaves(scope(prior)).issubset(leaves(selection)) for selection in selections for prior in active):
+            return 3
+        active.append(key)
+    return 2
+
+
+def apply_cooking_pot_content(content, state):
+    modes = state['modes']
+    content['state']['modes'].pop('cookingPot', None)
+    if not needs_cooking_pot_render(state):
+        return False
+    # Routing v3 keeps source provenance across serial wet branches.
+    # Keep them in the content identity; only affected Pot-on freezes regenerate.
+    target = content['state']['modes']
+    target['cookingPot'] = json.loads(json.dumps(modes['cookingPot']))
+    content['cookingPotEngineRevision'] = cooking_pot_render_version(state)
+    for key in ('bassFace', 'turntable', 'resonatorR', 'wireWorld', 'sonicCrystal', 'bubbleChamber', 'wasp'):
+        value = modes.get(key)
+        if value and (value.get('enabled') or key == 'wasp' and (value.get('playground') or {}).get('enabled')):
+            target[key] = json.loads(json.dumps(value))
+    mutilator = (modes.get('loopD') or {}).get('mutilator')
+    if mutilator and mutilator.get('enabled'):
+        target['loopD'] = {**target.get('loopD', {}), 'mutilator': json.loads(json.dumps(mutilator))}
+    return True
+
+
+def validate_effect_output(value):
+    if value is None:
+        return
+    if not isinstance(value, dict) or value.get('version') != 1 or not isinstance(value.get('throughMain'), dict):
+        raise ValueError('Invalid effect output routing.')
+    if 'mainMuted' in value and type(value['mainMuted']) is not bool:
+        raise ValueError('Invalid main-output mute switch.')
+    allowed = {'resonator', 'turntable', 'playground', 'mutilator', 'bassFace', 'sonicCrystal', 'bubbleChamber', 'wireWorld', 'wasp'}
+    if any(k not in allowed or type(v) is not bool for k, v in value['throughMain'].items()):
+        raise ValueError('Invalid effect main-output switch.')
+
+
+def validate_character_fx(modes):
+    bass = modes.get('bassFace')
+    if bass is not None:
+        if not isinstance(bass, dict) or bass.get('version', 1) != 1:
+            raise ValueError('Invalid Bass Face settings.')
+        if bass.get('input', 'X') not in CHARACTER_INPUTS or bass.get('strain', 'velvet-valve') not in BASS_FACE_STRAINS:
+            raise ValueError('Invalid Bass Face input or strain.')
+        for key in ('enabled', 'rhythm'):
+            if key in bass and type(bass[key]) is not bool:
+                raise ValueError('Invalid Bass Face switch.')
+        for key in ('amount', 'tone', 'mix', 'body'):
+            if key in bass and (type(bass[key]) not in (float, int) or not math.isfinite(bass[key]) or not 0 <= bass[key] <= 1):
+                raise ValueError('Invalid Bass Face '+key+'.')
+    mutilator = (modes.get('loopD') or {}).get('mutilator') or {}
+    if isinstance(mutilator, dict) and 'input' in mutilator and mutilator['input'] not in CHARACTER_INPUTS:
+        raise ValueError('Invalid Mutilator input.')
+
+def needs_character_fx(modes):
+    bass = modes.get('bassFace') or {}
+    mutilator = (modes.get('loopD') or {}).get('mutilator') or {}
+    def active(value, default_input):
+        if not isinstance(value, dict) or value.get('enabled') is not True or value.get('input', default_input) == 'DAW':
+            return False
+        try:
+            return float(value.get('amount', .5)) > 0 and float(value.get('mix', .5)) > 0
+        except (TypeError, ValueError):
+            return False
+    return active(bass, 'X') or (isinstance(mutilator, dict) and mutilator.get('input', 'D') != 'D' and active(mutilator, 'D'))
+
 SONGS_ROOT = pathlib.Path('/srv/sftp/mark_sftp/files/mygrain-songs')
 MAX_UPLOAD = 128 * 1024 * 1024
 MAX_PARTS = 64
@@ -739,7 +979,7 @@ def validate_loop_fx(value):
     if value is None:
         return
     keys = {'A', 'B', 'C', 'V', 'W', 'P', 'O', 'L', 'X', 'M', 'M+', 'Q', 'K1', 'K2', 'K3', 'K4', 'K5'}
-    if not isinstance(value, dict) or value.get('version') != 1 or not isinstance(value.get('channels'), dict) or set(value['channels']) not in (keys, keys | {'N'}, keys | {'D'}, keys | {'N', 'D'}):
+    if not isinstance(value, dict) or value.get('version') != 1 or not isinstance(value.get('channels'), dict) or not keys <= set(value['channels']) <= keys | {'N', 'D', 'sample'}:
         raise ValueError('Unsupported or incomplete standard loop FX settings.')
     ranges = {'cutoff': (20, 20000), 'resonance': (.1, 4), 'lfoBeats': (1/16, 64), 'lfoDepth': (0, 1), 'room': (0, 1), 'reverbDecay': (.5, 12), 'reverbSize': (0, 1), 'reverbPredelay': (0, 200), 'reverbDamping': (1000, 18000), 'reverbLowcut': (20, 1500), 'reverbWidth': (0, 1), 'delay': (0, 1), 'delayBeats': (1/12, 6), 'feedback': (0, .7), 'delayCutoff': (200, 18000)}
     for channel in value['channels'].values():
@@ -755,6 +995,86 @@ def validate_loop_fx(value):
             raise ValueError('Invalid loop pan.')
         if 'legacyHighpass' in channel and (type(channel['legacyHighpass']) not in (int, float) or not 20 <= channel['legacyHighpass'] <= 10000):
             raise ValueError('Invalid legacy Q high-pass cutoff.')
+
+
+def needs_kick_routing_render(state, assets):
+    """Invalidate only saved audio affected by formerly unconditional SC-kick routing."""
+    modes = state.get('modes', {})
+    sliders = state.get('sliders', {})
+    def control(key, default):
+        try:
+            value = float(sliders.get(key, default))
+            return value if math.isfinite(value) else default
+        except (ValueError, TypeError):
+            return default
+    if (modes.get('drumMachineEnabled') is False or modes.get('finalCompressorSidechainSource') != 'kick'
+            or not any(a.get('key') == 'drumKick' for a in assets)
+            or not any(modes.get('drumMachineKickPattern') or [])
+            or control('drumMachineKickLevel', 100) <= 0 or control('performanceDrumMachineLevel', 65) <= 0):
+        return False
+    solos = modes.get('drumMachineLaneSolos') or []
+    if solos and 'kick' not in solos:
+        return False
+    muted = bool(state.get('fxMuted', modes.get('fxMuted', False)))
+    amount, comp = control('finalSidechainAmount', 0), control('finalCompressorAmount', 30)
+    if not muted and amount > .1 and comp > 0:
+        return False
+    pg = (modes.get('wasp') or {}).get('playground') or {}
+    route_changed = modes.get('drumMachineDirectOutput', True) is not True and not (pg.get('enabled') and pg.get('routeKick'))
+    trim_changed = control('finalSidechainKickLevel', 100) != 100
+    duck_changed = not muted and amount > .1 and comp <= 0
+    return route_changed or trim_changed or duck_changed
+
+
+DRUM_SAMPLE_LANES = ('kick', 'snare', 'hat', 'perc', 'clap', 'cymbals', 'etc')
+MAX_DRUM_NORMALIZE_GAIN = 10 ** (24 / 20)
+
+
+def drum_sample_processing(value):
+    if value is None:
+        value = {}
+    elif not isinstance(value, dict) or value.get('version') != 1 or not isinstance(value.get('lanes'), dict):
+        raise ValueError('Unsupported drum sample processing.')
+    if value.get('snareDrive', 'legacy') not in ('smooth', 'legacy') or not isinstance(value.get('autoNormalize', True), bool):
+        raise ValueError('Invalid drum sample processing controls.')
+    lanes = {}
+    for kind in DRUM_SAMPLE_LANES:
+        lane = value.get('lanes', {}).get(kind, {})
+        if not isinstance(lane, dict):
+            raise ValueError('Invalid drum sample lane.')
+        gain, peak = lane.get('gain', 1), lane.get('peak')
+        if isinstance(gain, bool) or not isinstance(gain, (int, float)) or not math.isfinite(gain) or not 0 < gain <= MAX_DRUM_NORMALIZE_GAIN:
+            raise ValueError('Invalid drum normalization gain.')
+        if peak is not None and (isinstance(peak, bool) or not isinstance(peak, (int, float)) or not math.isfinite(peak) or peak < 0):
+            raise ValueError('Invalid drum sample peak.')
+        if not isinstance(lane.get('enabled', False), bool):
+            raise ValueError('Invalid drum normalization bypass.')
+        lanes[kind] = {'enabled': lane.get('enabled') is True, 'gain': gain, 'peak': peak}
+    return {'version': 1, 'autoNormalize': value.get('autoNormalize') is not False, 'snareDrive': value.get('snareDrive', 'legacy'), 'lanes': lanes}
+
+
+def drum_processing_render_state(state, assets):
+    modes = state.get('modes', {})
+    processing = drum_sample_processing(modes.get('drumMachineSampleProcessing'))
+    sliders = state.get('sliders', {})
+    if modes.get('drumMachineEnabled') is not True or float(sliders.get('performanceDrumMachineLevel', 65)) <= 0:
+        return None
+    keys, gains, snare_active = {a['key'] for a in assets}, {}, False
+    for kind in DRUM_SAMPLE_LANES:
+        name = kind[0].upper() + kind[1:]
+        extra = modes.get('drumMachineExtraTracks', {}).get(kind)
+        pattern = (extra or {}).get('pattern') if kind in ('clap', 'cymbals', 'etc') else modes.get('drumMachine' + name + 'Pattern')
+        roll = kind == 'snare' and any(modes.get('drumMachineRoll', {}).get('pattern', []))
+        level = (extra or {}).get('level', 1) if extra is not None else float(sliders.get('drumMachine' + name + 'Level', 100)) / 100
+        if 'drum' + name not in keys or not (any(pattern or []) or roll) or level <= 0:
+            continue
+        if kind == 'snare':
+            snare_active = True
+        lane = processing['lanes'][kind]
+        if lane['enabled'] and lane['gain'] != 1:
+            gains[kind] = lane['gain']
+    smooth = snare_active and processing['snareDrive'] == 'smooth' and float(sliders.get('drumMachineSnareDistortion', 0)) > 0
+    return {'version': 1, 'gains': gains, **({'snareDrive': 'smooth'} if smooth else {})} if gains or smooth else None
 
 
 def validate_part_zip(body):
@@ -780,11 +1100,30 @@ def validate_part_zip(body):
         extra = snapshot.get('extra')
         if not isinstance(state, dict) or not isinstance(state.get('modes'), dict) or not isinstance(extra, dict):
             raise ValueError('Part is missing its complete settings snapshot.')
+        validate_master_baker(state['modes'].get('masterBaker'))
+        validate_effect_output(state['modes'].get('effectOutput'))
+        validate_cooking_pot(state['modes'].get('cookingPot'))
+        validate_character_fx(state['modes'])
+        MUTILATOR.validate(state['modes'])
+        ACOUSTIC_FX.validate(state['modes'])
+        validate_resonator(state['modes'].get('resonatorR'))
+        v_repositories = state['modes'].get('loopSampleRepositories', {})
+        if not isinstance(v_repositories, dict) or ('V' in v_repositories and v_repositories['V'] not in ('samples_ncrvocals', 'samples_vocal')):
+            raise ValueError('Invalid Loop V library.')
+        if 'W' in v_repositories and v_repositories['W'] not in ('samples_modular', 'samples_loops', 'samples_loopstore'):
+            raise ValueError('Invalid Loop W library.')
+        d_repository = (state['modes'].get('loopD') or {}).get('repository')
+        if d_repository is not None and d_repository not in ('samples_loopstore', 'samples_loops'):
+            raise ValueError('Invalid Loop D library.')
+        m = (state['modes'].get('loopD') or {}).get('mutilator')
+        if isinstance(m, dict) and 'rhythm' in m and type(m['rhythm']) is not bool:
+            raise ValueError('Invalid Mutilator rhythm switch.')
         validate_wasp(state['modes'].get('wasp'))
         validate_turntable(state['modes'].get('turntable'))
         validate_loop_fx(state['modes'].get('loopFx'))
         eq = CHANNEL_EQ.normalize(state['modes'].get('channelEq'))
         eq_active = any(CHANNEL_EQ.audible(channel) for channel in eq['channels'].values())
+        extended_eq = any(key not in ('X', 'L') and channel.get('manualBypass') is not True and channel.get('automation', {}).get('read') is True and any(point.get('enabled') for point in channel.get('automation', {}).get('points', [])) for key, channel in eq['channels'].items())
         steps = int(state.get('patternLength', 0))
         bpm = float(state.get('globalBpm', 0))
         if not 8 <= steps <= 64 or not 40 <= bpm <= 300 or float(state.get('patternLength', 0)) != steps:
@@ -836,28 +1175,148 @@ def validate_part_zip(body):
         content = {key: value for key, value in snapshot.items() if key != 'createdAt'}
         content['state'] = {key: value for key, value in state.items() if key != 'timestamp'}
         content['state']['modes'] = dict(state['modes'])
+        if unified_inputs_version(state['modes']):
+            content['unifiedInputsEngineRevision'] = unified_inputs_version(state['modes'])
         if not state['modes'].get('turntable', {}).get('enabled'):
             content['state']['modes'].pop('turntable', None)
         else:
             content['state']['modes']['turntable'] = dict(state['modes']['turntable'])
-            if state['modes']['turntable'].get('route', 'mix') == 'mix':
+            if state['modes']['turntable'].get('input') in CHARACTER_INPUTS:
+                content['state']['modes']['turntable']['route'] = 'drums' if state['modes']['turntable']['input'] == 'drums' else 'mix'
+                if state['modes']['turntable']['input'] in ('all', 'drums'):
+                    content['state']['modes']['turntable'].pop('input', None)
+            if state['modes']['turntable'].get('rpm', 33) == 33:
+                content['state']['modes']['turntable'].pop('rpm', None)
+            if state['modes']['turntable'].get('mainsHz', 50) == 50 or not state['modes']['turntable'].get('hum', 0):
+                content['state']['modes']['turntable'].pop('mainsHz', None)
+            if content['state']['modes']['turntable'].get('route', 'mix') == 'mix':
                 content['state']['modes']['turntable'].pop('route', None)
-            content['turntableEngineRevision'] = 3 if state['modes']['turntable'].get('route') == 'drums' else 2 if any(state['modes']['turntable'].get(key, 0) > 0 for key in ('wow', 'flutter')) else 1
+            content['turntableEngineRevision'] = 4 if state['modes']['turntable'].get('rpm', 33) != 33 and any(state['modes']['turntable'].get(key, 0) > 0 for key in ('wow', 'flutter')) else 3 if content['state']['modes']['turntable'].get('route') == 'drums' else 2 if any(state['modes']['turntable'].get(key, 0) > 0 for key in ('wow', 'flutter')) else 1
         # Bypassed EQ edits must not invalidate an otherwise identical legacy render.
         content['state']['modes'].pop('channelEq', None)
-        if not state['modes'].get('wasp', {}).get('enabled'):
+        if not (state['modes'].get('wasp', {}).get('enabled') or state['modes'].get('wasp', {}).get('playground', {}).get('enabled')):
             content['state']['modes'].pop('wasp', None)
         else:
-            content['waspEngineRevision'] = 4 if state['modes']['wasp'].get('filter', {}).get('enabled') else 3
-            if not state['modes']['wasp'].get('filter', {}).get('enabled'):
-                content['state']['modes']['wasp'] = dict(state['modes']['wasp'])
+            wasp = state['modes']['wasp']
+            content['state']['modes']['wasp'] = dict(wasp)
+            # Q now controls the final cutoff section as well as the independent peak.
+            # Comb modes already used Q for feedback and are audibly unchanged.
+            pg = wasp.get('playground', {})
+            content['waspEngineRevision'] = 10 if playground_render_version(pg) == 3 else 9 if playground_render_version(pg) == 2 else (7 if pg.get('mode', 'lowpass') in {'comb', 'combNegative'} else 8) if pg.get('enabled') else 4 if wasp.get('filter', {}).get('enabled') else 3
+            if wasp.get('enabled') and sum(route.get('enabled') is True for route in wasp.get('routes', [])[:2]) > 1:
+                content['waspSourceRevision'] = 1
+            if pg.get('enabled'):
+                canonical_pg = dict(pg)
+                if canonical_pg.get('input', 'all') == 'all': canonical_pg.pop('input', None)
+                rm = canonical_pg.get('rateMod')
+                if not isinstance(rm, dict) or not rm.get('enabled') or rm.get('depth', 1) == 0:
+                    canonical_pg.pop('rateMod', None)
+                for name, default in [('glide', .35), ('motion', 1), ('mix', 1)]:
+                    if canonical_pg.get(name) == default: canonical_pg.pop(name, None)
+                content['state']['modes']['wasp']['playground'] = canonical_pg
+            if not wasp.get('enabled'):
+                content['state']['modes']['wasp'] = {'playground': content['state']['modes']['wasp']['playground']}
+            if not wasp.get('filter', {}).get('enabled'):
                 content['state']['modes']['wasp'].pop('filter', None)
+            if not wasp.get('playground', {}).get('enabled'):
+                content['state']['modes']['wasp'].pop('playground', None)
+        resonator = state['modes'].get('resonatorR', {})
+        slots = [slot for slot in resonator.get('slots', []) if slot.get('enabled') and slot.get('level', 0) > 0]
+        if not resonator.get('enabled') or not slots or resonator.get('outputLevel', 1) == 0:
+            content['state']['modes'].pop('resonatorR', None)
+        else:
+            content['resonatorEngineRevision'] = 3 if any(slot.get('object') == 'door' for slot in slots) else 2 if any('excitationCurve' in slot for slot in slots) else 1
+            content['state']['modes']['resonatorR'] = {'version': 1, 'enabled': True, 'slots': slots}
+            if resonator.get('outputLevel', 1) != 1:
+                content['state']['modes']['resonatorR']['outputLevel'] = resonator['outputLevel']
+            delay = resonator.get('delay', {})
+            if delay.get('mode') == 'sync' or (delay.get('mode') == 'ms' and delay.get('ms', 0) > 0):
+                content['state']['modes']['resonatorR']['delay'] = delay
+                content['resonatorEngineRevision'] = 4
         if eq_active:
             content['state']['modes']['channelEq'] = {'version': 1, 'channels': {key: value for key, value in eq['channels'].items() if CHANNEL_EQ.audible(value)}}
+        # Only the new audible D processor adds this signature; legacy/off renders stay reusable.
+        loop_d = state.get('modes', {}).get('loopD') or {}
+        mutilator = loop_d.get('mutilator')
+        if loop_d.get('enabled') and 'bastardD' in keys and isinstance(mutilator, dict) and mutilator.get('enabled') is True and mutilator.get('input', 'D') == 'D':
+            # Match existing client scalar defaulting, without tightening legacy ZIP validation.
+            def positive_control(key):
+                value = mutilator.get(key, .5)
+                try:
+                    number = 0.0 if value is None or value == '' else float(value)
+                except (TypeError, ValueError):
+                    number = .5
+                return not math.isfinite(number) or number > 0
+            new_strain = mutilator.get('strain') in ('diode', 'cinder', 'shred', 'vortex', 'maw')
+            rhythmic = mutilator.get('rhythm') is True and positive_control('mix') and positive_control('amount')
+            content['mutilatorEngineRevision'] = (5 if new_strain else 3) if rhythmic else 4 if new_strain else 2 if mutilator.get('strain') in ('scab', 'venom', 'hollow', 'splinter') else 1
+            if mutilator.get('rhythm') is False:
+                content['state']['modes']['loopD'] = dict(loop_d)
+                content['state']['modes']['loopD']['mutilator'] = {k: v for k, v in mutilator.items() if k != 'rhythm'}
+        if isinstance(mutilator, dict) and mutilator.get('rhythm') is False:
+            content['state']['modes']['loopD'] = dict(content['state']['modes'].get('loopD', loop_d))
+            content['state']['modes']['loopD']['mutilator'] = {k: v for k, v in mutilator.items() if k != 'rhythm'}
+        current_mutilator = bool(content.get('mutilatorEngineRevision') and positive_control('mix') and positive_control('amount') and ('rhythm' in mutilator or mutilator.get('strain') in ('diode', 'cinder', 'shred', 'vortex', 'maw')))
+        character_active = needs_character_fx(state['modes'])
+        if character_active:
+            content['characterFxEngineRevision'] = 1
+        bass = state['modes'].get('bassFace') or {}
+        if not bass.get('enabled') or not bass.get('amount', .35) or not bass.get('mix', .5) or bass.get('input') == 'DAW':
+            content['state']['modes'].pop('bassFace', None)
+        # Explicit default D routing must hash exactly like the legacy implicit route.
+        cm = (content['state']['modes'].get('loopD') or {}).get('mutilator')
+        if isinstance(cm, dict) and cm.get('input') == 'D':
+            content['state']['modes']['loopD'] = {**content['state']['modes']['loopD'], 'mutilator': {key: value for key, value in cm.items() if key != 'input'}}
+        mutilator_controls = MUTILATOR.apply_content(content, state['modes'], keys)
+        if not (state['modes'].get('masterBaker') or {}).get('enabled'):
+            content['state']['modes'].pop('masterBaker', None)
+        else:
+            content['masterBakerEngineRevision'] = 1
+        effect_output = effect_output_render_version(state, snapshot.get('extra'))
+        output_routing = state['modes'].get('effectOutput') or {}
+        content['state']['modes'].pop('effectOutput', None)
+        if effect_output:
+            content['effectOutputEngineRevision'] = effect_output
+            switches = {k: True for k, v in output_routing.get('throughMain', {}).items() if v is True}
+            muted = output_routing.get('mainMuted') is True
+            if switches or muted:
+                content['state']['modes']['effectOutput'] = {'version': 1, 'throughMain': switches, **({'mainMuted': True} if muted else {})}
+        processing = drum_processing_render_state(state, assets)
+        content['state']['modes'].pop('drumMachineSampleProcessing', None)
+        if processing:
+            content['state']['modes']['drumMachineSampleProcessing'] = processing
+            content['drumProcessingEngineRevision'] = 1
+        acoustic_active = ACOUSTIC_FX.apply_content(content, state['modes'])
+        kick_routing = needs_kick_routing_render(state, assets)
+        if kick_routing:
+            content['kickRoutingEngineRevision'] = 1
+        cooking_pot = apply_cooking_pot_content(content, state)
+        d_max = state['modes'].get('loopD', {}).get('maximiser', 0)
+        if isinstance(d_max, bool) or not isinstance(d_max, (int, float)) or not 0 <= d_max <= 100:
+            raise ValueError('Invalid D maximiser amount.')
+        # D library selection affects the next load, not the stored original PCM.
+        if isinstance(content['state']['modes'].get('loopD'), dict):
+            content['state']['modes']['loopD'] = {k: v for k, v in content['state']['modes']['loopD'].items() if k != 'repository' and not (k == 'maximiser' and not d_max)}
+        # Next-load V choice is not audio; preserve legacy render identities.
+        repositories = content['state']['modes'].get('loopSampleRepositories')
+        if isinstance(repositories, dict) and 'V' in repositories:
+            repositories = {k: v for k, v in repositories.items() if k != 'V'}
+            content['state']['modes']['loopSampleRepositories'] = repositories
+            if not repositories:
+                content['state']['modes'].pop('loopSampleRepositories')
+        # New W next-load option aliases its historical default identity. Keep
+        # every previously supported W choice's digest unchanged. Stored PCM and
+        # provenance, not the next folder to browse, determine audible content.
+        repositories = content['state']['modes'].get('loopSampleRepositories')
+        if isinstance(repositories, dict) and repositories.get('W') == 'samples_loopstore':
+            content['state']['modes']['loopSampleRepositories'] = {**repositories, 'W': 'samples_modular'}
+        sample_cuts = sample_cut_version(snapshot)
+        if sample_cuts:
+            content['sampleCutEngineRevision'] = sample_cuts
         content['assets'] = sorted(assets, key=lambda asset: asset['key'])
         content['audioHashes'] = audio_hashes
         digest = hashlib.sha256(json.dumps(content, sort_keys=True, separators=(',', ':')).encode('utf-8')).hexdigest()
-        return {'bpm': bpm, 'patternSteps': steps, 'patternCycleMultiplier': cycle, 'audioAssets': len(assets), 'contentSha256': digest, **({'loopFxVersion': 1} if state.get('modes', {}).get('loopFx', {}).get('version') == 1 else {}), **({'eqVersion': 1} if eq_active else {}), **({'qVersion': q_render_version(state['q'])} if piano_active else {})}
+        return {**({'sampleCutVersion': sample_cuts} if sample_cuts else {}), **({'unifiedInputsVersion': unified_inputs_version(state['modes'])} if unified_inputs_version(state['modes']) else {}), 'bpm': bpm, 'patternSteps': steps, 'patternCycleMultiplier': cycle, 'audioAssets': len(assets), 'contentSha256': digest, **({'drumProcessingVersion': 1} if processing else {}), **({'waspSourceVersion': 1} if state.get('modes', {}).get('wasp', {}).get('enabled') and sum(route.get('enabled') is True for route in state['modes']['wasp'].get('routes', [])[:2]) > 1 else {}), **({'mutilatorVersion': 2} if current_mutilator else {}), **({'mutilatorControlsVersion': 1} if mutilator_controls else {}), **({'characterFxVersion': 1} if character_active else {}), **({'acousticFxVersion': acoustic_active} if acoustic_active else {}), **({'cookingPotVersion': cooking_pot_render_version(state)} if cooking_pot else {}), **({'effectOutputVersion': effect_output} if effect_output else {}), **({'kickRoutingVersion': 1} if kick_routing else {}), **({'playgroundVersion': playground_render_version(state.get('modes', {}).get('wasp', {}).get('playground'))} if playground_render_version(state.get('modes', {}).get('wasp', {}).get('playground')) else {}), **({'loopFxVersion': 1} if state.get('modes', {}).get('loopFx', {}).get('version') == 1 else {}), **({'loopDVersion': 2 if d_max > 0 else 1} if state.get('modes', {}).get('loopD', {}).get('enabled') is True and 'bastardD' in keys else {}), **({'eqVersion': 3 if extended_eq else 1} if eq_active else {}), **({'qVersion': q_render_version(state['q'])} if piano_active else {})}
 
 
 LOOP_LAYERS = ('A', 'B', 'C', 'D', 'V', 'W', 'P', 'O', 'L', 'X', 'Q', 'M', 'M+')
@@ -918,7 +1377,7 @@ def merged_pattern_cycle(snapshot):
 
 
 def setting_loop_layer(key):
-    if key in ('loopD', 'loopDFill', 'loopDPitch', 'loopDSpeed'):
+    if key in ('loopD', 'loopDFill', 'loopDPitch', 'loopDSpeed') or key.startswith('loopDMutilator'):
         return 'D'
     match = re.match(r'^(?:performance)?[bB]astard(?:Loop)?(.*)$', key)
     if not match:
@@ -999,6 +1458,12 @@ def paste_loop_archive(destination_body, source_body, layer, eq_map=None):
                 if track in layers:
                     destination['state']['modes']['kMultitrack']['tracks'][index] = copy.deepcopy(
                         source['state']['modes']['kMultitrack']['tracks'][index])
+        if 'X' in layers:
+            bass = source['state']['modes'].get('bassFace')
+            if bass is None:
+                destination['state']['modes'].pop('bassFace', None)
+            else:
+                destination['state']['modes']['bassFace'] = copy.deepcopy(bass)
         if 'D' in layers:
             destination['state']['modes']['loopD'] = copy.deepcopy(source['state']['modes'].get('loopD'))
         for section in ('modes', 'sliders', 'selects'):
@@ -1036,6 +1501,15 @@ def paste_loop_archive(destination_body, source_body, layer, eq_map=None):
                     tracks.pop(kind, None)
                     if kind in source_tracks:
                         tracks[kind] = copy.deepcopy(source_tracks[kind])
+        selected_drums = [item[4:].lower() for item in layers if item in DRUM_LANES and item != 'drumRoll']
+        if 'drums' not in layers and selected_drums:
+            processing = drum_sample_processing(destination['state']['modes'].get('drumMachineSampleProcessing'))
+            source_processing = drum_sample_processing(source['state']['modes'].get('drumMachineSampleProcessing'))
+            for kind in selected_drums:
+                processing['lanes'][kind] = copy.deepcopy(source_processing['lanes'][kind])
+            if 'snare' in selected_drums:
+                processing['snareDrive'] = source_processing['snareDrive']
+            destination['state']['modes']['drumMachineSampleProcessing'] = processing
         destination_toggles = json_object(destination['state'].get('toggles', {}))
         source_toggles = json_object(source['state'].get('toggles', {}))
         for modulation in set(destination_toggles) | set(source_toggles):
@@ -1123,7 +1597,7 @@ def handle_song_request(handler, method, inner_path):
                         songs.append(public_song(song))
                     except (FileNotFoundError, ValueError, OSError):
                         continue
-                handler.send_json({'ok': True, 'songs': sorted(songs, key=lambda song: song['createdAt']), 'features': {'editingLocks': 1, 'editLeaseSeconds': EDIT_LEASE_SECONDS, 'songRevisions': 1, 'exactPatternRenders': 1, 'keyboardRenders': 1, 'grainFadeRenders': 1, 'grainSustainRenders': 2, 'grainControlRenders': 3, 'grainEdgeRenders': 4, 'grainLoopRenders': 5, 'vocalCutRenders': 1, 'vocalRepeatRenders': 1, 'drumLaneRenders': 1, 'drumSampleRenders': 1, 'drumAccentRenders': 1, 'drumRollRenders': 1, 'portableFreezeRenders': 1, 'qPianoRenders': 9, 'kHallReverbRenders': 1, 'contentHashes': 1, 'partManifests': 1, 'partAudioAssets': 1, 'serverPreparation': 1 if ACCOUNT_IDENTITY() is not None and server_arm_module().available() else 0, 'serverKConversion': 1 if K_CONVERSION_SCRIPT.is_file() and shutil.which('node') else 0, 'loopFxRenders': 1, 'serverFxConversion': 1 if FX_CONVERSION_SCRIPT.is_file() and shutil.which('node') else 0, 'serverWConversion': 1 if W_CONVERSION_SCRIPT.is_file() and shutil.which('node') else 0, 'renameSongs': True, 'amendParts': True, 'deleteParts': True, 'reuseParts': True}}, extra_headers=headers)
+                handler.send_json({'ok': True, 'songs': sorted(songs, key=lambda song: song['createdAt']), 'features': {'editingLocks': 1, 'editLeaseSeconds': EDIT_LEASE_SECONDS, 'songRevisions': 1, 'exactPatternRenders': 1, 'keyboardRenders': 1, 'grainFadeRenders': 1, 'grainSustainRenders': 2, 'grainControlRenders': 3, 'grainEdgeRenders': 4, 'grainLoopRenders': 5, 'vocalCutRenders': 1, 'vocalRepeatRenders': 1, 'drumLaneRenders': 1, 'drumSampleRenders': 1, 'drumProcessingRenders': 1, 'drumAccentRenders': 1, 'drumRollRenders': 1, 'portableFreezeRenders': 1, 'qPianoRenders': 9, 'kHallReverbRenders': 1, 'contentHashes': 1, 'partManifests': 1, 'partAudioAssets': 1, 'serverPreparation': 1 if ACCOUNT_IDENTITY() is not None and server_arm_module().available() else 0, 'serverKConversion': 1 if K_CONVERSION_SCRIPT.is_file() and shutil.which('node') else 0, 'loopFxRenders': 1, 'serverFxConversion': 1 if FX_CONVERSION_SCRIPT.is_file() and shutil.which('node') else 0, 'serverWConversion': 1 if W_CONVERSION_SCRIPT.is_file() and shutil.which('node') else 0, 'renameSongs': True, 'amendParts': True, 'deleteParts': True, 'reuseParts': True}}, extra_headers=headers)
             elif not segments and method == 'POST':
                 name = clean_name(json_object(handler.read_json()).get('name'))
                 slug = re.sub(r'[^A-Za-z0-9_-]+', '-', name).strip('-_') or 'song'
@@ -1273,8 +1747,24 @@ def handle_song_request(handler, method, inner_path):
                         render = part.get('render')
                         if not render or render.get('sourceSha256') != part['sha256']:
                             raise FileNotFoundError('Arm Cache to render this part first.')
+                        if int(render.get('sampleCutVersion', 0)) < sample_cut_version(read_part_manifest_record(folder, part)['snapshot']):
+                            raise FileNotFoundError('Arm Cache to refresh sample crossfades for this part.')
+                        saved_snapshot = read_part_manifest_record(folder, part)['snapshot']
+                        required_output = max(int(part.get('effectOutputVersion', 0)), effect_output_render_version(saved_snapshot['state'], saved_snapshot.get('extra')))
+                        if int(render.get('effectOutputVersion', 0)) < required_output:
+                            raise FileNotFoundError('Arm Cache to refresh routed-effect Solo audio for this part.')
                         send_asset(handler, folder, render['file'], 'audio/wav')
                     elif method == 'POST' and action == 'render':
+                        sample_cuts = (query.get('samplecuts') or [''])[0]
+                        if sample_cuts not in ('', '1'):
+                            raise ValueError('Unsupported sample-crossfade render version.')
+                        if int(sample_cuts or 0) < sample_cut_version(read_part_manifest_record(folder, part)['snapshot']):
+                            raise ValueError('This part requires current sample-crossfade rendering. Reload MYGRAIN and arm again.')
+                        wasp_source = (query.get('waspsource') or [''])[0]
+                        if wasp_source not in ('', '1'):
+                            raise ValueError('Unsupported Wasp source-limit render version.')
+                        if part.get('waspSourceVersion') and wasp_source != '1':
+                            raise ValueError('This part requires a current single-source Wasp render. Reload MYGRAIN and arm again.')
                         keyboard = (query.get('keyboard') or [''])[0]
                         if keyboard not in ('', '1'):
                             raise ValueError('Unsupported keyboard render version.')
@@ -1296,21 +1786,81 @@ def handle_song_request(handler, method, inner_path):
                         drum_sample = (query.get('drumsample') or [''])[0]
                         if drum_sample not in ('', '1'):
                             raise ValueError('Unsupported drum-sample render version.')
+                        drum_processing = (query.get('drumprocessing') or [''])[0]
+                        if drum_processing not in ('', '1'):
+                            raise ValueError('Unsupported drum processing render version.')
+                        if part.get('drumProcessingVersion') and drum_processing != '1':
+                            raise ValueError('This part requires drum normalization / smooth drive rendering.')
                         drum_roll = (query.get('drumroll') or [''])[0]
                         if drum_roll not in ('', '1'):
                             raise ValueError('Unsupported snare Roll render version.')
                         portable = (query.get('portable') or [''])[0]
                         if portable not in ('', '1'):
                             raise ValueError('Unsupported portable-freeze render version.')
+                        loop_d = (query.get('loopd') or [''])[0]
+                        if loop_d not in ('', '1', '2'):
+                            raise ValueError('Unsupported D loop render version.')
+                        d_state = read_part_manifest_record(folder, part)['snapshot']['state'].get('modes', {}).get('loopD', {})
+                        required_d = max(int(part.get('loopDVersion', 0)), 2 if d_state.get('enabled') and d_state.get('maximiser', 0) > 0 else 0)
+                        if int(loop_d or 0) < required_d:
+                            raise ValueError('This part requires current D maximiser rendering.')
+                        unified_inputs = (query.get('unifiedinputs') or [''])[0]
+                        if unified_inputs not in ('', '1', '2', '3'):
+                            raise ValueError('Unsupported unified effects input render version.')
+                        if int(unified_inputs or 0) < max(int(part.get('unifiedInputsVersion', 0)), unified_inputs_version(read_part_manifest_record(folder, part)['snapshot']['state'].get('modes', {}))):
+                            raise ValueError('This part requires current effects input routing.')
+                        cooking_pot = (query.get('cookingpot') or [''])[0]
+                        if cooking_pot not in ('', '1', '2', '3'):
+                            raise ValueError('Unsupported cooking pot render version.')
+                        required_pot = max(int(part.get('cookingPotVersion', 0)), cooking_pot_render_version(read_part_manifest_record(folder, part)['snapshot']['state']))
+                        if int(cooking_pot or 0) < required_pot:
+                            raise ValueError('This part requires cooking pot serial rendering.')
+                        effect_output = (query.get('effectoutput') or [''])[0]
+                        if effect_output not in ('', '1', '2', '3', '4', '5'):
+                            raise ValueError('Unsupported effect output render version.')
+                        saved_snapshot = read_part_manifest_record(folder, part)['snapshot']
+                        required_output = max(int(part.get('effectOutputVersion', 0)), effect_output_render_version(saved_snapshot['state'], saved_snapshot.get('extra')))
+                        if int(effect_output or 0) < required_output:
+                            raise ValueError('This part requires independent effect outputs.')
+                        kick_routing = (query.get('kickrouting') or [''])[0]
+                        if kick_routing not in ('', '1'):
+                            raise ValueError('Unsupported kick routing render version.')
+                        if part.get('kickRoutingVersion') and kick_routing != '1':
+                            raise ValueError('This part requires corrected kick sidechain routing.')
+                        acoustic_fx = (query.get('acousticfx') or [''])[0]
+                        if acoustic_fx not in ('', '1', '2'):
+                            raise ValueError('Unsupported acoustic effects render version.')
+                        if int(acoustic_fx or 0) < max(int(part.get('acousticFxVersion', 0)), ACOUSTIC_FX.apply_content({'state': {'modes': {}}}, read_part_manifest_record(folder, part)['snapshot']['state'].get('modes', {}))):
+                            raise ValueError('This part requires acoustic effects rendering.')
+                        character_fx = (query.get('characterfx') or [''])[0]
+                        if character_fx not in ('', '1'):
+                            raise ValueError('Unsupported Bass Face / routed Mutilator render version.')
+                        if part.get('characterFxVersion') and character_fx != '1':
+                            raise ValueError('This part requires Bass Face / routed Mutilator rendering.')
+                        mutilator_controls = (query.get('mutilatorcontrols') or [''])[0]
+                        if mutilator_controls not in ('', '1'):
+                            raise ValueError('Unsupported expanded Mutilator render version.')
+                        if part.get('mutilatorControlsVersion') and mutilator_controls != '1':
+                            raise ValueError('This part requires expanded Mutilator controls.')
+                        mutilator = (query.get('mutilator') or [''])[0]
+                        if mutilator not in ('', '1', '2'):
+                            raise ValueError('Unsupported Mutilator rhythm render version.')
+                        if int(part.get('mutilatorVersion', 0)) > int(mutilator or 0):
+                            raise ValueError('This part requires switchable Mutilator rendering.')
                         loop_fx = (query.get('loopfx') or [''])[0]
                         if loop_fx not in ('', '1'):
                             raise ValueError('Unsupported loop FX render version.')
                         if part.get('loopFxVersion') == 1 and loop_fx != '1':
                             raise ValueError('This part requires standard loop FX-aware rendering.')
+                        playground = (query.get('playground') or [''])[0]
+                        if playground not in ('', '1', '2', '3'):
+                            raise ValueError('Unsupported Playground resonance render version.')
+                        if int(part.get('playgroundVersion', 0)) > int(playground or 0):
+                            raise ValueError('This part requires current transport-locked Playground rendering.')
                         channel_eq = (query.get('channeleq') or [''])[0]
-                        if channel_eq not in ('', '1', '2'):
+                        if channel_eq not in ('', '1', '2', '3'):
                             raise ValueError('Unsupported channel EQ render version.')
-                        if part.get('eqVersion') == 1 and channel_eq not in ('1', '2'):
+                        if part.get('eqVersion', 0) and int(channel_eq or 0) < (3 if part['eqVersion'] >= 3 else 1):
                             raise ValueError('This part requires channel EQ-aware rendering.')
                         k_reverb = (query.get('kreverb') or [''])[0]
                         if k_reverb not in ('', '1'):
@@ -1322,6 +1872,8 @@ def handle_song_request(handler, method, inner_path):
                             raise ValueError('This part requires Q-aware rendering.')
                         body = upload_body(handler)
                         render = validate_render(body, part)
+                        if sample_cuts:
+                            render['sampleCutVersion'] = 1
                         if keyboard == '1':
                             render['keyboardVersion'] = 1
                         if grain:
@@ -1336,12 +1888,36 @@ def handle_song_request(handler, method, inner_path):
                             render['drumAccentVersion'] = 1
                         if drum_sample == '1':
                             render['drumSampleVersion'] = 1
+                        if drum_processing == '1':
+                            render['drumProcessingVersion'] = 1
                         if drum_roll == '1':
                             render['drumRollVersion'] = 1
                         if portable == '1':
                             render['portableVersion'] = 1
+                        if wasp_source:
+                            render['waspSourceVersion'] = 1
+                        if loop_d:
+                            render['loopDVersion'] = int(loop_d)
+                        if character_fx:
+                            render['characterFxVersion'] = 1
+                        if acoustic_fx:
+                            render['acousticFxVersion'] = int(acoustic_fx)
+                        if unified_inputs:
+                            render['unifiedInputsVersion'] = int(unified_inputs)
+                        if cooking_pot:
+                            render['cookingPotVersion'] = int(cooking_pot)
+                        if effect_output:
+                            render['effectOutputVersion'] = int(effect_output)
+                        if kick_routing:
+                            render['kickRoutingVersion'] = 1
+                        if mutilator:
+                            render['mutilatorVersion'] = int(mutilator)
+                        if mutilator_controls:
+                            render['mutilatorControlsVersion'] = 1
                         if loop_fx:
                             render['loopFxVersion'] = 1
+                        if playground:
+                            render['playgroundVersion'] = int(playground)
                         if channel_eq:
                             render['channelEqVersion'] = int(channel_eq)
                         if k_reverb:
@@ -1378,8 +1954,32 @@ def handle_song_request(handler, method, inner_path):
                         for slot in [updated] + [entry for entry in song['parts'] if 'sourcePartId' in entry]:
                             if slot.get('sourcePartId', slot['id']) == part['id'] and 'playbackSteps' in slot:
                                 slot['playbackSteps'] = new_steps if slot['playbackSteps'] == old_steps else min(slot['playbackSteps'], new_steps)
+                        if 'sampleCutVersion' not in details:
+                            updated.pop('sampleCutVersion', None)
                         if 'qVersion' not in details:
                             updated.pop('qVersion', None)
+                        if 'playgroundVersion' not in details:
+                            updated.pop('playgroundVersion', None)
+                        if 'waspSourceVersion' not in details:
+                            updated.pop('waspSourceVersion', None)
+                        if 'acousticFxVersion' not in details:
+                            updated.pop('acousticFxVersion', None)
+                        if 'unifiedInputsVersion' not in details:
+                            updated.pop('unifiedInputsVersion', None)
+                        if 'cookingPotVersion' not in details:
+                            updated.pop('cookingPotVersion', None)
+                        if 'effectOutputVersion' not in details:
+                            updated.pop('effectOutputVersion', None)
+                        if 'kickRoutingVersion' not in details:
+                            updated.pop('kickRoutingVersion', None)
+                        if 'characterFxVersion' not in details:
+                            updated.pop('characterFxVersion', None)
+                        if 'mutilatorControlsVersion' not in details:
+                            updated.pop('mutilatorControlsVersion', None)
+                        if 'mutilatorVersion' not in details:
+                            updated.pop('mutilatorVersion', None)
+                        if 'loopDVersion' not in details:
+                            updated.pop('loopDVersion', None)
                         if 'eqVersion' not in details:
                             updated.pop('eqVersion', None)
                         if previous_content == details['contentSha256'] and part.get('render', {}).get('sourceSha256') == part['sha256']:
@@ -1429,6 +2029,38 @@ def handle_song_request(handler, method, inner_path):
     return True
 
 
+def playground_render_version(pg):
+    if not isinstance(pg, dict) or pg.get('enabled') is not True:
+        return 0
+    if pg.get('input', 'all') != 'all' and pg.get('mix', 1) > 0:
+        return 3
+    dynamic = any(lane.get('source', 'off') != 'off' and lane.get('amount', .65) != 0 for lane in pg.get('modulation', {}).values()) and pg.get('motion', 1) > 0
+    if dynamic or pg.get('mix', 1) != 1:
+        return 2
+    return 0 if pg.get('mode', 'lowpass') in {'comb', 'combNegative'} else 1
+
+
+def unified_inputs_version(modes):
+    bass, mutilator, tt, wasp = modes.get('bassFace') or {}, (modes.get('loopD') or {}).get('mutilator') or {}, modes.get('turntable') or {}, modes.get('wasp') or {}
+    active = lambda v: v.get('enabled') and v.get('mix', .5) > 0 and v.get('amount', .5) > 0
+    channels = (modes.get('loopFx') or {}).get('channels')
+    equalized = [key for key, value in CHANNEL_EQ.normalize(modes.get('channelEq'))['channels'].items() if CHANNEL_EQ.audible(value)]
+    local_fx = lambda v: v and (v.get('filterEnabled') or v.get('reverbEnabled') and v.get('room', 0) > 0 or v.get('delayEnabled') and v.get('delay', 0) > 0)
+    if equalized and (any(active(v) for v in (bass, mutilator)) or any(v.get('enabled') for v in (tt, wasp, wasp.get('playground') or {}, modes.get('resonatorR') or {}, modes.get('wireWorld') or {}, modes.get('sonicCrystal') or {}, modes.get('bubbleChamber') or {})) or any(local_fx((channels or {}).get(key)) for key in equalized)):
+        return 3
+    for v, default in ((bass, 'X'), (mutilator, 'D')):
+        selected = v.get('input', default)
+        if active(v) and selected != 'DAW' and (channels is None or any((selected == 'all' or selected == key or selected == 'K' and key in ('K1','K2','K3','K4','K5')) and (s.get('filterEnabled') or s.get('reverbEnabled') and s.get('room', 0) > 0 or s.get('delayEnabled') and s.get('delay', 0) > 0) for key, s in channels.items())):
+            return 2
+    if not (modes.get('cookingPot') or {}).get('enabled') and (modes.get('loopD') or {}).get('enabled') and active(mutilator) and mutilator.get('input', 'D') == 'D':
+        return 2
+    character = any(v.get('enabled') and v.get('input') == 'all' and v.get('mix', .5) > 0 and v.get('amount', .5) > 0 for v in (bass, mutilator))
+    selected_tt = tt.get('enabled') and tt.get('input') in CHARACTER_INPUTS and tt.get('input') not in ('all', 'drums')
+    driver = wasp.get('enabled') and any(r.get('enabled') and (r.get('source') in ('D', 'DAW') or r.get('source') == 'all' and (modes.get('loopD') or {}).get('enabled')) and r.get('depth', 0) != 0 for r in wasp.get('routes', [])[:2])
+    host_r = (modes.get('resonatorR') or {}).get('enabled') and any(s.get('enabled') and s.get('source') == 'DAW' for s in (modes.get('resonatorR') or {}).get('slots', []))
+    return 1 if character or selected_tt or driver or host_r else 0
+
+
 def validate_wasp(value):
     if value is None:
         return
@@ -1445,7 +2077,7 @@ def validate_wasp(value):
     for name, low, high in [('melt',0,1),('blend',0,1),('output',-24,6)]:
         bounded(value,name,low,high)
     for route in value['routes']:
-        if not isinstance(route, dict) or type(route.get('enabled')) is not bool or route.get('source') not in keys or route.get('destination') not in keys or route.get('method') not in methods or route.get('mode') not in {'audio','envelope'}:
+        if not isinstance(route, dict) or type(route.get('enabled')) is not bool or route.get('source') not in set(CHARACTER_INPUTS) or route.get('destination') not in keys or route.get('method') not in methods or route.get('mode') not in {'audio','envelope'}:
             raise ValueError('Invalid Wasp modulation route.')
         for name, low, high in [('depth',-1,1),('level',-24,6),('cutoff',30,18000),('resonance',.3,4),('attack',.5,500),('release',5,2000),('sensitivity',.1,32)]:
             bounded(route,name,low,high)
@@ -1457,14 +2089,64 @@ def validate_wasp(value):
         for name, low, high in [('cutoff',30,18000),('resonance',.5,4),('highpass',20,18000),('lowpass',30,20000),('rate',.02,20),('sweep',0,5),('envelope',-4,4),('attack',.5,500),('release',5,2000)]:
             bounded(f,name,low,high)
 
+    if 'playground' in value:
+        pg = value['playground']
+        if not isinstance(pg, dict) or type(pg.get('enabled')) is not bool or pg.get('mode') not in {'lowpass','highpass','bandpass','notch','comb','combNegative','allpass','peak','lowshelf','highshelf'} or type(pg.get('slope')) is not int or pg['slope'] not in {12,24,36,48,60,72,84,96}:
+            raise ValueError('Invalid Wasp Filter Playground.')
+        for name, low, high in [('cutoff',20,20000),('resonant',20,20000),('q',.2,24),('rate',.02,20),('sensitivity',1,32),('attack',.5,500),('release',5,2000)]:
+            bounded(pg, name, low, high)
+        if 'input' in pg and (not isinstance(pg['input'], str) or pg['input'] not in keys | {'D','DAW'}):
+            raise ValueError('Invalid Playground input.')
+        if 'routeKick' in pg and type(pg['routeKick']) is not bool:
+            raise ValueError('Invalid Playground bass drum route.')
+        if 'tempo' in pg:
+            bounded(pg, 'tempo', 1, 300)
+        for name, low, high in [('glide',.05,40), ('motion',0,1), ('mix',0,1)]:
+            if name in pg: bounded(pg, name, low, high)
+        if 'rateMod' in pg:
+            rm = pg['rateMod']
+            if not isinstance(rm, dict) or type(rm.get('enabled')) is not bool or rm.get('target') not in {'all','cutoff','resonant','q'} or rm.get('clock') not in {'hz','sync'}:
+                raise ValueError('Invalid Playground rate sculptor.')
+            for name, low, high in [('hz',.02,1000),('depth',0,6)]: bounded(rm, name, low, high)
+            for name, allowed in [('beats',{.125,.25,.5,1,2,4,8}),('multiplier',{.125,.25,.5,1,2,4,8}),('timing',{'straight','triplet','dotted'})]:
+                if type(rm.get(name)) is bool or not isinstance(rm.get(name),(str,int,float)) or rm[name] not in allowed: raise ValueError('Invalid Playground rate ' + name + '.')
+            c = rm.get('curve')
+            if not isinstance(c,list) or len(c) != 64 or any(type(v) not in (int,float) or not math.isfinite(v) or not -1 <= v <= 1 for v in c):
+                raise ValueError('Invalid Playground rate curve.')
+        modulation = pg.get('modulation')
+        if not isinstance(modulation, dict) or set(modulation) != {'cutoff','resonant','q'}:
+            raise ValueError('Invalid Playground modulation controls.')
+        for lane in modulation.values():
+            if not isinstance(lane, dict) or lane.get('source') not in keys | {'D','off','drawn'}:
+                raise ValueError('Invalid Playground modulation source.')
+            bounded(lane, 'amount', -1, 1)
+            if 'phaseOffset' in lane: bounded(lane, 'phaseOffset', 0, 1)
+            if 'interpolation' in lane and lane['interpolation'] not in ('auto','hold','linear'): raise ValueError('Invalid Playground interpolation.')
+            for name, low, high in [('hz',.02,1000),('bpm',1,300)]:
+                if name in lane:
+                    bounded(lane, name, low, high)
+            for name, allowed in [('clock',{'hz','bpm','sync'}),('timing',{'straight','triplet','dotted'}),('snapTiming',{'straight','triplet','dotted'}),('beats',{.125,.25,.5,1,2,4,8}),('multiplier',{.125,.25,.5,1,2,4,8}),('snap',{0,.125,.25,.5,1,2,4,8})]:
+                if name in lane and (type(lane[name]) is bool or not isinstance(lane[name], (str,int,float)) or lane[name] not in allowed):
+                    raise ValueError('Invalid Playground curve ' + name + '.')
+
+            curve = lane.get('curve')
+            if not isinstance(curve, list) or len(curve) != 64 or any(type(point) not in (int,float) or not math.isfinite(point) or not -1 <= point <= 1 for point in curve):
+                raise ValueError('Invalid Playground drawn curve.')
+
 
 def validate_turntable(value):
     if value is None:
         return
     if not isinstance(value, dict) or value.get('version') != 1 or type(value.get('enabled')) is not bool:
         raise ValueError('Invalid Turntable settings.')
+    if 'input' in value and (not isinstance(value['input'], str) or value['input'] not in CHARACTER_INPUTS):
+        raise ValueError('Invalid Turntable input.')
     if value.get('route', 'mix') not in ('mix', 'drums'):
         raise ValueError('Invalid Turntable route.')
+    if type(value.get('rpm', 33)) not in (int, float) or value.get('rpm', 33) not in (33, 45, 78):
+        raise ValueError('Invalid Turntable speed.')
+    if type(value.get('mainsHz', 50)) not in (int, float) or value.get('mainsHz', 50) not in (50, 60):
+        raise ValueError('Invalid mains frequency.')
     if value.get('needle') not in ('old', 'modern'):
         raise ValueError('Invalid Turntable needle.')
     from datetime import datetime, timezone
@@ -1473,3 +2155,36 @@ def validate_turntable(value):
         number = value.get(key)
         if type(number) not in (int, float) or not low <= number <= high:
             raise ValueError('Invalid Turntable ' + key + '.')
+
+
+def validate_resonator(value):
+    if value is None:
+        return
+    if not isinstance(value, dict) or type(value.get('version')) is not int or value['version'] != 1 or type(value.get('enabled')) is not bool:
+        raise ValueError('Unsupported R resonator settings.')
+    if 'outputLevel' in value and (type(value['outputLevel']) not in (int, float) or not 0 <= value['outputLevel'] <= 1):
+        raise ValueError('Invalid R output volume.')
+    if 'delay' in value:
+        delay = value['delay']
+        if (not isinstance(delay, dict) or delay.get('mode') not in ('ms', 'sync')
+                or type(delay.get('ms')) not in (int, float) or not 0 <= delay['ms'] <= 2000
+                or type(delay.get('division')) is not int or delay['division'] not in (64, 32, 16, 8, 4, 2)):
+            raise ValueError('Invalid R wet delay.')
+    slots = value.get('slots')
+    if not isinstance(slots, list) or len(slots) != 2:
+        raise ValueError('R needs two complete object slots.')
+    materials = {'door': ('hollowWood','wood','metal'), 'wall': ('plaster','plywood','metal'), 'pipe': ('metal','plastic','wood'), 'cone': ('paper','plastic','metal')}
+    sources = set(CHARACTER_INPUTS)
+    ranges = {'drive': (0,36), 'damping': (0,1), 'level': (0,1), 'pan': (-1,1), 'width': (.15,5), 'height': (.15,5), 'thickness': (1,100), 'depth': (.01,1), 'gap': (0,20), 'looseness': (0,1), 'length': (.1,8), 'diameter': (.01,.6), 'radius': (.025,.5), 'tear': (0,1), 'rub': (0,1)}
+    for slot in slots:
+        if not isinstance(slot, dict) or type(slot.get('enabled')) is not bool or slot.get('object') not in materials:
+            raise ValueError('Invalid R object.')
+        if slot.get('material') not in materials[slot['object']] or slot.get('source') not in sources or slot.get('band') not in ('full','bass','mid','treble') or slot.get('ends') not in ('open','closed'):
+            raise ValueError('Invalid R material, source or excitation band.')
+        if 'excitationCurve' in slot:
+            curve = slot['excitationCurve']
+            if not isinstance(curve, list) or len(curve) != 16 or any(type(point) not in (int, float) or not -36 <= point <= 0 for point in curve):
+                raise ValueError('Invalid R excitation curve: use sixteen gains from -36 to 0 dB.')
+        for key, (low, high) in ranges.items():
+            if type(slot.get(key)) not in (int,float) or not low <= slot[key] <= high:
+                raise ValueError('Invalid R object control: ' + key)

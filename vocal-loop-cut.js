@@ -2,7 +2,7 @@
     'use strict';
     const gatedBuffers = new WeakMap();
     const waveformPeaks = new WeakMap();
-    const grids = [1 / 32, ...Array.from({ length: 16 }, (unused, index) => (index + 1) / 16)];
+    const grids = [2, 1 / 32, ...Array.from({ length: 16 }, (unused, index) => (index + 1) / 16)];
 
     function normalizeGaps(value) {
         const ranges=(Array.isArray(value)?value:[]).slice(0,1024).filter(r=>Array.isArray(r)&&r.length===2&&r.every(n=>typeof n==='number'&&Number.isFinite(n))).map(([a,b])=>[Math.max(0,a),Math.min(1,b)]).filter(([a,b])=>b>a).sort((a,b)=>a[0]-b[0]);
@@ -76,17 +76,13 @@
         return normalize({ ...normalize(settings), fromStart: fromStart === true });
     }
 
-    const V_RANDOM_DIVISIONS = Object.freeze(['1/2', '1/4', '1/8']);
+    const V_RANDOM_DIVISIONS = Object.freeze(['2', '1']);
     function randomVDivisions(values) {
-        const mapped = (Array.isArray(values) ? values : []).map(value => {
-            if (V_RANDOM_DIVISIONS.includes(value)) return value;
-            const parts = String(value).split('/').map(Number), size = parts[0] / (parts[1] || 1);
-            return size >= .5 || value === 'uncut' ? '1/2' : size >= .25 ? '1/4' : '1/8';
-        });
-        return [...new Set(mapped.length ? mapped : ['1/8'])];
+        const allowed = (Array.isArray(values) ? values : []).filter(value => V_RANDOM_DIVISIONS.includes(value));
+        return [...new Set(allowed.length ? allowed : V_RANDOM_DIVISIONS)];
     }
 
-    // V random choices are musical half/quarter/eighth notes, never finer.
+    // All generated cuts are whole or double bars, never finer.
     // Playback/normalization stay unrestricted for saved and manually edited cuts.
     function randomizeV(settings, timing = {}, random = Math.random, options = {}) {
         const current = normalize(settings);
@@ -94,7 +90,7 @@
         const bar = Number(timing.bar) > 0 ? Number(timing.bar) : cycle;
         const begin = options.withinRegion && current.enabled ? current.start : 0;
         const end = options.withinRegion && current.enabled ? current.end : 1;
-        const choices = [.5, .25, .125].map(grid => {
+        const choices = [2, 1].map(grid => {
             const width = grid * bar / cycle;
             const first = Math.ceil(begin / width - 1e-9), last = Math.floor((end - width) / width + 1e-9);
             return {grid, width, first, last};
@@ -114,25 +110,7 @@
     }
 
     function randomize(settings, timing = {}, random = Math.random) {
-        const current = normalize(settings);
-        const cycle = Number(timing.cycle) > 0 ? Number(timing.cycle) : 1;
-        const bar = Number(timing.bar) > 0 ? Number(timing.bar) : cycle;
-        const step = current.snap ? Math.min(1, current.grid * bar / cycle) : 1 / 128;
-        const units = Math.max(1, Math.floor(1 / step + 1e-9));
-        const integer = (min, max) => min + Math.floor(random() * (max - min + 1));
-        const minimum = Math.min(units, Math.max(1, Math.ceil(.125 / step)));
-        const maximum = Math.min(units, Math.max(minimum, Math.floor(.75 / step)));
-        const length = integer(minimum, maximum);
-        const start = integer(0, units - length);
-        const stretch = random() < .5;
-        const fromStart = random() < .5;
-        const ratios = [.5, .75, 1.25, 1.5, 2];
-        const targetLength = Math.max(1, Math.min(units, Math.round(length * ratios[integer(0, ratios.length - 1)])));
-        const targetStart = fromStart ? 0 : integer(0, units - targetLength);
-        return normalize({ ...current, enabled: true,
-            start: start * step, end: Math.min(1, (start + length) * step), stretch, fromStart,
-            targetStart: stretch ? targetStart * step : null,
-            targetDuration: stretch ? Math.min(1, targetLength * step) : null });
+        return randomizeV(settings, timing, random);
     }
 
     function moveBoundary(settings, boundary, position, step = 0, minimum = .000001) {
@@ -171,6 +149,54 @@
         next.targetDuration = null;
         next.enabled = true;
         return next;
+    }
+
+    const JOIN_SECONDS = .003;
+    function crossfadeJoins(channels, boundaries, sampleRate, loop = false) {
+        const length = channels[0]?.length || 0;
+        if (length < 2) return;
+        const points = [...new Set([0, ...boundaries.filter(n => n > 0 && n < length), length])].sort((a,b) => a-b);
+        // Read original tails before altering any neighbouring head (short cuts).
+        const joins = points.slice(loop ? 0 : 1, -1).map((point,index) => {
+            const i = points.indexOf(point), previous = i ? point-points[i-1] : length-points.at(-2);
+            const next = points[i+1]-point;
+            const count = Math.min(Math.round(sampleRate*JOIN_SECONDS), Math.floor(previous/4), Math.floor(next/4));
+            return {point,count,tails:channels.map(c => Float32Array.from({length:count},(_,j) => c[(point-1-j+length)%length]))};
+        });
+        for (const {point,count,tails} of joins) for (let j=0;j<count;j++) {
+            const mix = count === 1 ? 0 : .5-.5*Math.cos(Math.PI*j/(count-1));
+            for (let c=0;c<channels.length;c++) channels[c][point+j]=tails[c][j]*(1-mix)+channels[c][point+j]*mix;
+        }
+    }
+    const seamBuffers = new WeakMap();
+    function seam(context, buffer, duration=buffer?.duration) {
+        if (!buffer || buffer.length < 2) return buffer;
+        const frames=Math.max(1,Math.min(buffer.length,Math.round(duration*buffer.sampleRate)));
+        const cached=seamBuffers.get(buffer);if(cached?.context===context&&cached.frames===frames)return cached.buffer;
+        const result=context.createBuffer(buffer.numberOfChannels,buffer.length,buffer.sampleRate),channels=[];
+        for(let c=0;c<buffer.numberOfChannels;c++){const data=result.getChannelData(c);data.set(buffer.getChannelData(c));channels.push(data.subarray(0,frames));}
+        crossfadeJoins(channels,[],buffer.sampleRate,true);
+        seamBuffers.set(buffer,{context,frames,buffer:result});return result;
+    }
+    function edgeFade(channels, first, last, sampleRate, fadeSeconds=JOIN_SECONDS) {
+        const count=Math.min(Math.round(sampleRate*fadeSeconds),Math.floor((last-first)/4));
+        for(let i=0;i<count;i++){const gain=count===1?0:.5-.5*Math.cos(Math.PI*i/(count-1));for(const c of channels){c[first+i]*=gain;c[last-1-i]*=gain;}}
+    }
+    function sampleSeconds(seconds, rate, nextRate=rate, rampSeconds=0) {
+        const slope=rampSeconds>0?(nextRate-rate)/rampSeconds:0, rampFrames=(rate+nextRate)*.5*rampSeconds;
+        if(rampSeconds>0&&seconds<rampFrames)return Math.abs(slope)<1e-9?seconds/rate:2*seconds/(rate+Math.sqrt(rate*rate+2*slope*seconds));
+        return rampSeconds+(seconds-rampFrames)/nextRate;
+    }
+    function voiceGuard(context, source, destination, start, seconds) {
+        const node=context.createGain(),duration=Math.max(1/context.sampleRate,seconds),fade=Math.min(JOIN_SECONDS,duration/4);
+        node.gain.setValueAtTime(0,start);node.gain.linearRampToValueAtTime(1,start+fade);
+        node.gain.setValueAtTime(1,start+duration-fade);node.gain.linearRampToValueAtTime(0,start+duration);
+        source.connect(node);node.connect(destination);return node;
+    }
+    const SAMPLE_CUT_LANES = {bastardA:'bastardLoopEnabled',bastardB:'bastardLoop2Enabled',bastardC:'bastardLoop3Enabled',bastardV:'bastardLoopVEnabled',bastardW:'bastardLoopWEnabled',bastardP:'bastardLoopPEnabled',bastardO:'bastardLoopOEnabled',bastardM:'bastardLoopMEnabled',bastardMPlus:'bastardLoopMPlusEnabled',bastardK:'bastardLoopKEnabled',dropboxSample:'dropboxSampleLayerEnabled',bastardL:'bastardLoopLEnabled',bastardX:'bastardLoopXEnabled'};
+    function renderVersion(snapshot) {
+        const m=snapshot?.state?.modes||{};
+        return snapshot?.assets?.some(a => a.key==='bastardD'?m.loopD?.enabled===true:SAMPLE_CUT_LANES[a.key]&&m[SAMPLE_CUT_LANES[a.key]]===true&&(a.key!=='bastardL'||m.bastardLoopLSourceMode!=='synth')&&(a.key!=='bastardX'||m.bastardLoopXSourceMode!=='synth'))?1:0;
     }
 
     function stretchChannels(sources, outputs, sampleRate) {
@@ -273,16 +299,12 @@
                     if (!cut.stretch || sectionStart !== placement) output[frame] = sample;
                 }
             }
-            for (let sectionStart = placement; sectionStart < (cut.repeat ? frames : placement + sectionLength); sectionStart += sectionLength) {
-                const sectionEnd = Math.min(sectionStart + sectionLength, frames);
-                const sectionFade = Math.min(fade, Math.floor((sectionEnd - sectionStart) / 4));
-                for (let frame = sectionStart; frame < sectionEnd; frame += 1) {
-                    const attack = sectionFade > 0 ? Math.min(1, (frame - sectionStart) / sectionFade) : 1;
-                    const release = sectionFade > 0 ? Math.min(1, (sectionEnd - 1 - frame) / sectionFade) : 1;
-                    output[frame] *= Math.max(0, Math.min(attack, release));
-                }
-            }
         }
+        const channels=Array.from({length:result.numberOfChannels},(_,c)=>result.getChannelData(c));
+        const end=cut.repeat?frames:Math.min(frames,placement+sectionLength),joins=[];
+        if(cut.repeat)for(let at=placement+sectionLength;at<end;at+=sectionLength)joins.push(at);
+        if(cut.repeat&&placement===0){crossfadeJoins(channels.map(c=>c.subarray(0,frames)),joins,buffer.sampleRate,true);}
+        else {crossfadeJoins(channels.map(c=>c.subarray(placement,end)),joins.map(n=>n-placement),buffer.sampleRate);edgeFade(channels,placement,end,buffer.sampleRate,fadeSeconds);}
         gatedBuffers.set(buffer, { context, key, buffer: result });
         return result;
     }
@@ -298,10 +320,13 @@
         const output=context.createBuffer(result.numberOfChannels,result.length,result.sampleRate);
         for(let c=0;c<result.numberOfChannels;c++){
             const samples=output.getChannelData(c);samples.set(result.getChannelData(c));
-            for(const [a,b] of cut.gaps){
-                const first=Math.round(a*frames),last=Math.round(b*frames),fade=Math.min(Math.round(fadeSeconds*result.sampleRate),Math.floor((last-first)/4));
+            for(let g=0;g<cut.gaps.length;g++){
+                const [a,b]=cut.gaps[g],first=Math.round(a*frames),last=Math.round(b*frames);
+                const previous=g?Math.round(cut.gaps[g-1][1]*frames):0,next=g+1<cut.gaps.length?Math.round(cut.gaps[g+1][0]*frames):frames;
+                const before=Math.min(Math.round(fadeSeconds*result.sampleRate),Math.floor((first-previous)/2)),after=Math.min(Math.round(fadeSeconds*result.sampleRate),Math.floor((next-last)/2));
                 samples.fill(0,first,last);
-                for(let i=1;i<=fade;i++){if(first-i>=0)samples[first-i]*=i/fade;if(last+i-1<frames)samples[last+i-1]*=i/fade;}
+                for(let i=0;i<before;i++)samples[first-1-i]*=before===1?0:.5-.5*Math.cos(Math.PI*i/(before-1));
+                for(let i=0;i<after;i++)samples[last+i]*=after===1?0:.5-.5*Math.cos(Math.PI*i/(after-1));
             }
         }
         gapBuffers.set(result,{context,key,buffer:output});return output;
@@ -747,7 +772,7 @@
         }
     }
 
-    const api = { randomVDivisions, V_RANDOM_DIVISIONS, randomizeV, stretchChannels, normalizeGaps, toggleGap, copyGapSection, pasteGapSection, normalize, region, setStretch, setFromStart, randomize, moveBoundary, moveSection, gate, sourcePhase, peaks, timelinePeaks, grids, Editor };
+    const api = { JOIN_SECONDS, crossfadeJoins, seam, edgeFade, voiceGuard, sampleSeconds, renderVersion, randomVDivisions, V_RANDOM_DIVISIONS, randomizeV, stretchChannels, normalizeGaps, toggleGap, copyGapSection, pasteGapSection, normalize, region, setStretch, setFromStart, randomize, moveBoundary, moveSection, gate, sourcePhase, peaks, timelinePeaks, grids, Editor };
     root.MygrainVocalCut = api;
     if (typeof module === 'object' && module.exports) module.exports = api;
 })(typeof window === 'object' ? window : globalThis);

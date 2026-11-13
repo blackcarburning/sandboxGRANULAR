@@ -1,0 +1,13 @@
+const assert=require('node:assert/strict'),{chromium,webkit}=require('playwright-core');
+(async()=>{for(const[name,type]of Object.entries({chromium,webkit})){
+ const b=await type.launch(name==='chromium'?{executablePath:'/snap/bin/chromium',args:['--no-sandbox','--autoplay-policy=no-user-gesture-required']}:{});
+ try{const c=await b.newContext(),base='http://127.0.0.1:19073/mygrain/';await c.request.post(base+'api/auth/login',{data:{username:'admin',password:'eq-generation-local-test'}});const p=await c.newPage();p.setDefaultTimeout(45000);const errors=[];p.on('pageerror',e=>errors.push(e.message));await p.route('**/*',r=>new URL(r.request().url()).origin===new URL(base).origin?r.continue():r.abort());await p.goto(base);await p.waitForFunction(()=>document.documentElement.dataset.mygrainStartup==='ready'&&mygrainAiPatch?.ready);await p.evaluate(()=>mygrainCardHistory.ready);await p.locator('#start-btn').click();await p.waitForFunction(()=>isAudioGraphReady()&&!engineStarting&&!stateSaveSuspended&&!mygrainCardHistory.busy);
+ const result=await p.evaluate(async()=>{
+  stopAllPerformancePlayback({silent:true});
+  const seed=()=>{for(const k of MygrainChannelEq.KEYS){const v=mygrainChannelEq.get(k);v.enabled=true;delete v.manualBypass;v.bands[1].gain=7;v.automation={version:1,read:true,steps:16,points:[{phase:0,...MygrainChannelEq.defaults(),enabled:true},{phase:1,...MygrainChannelEq.defaults(),enabled:true}]};mygrainChannelEq.set(k,v);mygrainEqAutomation.write(k)}};
+  const off=()=>MygrainChannelEq.KEYS.every(k=>!mygrainChannelEq.get(k).enabled&&!mygrainChannelEq.get(k).automation&&!mygrainEqAutomation.info(k).write);
+  seed();const before=mygrainChannelEq.settings();await randomizeBastardLoopLPattern();const randomOff=off();await mygrainCardHistory.undo();const undo=JSON.stringify(before)===JSON.stringify(mygrainChannelEq.settings());await mygrainCardHistory.redo();const redo=off();
+  seed();const a=mygrainAiPatchAdapter;const applied=await a.execute({parameters:{globalBpmSlider:Number(document.getElementById('globalBpmSlider').value)===117?118:117},loops:{}},a.fingerprint());const aiOff=off();await a.undo(applied.before,a.fingerprint());const aiUndo=MygrainChannelEq.KEYS.every(k=>mygrainChannelEq.get(k).enabled&&mygrainChannelEq.get(k).automation?.read);
+  const preset=gatherPreset();mygrainChannelEq.restore(preset.channelEq);const roundtrip=MygrainChannelEq.KEYS.every(k=>mygrainChannelEq.get(k).automation?.read);return{randomOff,undo,redo,aiOff,aiUndo,roundtrip};
+ });for(const[k,v]of Object.entries(result))assert.equal(v,true,k);assert.deepEqual(errors,[]);console.log('PASS',name,result);await c.close();}finally{await b.close()}
+}})().catch(e=>{console.error(e);process.exitCode=1});

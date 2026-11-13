@@ -183,6 +183,12 @@ class RadioLabHTTPTests(unittest.TestCase):
             self.assertEqual(self.admin.request('GET', '/mygrain/radiolab/stream/unknown?_mygrain_user=admin', identity=False)[0], 404)
             upstream.assert_not_called()
 
+    def test_ten_minute_take_can_be_saved_and_downloaded_without_truncation(self):
+        body = wav_bytes(frames=8000 * 600)
+        sample = self.save(self.admin, body=body)
+        self.assertEqual(sample['duration'], 600)
+        self.assertEqual(self.success(self.admin, 'GET', sample['url']), body)
+
     def test_private_unique_named_wav_listing_and_actual_bytes(self):
         self.assertEqual(self.success(self.admin, 'GET', '/mygrain/api/radiolab/samples'), {'ok': True, 'samples': [], 'folder': 'SAMPLES_RADIOLAB'})
         body = wav_bytes(value=123)
@@ -379,9 +385,9 @@ const channel = Float32Array.from({ length: 4410 }, (_, frame) => Math.sin(frame
             ('name=bad%00name', wav_bytes(), 'Use a sample name of 1–100 characters without control characters, not just dots.'),
             ('name=test&name=duplicate', wav_bytes(), 'Provide one name.'),
             ('name=test&station=https://private.invalid/secret', wav_bytes(), 'Choose a station from the RadioLab catalog.'),
-            ('name=test', b'not a WAV' * 8, 'Upload a complete PCM WAV recording, at most 64 MB.'),
+            ('name=test', b'not a WAV' * 8, 'Upload a complete PCM WAV recording, at most 128 MB.'),
             ('name=test', wav_bytes()[:-2], 'The WAV recording has an invalid length.'),
-            ('name=test', wav_bytes(frames=160), 'Recordings must be longer than 0.02 seconds and at most 180 seconds.'),
+            ('name=test', wav_bytes(frames=160), 'Recordings must be longer than 0.02 seconds and at most 600 seconds.'),
         )
         for query, body, message in cases:
             with self.subTest(query=query):
@@ -469,7 +475,7 @@ const channel = Float32Array.from({ length: 4410 }, (_, frame) => Math.sin(frame
     def test_invalid_wav_bounds_names_traversal_and_symlinks(self):
         for name in ('', '.', '..', 'bad\x00name', 'x' * 101):
             self.assertEqual(self.admin.request('POST', '/mygrain/api/radiolab/samples?' + urlencode({'name': name}), body=wav_bytes())[0], 400)
-        for body in (b'not a WAV' * 8, wav_bytes()[:-2], wav_bytes() + b'junk', wav_bytes(frames=8000 * 181), wav_bytes(frames=160)):
+        for body in (b'not a WAV' * 8, wav_bytes()[:-2], wav_bytes() + b'junk', wav_bytes(frames=8000 * 601), wav_bytes(frames=160)):
             self.assertEqual(self.admin.request('POST', '/mygrain/api/radiolab/samples?name=test', body=body)[0], 400)
         inconsistent = bytearray(wav_bytes())
         struct.pack_into('<I', inconsistent, 28, 123)

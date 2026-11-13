@@ -28,7 +28,7 @@ test('capture settings strictly bound a finite interval and base URL follows dep
     assert.equal(captureSettings('65:04', 120).startSeconds, 3904);
     assert.equal(captureSettings('360:00', 120).startSeconds, 21600);
     assert.deepEqual(captureSettings('00:01.5', 180), { startSeconds: 1.5, durationSeconds: 180 });
-    for (const settings of [['00:00', 181], ['-01:00', 120], ['360:01', 10], [NaN, 10], ['00:00', Infinity], ['00:00', 0], ['', 120], ['00:00', ''], ['abc', 120], ['02:60', 120], ['1:2', 120], ['150', 120], ['1:02:30', 120], ['00:00.0001', 120]]) assert.throws(() => captureSettings(...settings));
+    for (const settings of [['00:00', 601], ['-01:00', 120], ['360:01', 10], [NaN, 10], ['00:00', Infinity], ['00:00', 0], ['', 120], ['00:00', ''], ['abc', 120], ['02:60', 120], ['1:2', 120], ['150', 120], ['1:02:30', 120], ['00:00.0001', 120]]) assert.throws(() => captureSettings(...settings));
     assert.throws(() => captureSettings('02:60', 120), /minutes:seconds \(mm:ss\)/);
     assert.equal(apiBase('https://host/mygrain/index.html?x=1').href, 'https://host/mygrain/api/videolab/');
     assert.equal(apiBase('https://host/staging/mygrain/').href, 'https://host/staging/mygrain/api/videolab/');
@@ -58,9 +58,9 @@ test('real RadioLab PCM trim, normalise and Save encode exactly the selected ste
     assert.equal(recorder.normalized, false);
 });
 
-test('120 and 180 second stereo PCM are not silently cut by the default RadioLab byte limit', () => {
+test('120, 180 and 600 second stereo PCM are not silently cut by the default RadioLab byte limit', () => {
     for (const sampleRate of [44100, 48000]) {
-        for (const seconds of [120, 180]) {
+        for (const seconds of [120, 180, 600]) {
             const frames = sampleRate * seconds;
             const channels = [new Float32Array(frames).fill(0.125), new Float32Array(frames).fill(-0.25)];
             const recorder = seedRecorder(audio(channels, sampleRate), radio);
@@ -73,7 +73,7 @@ test('120 and 180 second stereo PCM are not silently cut by the default RadioLab
 });
 
 test('invalid, empty, silent, overlong and nonfinite PCM never becomes a take', () => {
-    for (const buffer of [audio([new Float32Array(0)]), audio([new Float32Array(8)]), audio([Float32Array.from([NaN, 1])]), audio([Float32Array.from([Infinity, 1])]), audio([new Float32Array(181)], 1)]) assert.throws(() => seedRecorder(buffer, radio));
+    for (const buffer of [audio([new Float32Array(0)]), audio([new Float32Array(8)]), audio([Float32Array.from([NaN, 1])]), audio([Float32Array.from([Infinity, 1])]), audio([new Float32Array(601)], 1)]) assert.throws(() => seedRecorder(buffer, radio));
     assert.throws(() => seedRecorder(audio([Float32Array.of(1)]), null), /RadioLab/);
 });
 
@@ -101,4 +101,58 @@ test('shared context is mandatory: never constructs or resumes a private Web Aud
     const context = { state: 'running' };
     controller.adapter.getContext = () => context;
     assert.equal(controller.context(), context);
+});
+
+
+test('ten minute radio recorder fits normal stereo rates and stops at exactly its time bound', () => {
+ for (const sampleRate of [44100,48000]) assert.equal(new radio.PCMRecorder({sampleRate}).maxFrames,sampleRate*600);
+ const recorder=new radio.PCMRecorder({sampleRate:10}).start(null);
+ recorder.append([new Float32Array(6010).fill(.1),new Float32Array(6010).fill(.2)]);
+ assert.equal(recorder.frames,6000);assert.equal(recorder.state,'stopped');assert.equal(recorder.limitReached,true);
+ assert.equal(captureSettings('00:00',600).durationSeconds,600);
+});
+
+test('slow binary audio has a ten-minute budget; small API requests keep their 45-second limit', async () => {
+    for (const binary of [true, false]) {
+        const timers=[];let release;
+        const controller=Object.assign(Object.create(Controller.prototype),{
+            epoch:1,username:'alice',base:new URL('https://fixture.invalid/mygrain/api/videolab/'),requests:new Set(),assertActive(){},
+            root:{setTimeout(fn,ms){const t={fn,ms};timers.push(t);return t;},clearTimeout(){},fetch:async()=>({ok:true,headers:new Headers(binary?{'Content-Length':'4'}:{}),arrayBuffer:()=>new Promise(resolve=>release=resolve),json:async()=>({ok:true})})}
+        });
+        const promise=controller.request('test',{},null,binary);
+        await new Promise(resolve=>setImmediate(resolve));
+        assert.equal(timers[0].ms,binary?600000:45000);
+        if(binary)release(new ArrayBuffer(4));
+        await promise;assert.equal(controller.requests.size,0);
+    }
+});
+
+test('interrupted and truncated audio downloads give actionable errors, not Load failed', async () => {
+    for(const truncated of [true,false]){
+        const controller=Object.assign(Object.create(Controller.prototype),{
+            epoch:1,username:'alice',base:new URL('https://fixture.invalid/mygrain/api/videolab/'),requests:new Set(),assertActive(){},
+            root:{setTimeout(){return 1;},clearTimeout(){},fetch:async()=>({ok:true,headers:new Headers({'Content-Length':'8'}),arrayBuffer:async()=>{if(!truncated)throw new TypeError('Load failed');return new ArrayBuffer(4);}})}
+        });
+        await assert.rejects(controller.request('test',{},null,true),truncated?/incomplete/:/interrupted/);
+        assert.equal(controller.requests.size,0);
+    }
+});
+
+test('canonical PCM WAV capture needs no AudioContext or native decoder and preserves exact frames',()=>{
+ const {recorderFromWav}=require('../videolab.js');
+ const values=Float32Array.from([.25,-.5,.125,-1]);
+ const body=radio.encodeWav([[values]],44100,1);
+ const take=recorderFromWav(body,radio);
+ assert.equal(take.frames,4);assert.equal(take.sampleRate,44100);assert.equal(take.channels,1);
+ assert.deepEqual(take.chunks[0][0],values);
+ for(const data of [body.slice(0,-1),new ArrayBuffer(44)])assert.throws(()=>recorderFromWav(data,radio));
+});
+
+test('direct PCM capture retains a real ten-minute take without padding or truncation',()=>{
+ const {recorderFromWav}=require('../videolab.js');
+ const channel=new Float32Array(8000*600).fill(.125);
+ const body=radio.encodeWav([[channel]],8000,1);
+ const take=recorderFromWav(body,radio);
+ assert.equal(take.frames,channel.length);assert.equal(take.duration,600);
+ assert.equal(take.chunks.at(-1)[0].at(-1),.125);take.clear();
 });

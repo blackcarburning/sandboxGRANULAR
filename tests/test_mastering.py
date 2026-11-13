@@ -73,6 +73,34 @@ class Mastering(unittest.TestCase):
         self.assertEqual(m.target_lufs('dense', -6), -6)
         self.assertEqual(m.target_lufs('clean'), -16)
 
+    def test_user_renamed_masters_keep_filename_in_list_and_shared_copy(self):
+        for kind, live in ((kind, live) for kind in ('waves', 'reels') for live in (False, True)):
+            with self.subTest(kind=kind, live=live), tempfile.TemporaryDirectory() as folder:
+                root = pathlib.Path(folder)
+                old = root / 'master-dense-minus6LUFS.wav'
+                old.write_bytes(b'unchanged master audio')
+                metadata = {'kind': kind, 'preset': 'dense', 'targetLufs': -6, 'sourceName': 'private source'}
+                if live:
+                    metadata.update(engine=m.LIVE_VERSION, liveSettings={key: low for key, (low, high) in m.LIVE_LIMITS.items()})
+                m.save_info(root, old.name, metadata)
+                for name in ('My chosen title.wav', 'Another title.wav'):
+                    new = root / name
+                    old.rename(new)
+                    m.rename_info(root, old.name, new.name)
+                    rows = m.decorate(root, [{'name': new.name}])
+                    self.assertEqual(rows[0]['displayName'], name)
+                    self.assertEqual(rows[0]['mastering']['kind'], kind)
+                    self.assertEqual(new.read_bytes(), b'unchanged master audio')
+                    old = new
+                recipient = root / 'recipient'
+                recipient.mkdir()
+                copied = recipient / 'Recipient title.wav'
+                copied.write_bytes(old.read_bytes())
+                m.copy_info(root, old.name, recipient, copied.name)
+                row = m.decorate(recipient, [{'name': copied.name}])[0]
+                self.assertEqual(row['displayName'], copied.name)
+                self.assertNotIn('sourceName', row['mastering'])
+
     def test_master_library_identity_privacy_and_legacy_adoption(self):
         import hashlib, json
         with tempfile.TemporaryDirectory() as folder:
@@ -128,9 +156,9 @@ class Mastering(unittest.TestCase):
                 self.assertEqual(report['sampleRate'], 48000)
                 self.assertEqual(report['frames'], 48000)
                 self.assertTrue(np.isfinite(report['after']['lufs']))
-                self.assertEqual(report['settings'], values)
+                self.assertEqual(report['settings'], m.live_settings(values))
                 m.save_info(root, output.name, {'kind':'waves', 'preset':'punch', 'engine':m.LIVE_VERSION, 'liveSettings':values, 'sourceName':'PRIVATE'})
-                self.assertEqual(m.info(root, output.name)['liveSettings'], values)
+                self.assertEqual(m.info(root, output.name)['liveSettings'], m.live_settings(values))
                 other=root/'recipient'; other.mkdir(exist_ok=True)
                 (other/output.name).write_bytes(output.read_bytes())
                 m.copy_info(root, output.name, other, output.name)

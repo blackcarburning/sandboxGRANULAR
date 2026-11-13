@@ -1,9 +1,11 @@
 (function(root){
 'use strict';
 const TYPES=['lowpass','highpass','bandpass','notch'],POLES=[2,4,6,8,12,16];
-const SOURCES=['manual','L1','L2','L3','A','B','C','V','W','P','O','L','X','Q','M','M+','generated','sample','K','K1','K2','K3','K4','K5','drums','drumKick','drumSnare','drumHat','drumPerc','drumClap','drumCymbals','drumEtc','drumRoll'];
+const SOURCES=['manual','L1','L2','L3','A','B','C','V','W','P','O','L','X','Q','M','M+','generated','sample','K','K1','K2','K3','K4','K5','drums','drumKick','drumSnare','drumHat','drumPerc','drumClap','drumCymbals','drumEtc','drumRoll','all'];
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 const num=(x,d,a,b)=>Number.isFinite(Number(x))&&x!==null?clamp(Number(x),a,b):d;
+// Whole mix is the sum of source-channel detection copies, never N's own return.
+function matchesSource(source,key){if(source==='all')return key==='D'||SOURCES.includes(key)&&!['manual','L1','L2','L3','K','drums','all'].includes(key);return key===source||source==='K'&&/^K[1-5]$/.test(key)||source==='drums'&&key.startsWith('drum');}
 function normalize(v={},legacy={}){v=v||{};return {version:1,enabled:typeof v.enabled==='boolean'?v.enabled:((legacy.selects?.noiseType||legacy.noiseType||'none')!=='none'&&Number(legacy.sliders?.noiseMix)>0),type:['white','pink'].includes(v.type)?v.type:(legacy.selects?.noiseType||legacy.noiseType)==='white'?'white':'pink',level:num(v.level,Number(legacy.sliders?.noiseMix)||20,0,100),filterEnabled:v.filterEnabled!==false,filterType:TYPES.includes(v.filterType)?v.filterType:'lowpass',poles:POLES.includes(Number(v.poles))?Number(v.poles):4,cutoff:num(v.cutoff,1800,20,20000),resonance:num(v.resonance,.707,.1,4),drive:num(v.drive,0,0,24),source:SOURCES.includes(v.source)?v.source:'L1',mode:['follow','trigger'].includes(v.mode)?v.mode:'trigger',amount:num(v.amount,4,-8,8),sensitivity:num(v.sensitivity,4,.25,32),threshold:num(v.threshold,.12,.005,.95),attack:num(v.attack,8,1,2000),decay:num(v.decay,180,5,4000),sustain:num(v.sustain,.15,0,1),release:num(v.release,240,5,5000),hold:num(v.hold,50,5,2000),invert:v.invert===true};}
 // Startup only: explicit patch/Song restores continue to use normalize unchanged.
 function startupSettings(v,legacy={}){return normalize({...normalize(v,legacy),enabled:false,filterEnabled:true,filterType:'lowpass',poles:16,cutoff:80,source:'drums',mode:'follow',amount:8,decay:50,release:50,sustain:0});}
@@ -26,7 +28,7 @@ class Envelope{
   return s.invert?1-this.value:this.value;
  }
 }
-function randomise(v,random=Math.random){const pick=a=>a[Math.floor(random()*a.length)],s=normalize(v);return normalize({...s,enabled:false,type:pick(['white','pink']),level:6+Math.round(random()*16),filterEnabled:true,filterType:pick(TYPES),poles:pick([2,4,6,8]),cutoff:150+random()*2600,resonance:.5+random()*.7,drive:random()*9,source:pick(SOURCES.filter(k=>k!=='manual')),mode:pick(['follow','trigger']),amount:1+random()*4,sensitivity:3+random()*7,threshold:.05+random()*.16,attack:3+random()*55,decay:80+random()*420,sustain:random()*.3,release:90+random()*650,hold:30+random()*120,invert:false});}
+function randomise(v,random=Math.random){const pick=a=>a[Math.floor(random()*a.length)],s=normalize(v);return normalize({...s,enabled:false,type:pick(['white','pink']),level:6+Math.round(random()*16),filterEnabled:true,filterType:pick(TYPES),poles:pick([2,4,6,8]),cutoff:150+random()*2600,resonance:.5+random()*.7,drive:random()*9,source:pick(SOURCES.filter(k=>k!=='manual'&&k!=='all')),mode:pick(['follow','trigger']),amount:1+random()*4,sensitivity:3+random()*7,threshold:.05+random()*.16,attack:3+random()*55,decay:80+random()*420,sustain:random()*.3,release:90+random()*650,hold:30+random()*120,invert:false});}
 const estimatedBytes=(sr=48000)=>Math.ceil(sr)*2*2*2*4+256*1024;
-const api={TYPES,POLES,SOURCES,normalize,startupSettings,Envelope,lfoValue,randomise,estimatedBytes};if(typeof module==='object'&&module.exports)module.exports=api;else root.MygrainNoise=api;
+const api={TYPES,POLES,SOURCES,matchesSource,normalize,startupSettings,Envelope,lfoValue,randomise,estimatedBytes};if(typeof module==='object'&&module.exports)module.exports=api;else root.MygrainNoise=api;
 })(typeof globalThis==='undefined'?window:globalThis);

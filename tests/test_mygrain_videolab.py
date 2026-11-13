@@ -173,7 +173,7 @@ class VideoLabTests(unittest.TestCase):
         struct.pack_into('<H', floating, 20, 3)
         broken_rate = bytearray(original)
         struct.pack_into('<I', broken_rate, 28, 1)
-        for body in (original[:-1], original + b'extra', bytes(floating), bytes(broken_rate), b'URL https://example.com', wav_bytes(frames=160), wav_bytes(frames=8000 * 181)):
+        for body in (original[:-1], original + b'extra', bytes(floating), bytes(broken_rate), b'URL https://example.com', wav_bytes(frames=160), wav_bytes(frames=8000 * 601)):
             with self.subTest(length=len(body)):
                 handler = self.request('/samples?name=bad', 'POST', body=body)
                 self.assertIn(handler.reply[0], (400, 413))
@@ -191,13 +191,13 @@ class VideoLabTests(unittest.TestCase):
             self.assertEqual(download.status, 200)
             self.assertEqual(download.wfile.getvalue(), body)
 
-    def test_exact_180_second_capture_is_below_frontend_32_mib(self):
-        body = wav_bytes(frames=44100 * 180, rate=44100, channels=1)
-        self.assertLess(len(body), 32 * 1024 * 1024)
-        self.assertLess(44100 * 180 * 4, LAB.MAX_PCM_BYTES)
-        self.assertEqual(LAB.normalize_wav(body)[1]['duration'], 180)
+    def test_exact_600_second_capture_fits_pcm_and_wav_budgets(self):
+        body = wav_bytes(frames=44100 * 600, rate=44100, channels=1)
+        self.assertLess(len(body), LAB.MAX_BYTES)
+        self.assertLess(44100 * 600 * 4, LAB.MAX_PCM_BYTES)
+        self.assertEqual(LAB.normalize_wav(body)[1]['duration'], 600)
         with self.assertRaises(LAB.RequestError):
-            LAB.normalize_wav(wav_bytes(frames=44100 * 180 + 1, rate=44100, channels=1))
+            LAB.normalize_wav(wav_bytes(frames=44100 * 600 + 1, rate=44100, channels=1))
 
     def test_loop_chunks_and_duplicate_data_are_rejected(self):
         original = wav_bytes()
@@ -301,7 +301,7 @@ class VideoLabTests(unittest.TestCase):
         self.assertEqual(self.request('/captures/' + capture['id'], 'DELETE').reply[1]['capture']['status'], 'cancelled')
 
     def test_capture_bounds_reject_nan_bool_infinity_and_channels(self):
-        for field, value in (('durationSeconds', 181), ('durationSeconds', True), ('durationSeconds', float('nan')), ('startSeconds', float('inf')), ('startSeconds', -1)):
+        for field, value in (('durationSeconds', 601), ('durationSeconds', True), ('durationSeconds', float('nan')), ('startSeconds', float('inf')), ('startSeconds', -1)):
             self.assertEqual(self.request('/captures', 'POST', {'url': URL, field: value}).reply[0], 400)
         self.assertIn('Select a video', self.request('/captures', 'POST', {'url': LAB.BUILTIN['url']}).reply[1]['error'])
 
@@ -664,6 +664,73 @@ class EgressTests(unittest.TestCase):
             self.assertNotIn('uridecodebin', command)
             self.assertFalse(any('https://' in argument for argument in command))
 
+    def test_real_decode_stops_at_source_end_without_padding_ten_minute_request(self):
+        with tempfile.TemporaryDirectory(prefix='videolab-eof-test-') as temporary:
+            source, target = pathlib.Path(temporary)/'source.wav', pathlib.Path(temporary)/'audio.wav'
+            source.write_bytes(wav_bytes(frames=13230, rate=44100, channels=1))
+            WORKER.decode(source, target, 0.1, 600)
+            with wave.open(str(target), 'rb') as audio:
+                self.assertEqual(audio.getnframes(), 8820)
+                self.assertEqual(audio.getframerate(), 44100)
+                self.assertEqual(audio.getnchannels(), 1)
+
+    def test_audio_response_chunks_do_not_use_a_single_whole_file_write(self):
+        handler = Handler('/unused')
+        received = bytearray()
+        def write(chunk):
+            self.assertLessEqual(len(chunk), 65536)
+            received.extend(chunk)
+        handler.wfile = SimpleNamespace(write=write)
+        handler.send_response = Mock()
+        handler.send_header = Mock()
+        handler.end_headers = Mock()
+        handler.connection.gettimeout.return_value = 30
+        body = b'abcd' * 100000
+        LAB.send_audio(handler, body)
+        self.assertEqual(received, body)
+        self.assertEqual([call.args[0] for call in handler.connection.settimeout.call_args_list], [60, 30])
+
+    def test_slow_progressing_socket_transfer_delivers_exact_bytes(self):
+        from socketserver import _SocketWriter
+        sender, receiver = socket.socketpair()
+        sender.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 16384)
+        sender.settimeout(.05)
+        receiver.settimeout(3)
+        body, received = b'abcd' * 500000, bytearray()
+        def consume():
+            while True:
+                chunk = receiver.recv(16384)
+                if not chunk:
+                    break
+                received.extend(chunk)
+                time.sleep(.003)
+        thread = threading.Thread(target=consume, daemon=True)
+        handler = SimpleNamespace(connection=sender, wfile=_SocketWriter(sender), send_response=lambda *a: None,
+                                  send_header=lambda *a: None, end_headers=lambda: None)
+        thread.start()
+        try:
+            LAB.send_audio(handler, body)
+            sender.shutdown(socket.SHUT_WR)
+            thread.join(3)
+            self.assertFalse(thread.is_alive())
+            self.assertEqual(received, body)
+            self.assertEqual(sender.gettimeout(), .05)
+        finally:
+            sender.close()
+            receiver.close()
+
+    def test_disconnected_audio_response_never_sends_json_into_the_wav(self):
+        handler = Handler('/unused')
+        handler.send_response = Mock()
+        handler.send_header = Mock()
+        handler.end_headers = Mock()
+        handler.wfile = Mock()
+        handler.wfile.write.side_effect = BrokenPipeError()
+        LAB.send_audio(handler, b'a' * 100000)
+        self.assertTrue(handler.close_connection)
+        self.assertIsNone(handler.reply)
+        handler.send_response.assert_called_once_with(200)
+
     def test_decode_failure_never_synthesizes_pcm(self):
         with tempfile.TemporaryDirectory(prefix='videolab-decode-test-') as temporary:
             root = pathlib.Path(temporary)
@@ -700,7 +767,7 @@ class EgressTests(unittest.TestCase):
         self.assertEqual(applied[WORKER.resource.RLIMIT_CORE], (0, 0))
         self.assertEqual(applied[WORKER.resource.RLIMIT_NOFILE], (128, 128))
         self.assertEqual(applied[WORKER.resource.RLIMIT_NPROC], (64, 64))
-        alarm.assert_called_once_with(118)
+        alarm.assert_called_once_with(718)
 
 
 if __name__ == '__main__':

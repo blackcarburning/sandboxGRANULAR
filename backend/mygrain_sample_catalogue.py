@@ -100,7 +100,7 @@ def compact(row, filename, context, warnings, root):
             'playbackRoot': root, 'warnings': warnings}
 
 
-def retrieve(prompt, current, source_root=None, *, l_repository='samples_leads'):
+def retrieve(prompt, current, source_root=None, *, l_repository='samples_leads', v_repository='samples_vocal'):
     """Return a model-safe shortlist plus trusted internal identities.
 
     Missing/corrupt/stale catalogues are a labelled legacy fallback. No writeable
@@ -132,6 +132,11 @@ def retrieve(prompt, current, source_root=None, *, l_repository='samples_leads')
         requested_mode = {'m': 'minor', 'min': 'minor', 'maj': 'major'}.get(mode, mode)
         rng = secrets.SystemRandom()
         for lane, source in LANES.items():
+            # The new CC0 collection has no tonal analysis yet. Leave an empty
+            # shortlist so V uses its selected library's existing random loader.
+            if lane == 'V' and v_repository != 'samples_vocal':
+                result['candidates'][lane] = []
+                continue
             if lane == 'L':
                 source = 'samples_terra' if l_repository == 'samples_terra' else 'samples_leads'
             ranked = []

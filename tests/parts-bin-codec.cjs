@@ -1,0 +1,12 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),path=require('node:path');const dir=(process.env.MYGRAIN_PARTS_TASK||fs.readFileSync('/tmp/mygrain-parts-bin-task','utf8').trim());
+function codec(file){let out;const ctx=vm.createContext({TextEncoder,Uint8Array,DataView,ArrayBuffer,Map,Set,Math,postMessage:v=>out=v});vm.runInContext(fs.readFileSync(file,'utf8'),ctx);return data=>{ctx.onmessage({data});return out;};}
+const old=codec(dir+'/before/daw-project-codec.js'),now=codec(dir+'/stage/daw-project-codec.js');
+const make=(id=1)=>({type:'pack',id,settings:{kind:'bridge',mode:'live',bars:4},snapshot:{state:{volume:.8},extra:{},assets:[]},slots:[],audio:[],delta:false});
+const a=old(make()),b=now(make());assert.equal(b.type,'prepared');assert.deepEqual(Buffer.from(a.buffer),Buffer.from(b.buffer));
+const part={id:'a'.repeat(32),name:'Saved source',createdAt:'2026-11-12T23:00:00Z',bpm:120,bars:1},zip=new Uint8Array(22000).fill(71).buffer,preview=new Uint8Array(44000).fill(90).buffer;
+const first=now({...make(2),parts:[part],partData:[{id:part.id,zip,preview}]});assert.equal(first.type,'prepared');assert(first.buffer.byteLength>66000);now({type:'commit',id:2,revision:1});
+function expand(w,base){const v=new DataView(w),out=new Uint8Array(v.getUint32(8,true));let at=16,pos=0;for(let i=0;i<v.getUint32(12,true);i++){const kind=v.getUint32(at,true),off=v.getUint32(at+4,true),n=v.getUint32(at+8,true);at+=12;out.set(kind?new Uint8Array(base,off,n):new Uint8Array(w,at,n),pos);if(!kind)at+=n;pos+=n;}assert.equal(pos,out.length);return out.buffer;}
+const next=now({...make(3),parts:[part],partData:[],delta:true,revision:1});assert(next.delta);assert(next.buffer.byteLength<3000);const expanded=expand(next.buffer,first.buffer);assert.deepEqual(Buffer.from(expanded),Buffer.from(first.buffer));
+now({type:'commit',id:3,revision:2});const removed=now({...make(4),parts:[],partData:[],delta:true,revision:2});assert.equal(removed.type,'prepared');assert(removed.documentBytes<2000);now({type:'commit',id:4,revision:3});
+assert.equal(now({...make(5),parts:[part],partData:[]}).type,'error');assert.equal(now({...make(6),parts:Array(33).fill(part),partData:[{id:part.id,zip,preview}]}).type,'error');
+console.log(JSON.stringify({legacyByteExact:true,nestedBytes:first.documentBytes,unchangedPartsDelta:next.buffer.byteLength,deletedBytes:removed.documentBytes,missingCacheRejected:true,limitsRejected:true},null,2));

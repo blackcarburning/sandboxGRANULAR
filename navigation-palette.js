@@ -17,6 +17,10 @@
         'loop-v': '#ff9dbb',
         'loop-w': '#87e1c6',
         'loop-d': '#008cff',
+        mutilator: '#58b787',
+        cookingPot: '#f3b35e',
+        partsBin: '#55c99f',
+        bassFace: '#58b787', // Same palette, independent linked-power navigation state.
         radiolab: '#78e0d0',
         videolab: '#bcc8ef',
         'loop-p': '#c2de80',
@@ -37,8 +41,11 @@
         actions: '#dfb0f2',
         export: '#edc677',
         'wav-browser': '#8cbce3',
+        'loop-store': 'linear-gradient(180deg, #9c4c13, #70330c)',
+        'loop-store-render': 'linear-gradient(180deg, #ffad45, #f18418)',
         'stem-export': '#e3d0a5',
         daw: '#4c9ce6',
+        'daw-input': '#318cff',
         grain: '#92c9bc',
         mix: '#e8b5a6',
         lfo: '#b5ca83',
@@ -50,13 +57,19 @@
         'source-wave': '#7ed9f0',
         'wave-a': '#c6dbb1',
         'wave-b': '#dec1e7',
+        playground: 'repeating-linear-gradient(125deg,#2a8c62 0px,#2a8c62 16px,#174936 16px,#174936 28px)',
         wasp: 'repeating-linear-gradient(125deg, #ffdc38 0px, #ffdc38 16px, #e23c30 16px, #e23c30 28px)',
         turntable: '#c19a67',
+        resonator: '#e8a278',
+        wireWorld: '#ffba76', sonicCrystal: '#95fbd9', bubbleChamber: '#a6ccff',
         pan: '#efc4cf'
     });
     const foreground = '#f2f6ff';
     const states = Object.freeze({
+        'loop-store': Object.freeze({ color: '#fff4e8', border: '#d47b35' }),
+        'loop-store-render': Object.freeze({ color: '#3b1c04', border: '#ffc477' }),
         wasp: Object.freeze({ color: '#21170e', border: '#ffdc38' }),
+        playground: Object.freeze({ color: '#f0fff5', border: '#6be2ae' }),
         mega: Object.freeze({ color: '#dffcff', border: 'rgba(126, 246, 255, 0.4)' }),
         sparse: Object.freeze({ color: '#fff2cc', border: 'rgba(255, 212, 102, 0.42)' }),
         transport: Object.freeze({ color: '#ffe0e4', border: 'rgba(255, 116, 142, 0.42)' }),
@@ -100,6 +113,7 @@
         '#bastardLoopKCard': 'loop-k',
         '#noiseCard': 'noise-n',
         '#turntableCard': 'turntable',
+        '#resonatorCard': 'resonator',
         '[aria-label="Bastardloop K controls"]': 'loop-k',
         '[aria-label="Drum machine controls"]': 'drums',
         '[aria-label="Dropbox sample layer controls"]': 'sample',
@@ -113,8 +127,11 @@
         '[aria-label="Main panel controls"]': 'actions',
         '.performance-export-card': 'export',
         '#performanceWavBrowserBtn': 'wav-browser',
+        '#performanceLoopStoreBrowserBtn': 'loop-store',
+        '#performanceLoopStoreAddBtn': 'loop-store-render',
         '#performanceStemExportCard': 'stem-export',
         '#dawExportCard': 'daw',
+        '#dawInputCard': 'daw-input',
         '#performanceGrainControlsCard': 'grain',
         '[aria-label="Mix controls"]': 'mix',
         '#performanceLfoCard': 'lfo',
@@ -128,6 +145,12 @@
         '#grainAWaveformEditor': 'wave-a',
         '#grainBWaveformEditor': 'wave-b',
         '#waspCard': 'wasp',
+        '#filterPlaygroundCard': 'playground',
+        '#loopDMutilator': 'mutilator',
+        '#bassFaceCard': 'bassFace',
+        '#cookingPotCard': 'cookingPot',
+        '#partsBinCard': 'partsBin',
+        '#wireWorldCard': 'wireWorld', '#sonicCrystalCard': 'sonicCrystal', '#bubbleChamberCard': 'bubbleChamber',
         '#finalPanSection': 'pan',
         '#performancePanLabResetBtn': 'pan'
     });
@@ -146,6 +169,7 @@
         performanceFinalFxPlacementLfoBtn: 'lfo', performanceDryFilterBtn: 'filter',
         performanceLfoSquareBtn: 'lfo', performanceExportBtn: 'export',
         performanceRepoExportBtn: 'stem-export', performanceWavBrowserBtn: 'wav-browser',
+        performanceLoopStoreAddBtn: 'loop-store-render', performanceLoopStoreBrowserBtn: 'loop-store',
         performanceMidiBrowserBtn: 'keyboard', performanceExportPatchBtn: 'export',
         performanceImportPatchBtn: 'sources', performanceKeyboardRecordBtn: 'keyboard',
         performanceKeyboardToKRecordBtn: 'loop-k', performanceExportPatchZipBtn: 'export',
@@ -308,9 +332,91 @@
         }
     });
 
+    // Display order only: never change the Cooking Pot's saved audio-stage order.
+    const effectCardIds = Object.freeze([
+        'cookingPotCard', 'turntableCard', 'filterPlaygroundCard', 'loopDMutilator',
+        'bassFaceCard', 'waspCard', 'resonatorCard', 'wireWorldCard',
+        'sonicCrystalCard', 'bubbleChamberCard', 'masterBakerCard'
+    ]);
+    function arrangeEffectCards() {
+        if (root.__mygrainSongRenderDeck) return;
+        const doc = root.document, shell = doc.querySelector('.synth-container');
+        if (!shell) return;
+        const cards = effectCardIds.map(id => doc.getElementById(id)).filter(Boolean);
+        for (const card of cards) {
+            card.dataset.mygrainEffectCard = '';
+            card.style.order = String(200 + effectCardIds.indexOf(card.id));
+        }
+        const bin = doc.getElementById('partsBinCard');
+        if (bin) bin.style.order = '199';
+        // Move existing instances, retaining listeners, controls and lazy placeholders.
+        const tail = [...shell.children].slice(-cards.length);
+        if (cards.some((card, index) => tail[index] !== card)) shell.append(...cards);
+        arrangeJumpButtons();
+    }
+    const jumpOriginalOrder = new Map();
+    function arrangeJumpButtons() {
+        const doc = root.document, grid = doc.querySelector('#sectionJumpPanel .section-jump-grid');
+        if (!grid) return;
+        const desktop = root.matchMedia('(min-width: 961px)').matches;
+        for (const child of grid.children) if (!jumpOriginalOrder.has(child)) jumpOriginalOrder.set(child, jumpOriginalOrder.size);
+        // Never move a placeholder and its replacement back and forth mid-hydration.
+        if (effectCardIds.some(id => grid.querySelectorAll('.section-jump-option[data-jump-target="#' + id + '"]').length > 1)) return;
+        const button = selector => grid.querySelector(selector);
+        const selected = new Set(), ordered = [];
+        const add = node => { if (node && !selected.has(node)) { selected.add(node); ordered.push(node); } };
+        {
+            for (const selector of [
+                '#sectionJumpInitialisePanelBtn', '[data-jump-target=".performance-toolbar"]',
+                '#sectionJumpAiBtn', '#sectionJumpCookingPotBtn', '#sectionJumpPartsBinBtn', '#sectionJumpMasterBakerBtn', '#sectionJumpSongBtn',
+                '#sectionJumpLayerSwitchBtn', '#sectionJumpBastardMixerBtn',
+                '#sectionJumpMegaRandomBtn', '#sectionJumpSparseRandomBtn',
+                '#sectionJumpFinalMixBtn', '[data-jump-click="#performanceWavBrowserBtn"]',
+                '#sectionJumpLoopStoreAddBtn', '[data-jump-click="#performanceLoopStoreBrowserBtn"]',
+                '#sectionJumpKeyboardBtn', '#sectionJumpActionsBtn',
+                '[data-jump-target="[aria-label=\'Drum machine controls\']"]', '[data-jump-target="#genreatorCard"]'
+            ]) add(button(selector));
+            const wide = ordered.slice(0, 7);
+            for (const child of grid.children) child.classList.toggle('desktop-jump-wide', wide.includes(child));
+        }
+        const effects = new Set([
+            ...['[aria-label=\'Filter controls\']', '#internalEffectsPanel', '#internalDelayCard', '#internalReverbCard'],
+            ...effectCardIds.map(id => '#' + id)
+        ]);
+        const rest = [...grid.children].filter(node => !selected.has(node) && !effects.has(node.dataset.jumpTarget));
+        // Loop order is explicit: parked/detached card geometry must not reshuffle it.
+        const loopOrder = ['Loop A', 'Loop B', 'Loop C', 'Loop D', 'Loop V', 'Loop W', 'Loop P', 'Loop O', 'Loop L', 'Loop X', 'Loop Q', 'Loop M', 'Loop M+', 'Loop K'];
+        rest.sort((a, b) => {
+            const ai = loopOrder.indexOf(a.textContent.trim()), bi = loopOrder.indexOf(b.textContent.trim());
+            if (ai >= 0 || bi >= 0) return (ai < 0 ? loopOrder.length : ai) - (bi < 0 ? loopOrder.length : bi);
+            return jumpOriginalOrder.get(a) - jumpOriginalOrder.get(b);
+        });
+        rest.forEach(add);
+        for (const selector of effects) [...grid.children].filter(node => node.dataset.jumpTarget === selector).forEach(add);
+        if (ordered.some((node, index) => grid.children[index] !== node)) grid.append(...ordered);
+    }
+    function initializeEffectCardOrder() {
+        if (root.__mygrainSongRenderDeck) return;
+        arrangeEffectCards();
+        const shell = root.document.querySelector('.synth-container');
+        const grid = root.document.querySelector('#sectionJumpPanel .section-jump-grid');
+        if (!shell) return;
+        const observer = new MutationObserver(records => {
+            if (records.some(record => record.target === shell || record.target === grid ||
+                [...record.addedNodes, ...record.removedNodes].some(node =>
+                    node.nodeType === 1 && (effectCardIds.includes(node.id) ||
+                    effectCardIds.some(id => node.querySelector?.('#' + id)))))) arrangeEffectCards();
+        });
+        observer.observe(shell, { childList: true, subtree: true });
+        if (grid) observer.observe(grid, { childList: true });
+    }
+
     function initialize() {
+        initializeEffectCardOrder();
         refresh();
         initializeDesktopDock();
+        initializePhoneEdgeShortcuts();
+        initializeRenderActions();
         root.matchMedia(desktopJumpQuery).addEventListener('change', cancelDesktopJump);
         root.addEventListener('pagehide', cancelDesktopJump);
         root.document.addEventListener('visibilitychange', () => { if (root.document.hidden) cancelDesktopJump(); });
@@ -327,63 +433,162 @@
         });
     }
 
+    // These shortcuts execute the existing Actions controls in the same click.
+    // Observe their actual state; no parallel render, progress timer or sound state.
+    function initializeRenderActions() {
+        if (root.__mygrainSongRenderDeck) return;
+        const drawer = root.document.getElementById('sectionJumpDrawer');
+        if (!drawer) return;
+        const entries = [...drawer.querySelectorAll('[data-render-action][data-jump-click]')].map(button => {
+            const target = root.document.querySelector(button.dataset.jumpClick);
+            if (!target) return null;
+            const label = button.textContent.trim(), idle = target.textContent.trim();
+            const copy = root.document.createElement('span'); copy.className = 'render-action-copy';
+            const name = root.document.createElement('span'); name.className = 'render-action-label'; name.textContent = label;
+            const progress = root.document.createElement('span'); progress.className = 'render-action-progress';
+            progress.setAttribute('aria-live', 'polite'); progress.setAttribute('aria-atomic', 'true');
+            copy.append(name, progress); button.replaceChildren(copy);
+            return { button, target, label, idle, progress };
+        }).filter(Boolean);
+        if (!entries.length) return;
+        let locked = false;
+        const busy = () => entries.some(entry => entry.target.disabled);
+        const refresh = () => {
+            const anyBusy = busy();
+            for (const { button, target, label, idle, progress } of entries) {
+                const working = target.disabled, text = target.textContent.trim();
+                const stage = working && !locked ? text === idle ? 'Preparing…' : /^(working$|rendering)/i.test(text) ? 'Rendering…' : /^uploading/i.test(text) ? 'Uploading…' : /^adding/i.test(text) ? 'Adding…' : text.replace(/\.{3}$/, '…') : '';
+                if (progress.textContent !== stage) progress.textContent = stage;
+                button.disabled = locked || anyBusy;
+                const ariaBusy = String(working && !locked), ariaLabel = label + (stage ? ' · ' + stage : '');
+                if (button.getAttribute('aria-busy') !== ariaBusy) button.setAttribute('aria-busy', ariaBusy);
+                if (button.getAttribute('aria-label') !== ariaLabel) button.setAttribute('aria-label', ariaLabel);
+            }
+        };
+        // Capture stops the generic Jump listener before it scrolls/closes the drawer.
+        drawer.addEventListener('click', event => {
+            const button = event.target.closest('[data-render-action]');
+            const entry = entries.find(item => item.button === button);
+            if (!entry) return;
+            event.preventDefault(); event.stopImmediatePropagation();
+            if (locked || button.disabled || busy() || root.mygrainAccounts?.authenticated === false) return;
+            // A focus-only drawer would collapse when the active button disables.
+            drawer.classList.add('is-open');
+            drawer.querySelector('#sectionJumpHandle')?.setAttribute('aria-expanded', 'true');
+            entry.target.click(); refresh();
+        }, true);
+        const observer = new MutationObserver(refresh);
+        for (const { target } of entries) observer.observe(target, { attributes: true, attributeFilter: ['disabled'], childList: true, characterData: true, subtree: true });
+        const lock = () => { locked = true; observer.disconnect(); refresh(); };
+        root.addEventListener('mygrain-account-lock', lock, { once: true });
+        root.addEventListener('mygrain-account-changed', lock, { once: true });
+        refresh();
+    }
+
+    // ID-safe mirrors retain the shared menu and call its authoritative handlers.
+    function initializePhoneEdgeShortcuts() {
+        if (root.__mygrainSongRenderDeck) return;
+        const drawer = root.document.getElementById('sectionJumpDrawer');
+        if (!drawer || root.document.querySelector('.phone-edge-shortcuts')) return;
+        const stack = root.document.createElement('nav');
+        stack.className = 'phone-edge-shortcuts';
+        drawer.after(stack);
+        stack.setAttribute('aria-label', 'Quick section and transport controls');
+        for (const id of [
+            'sectionJumpSongBtn', 'sectionJumpMegaRandomBtn', 'sectionJumpSparseRandomBtn',
+            'sectionJumpKeyboardBtn', 'sectionJumpLayerSwitchBtn', 'sectionJumpBastardMixerBtn',
+            'sectionJumpTransportBtn'
+        ]) {
+            const source = root.document.getElementById(id);
+            if (!source) continue;
+            const button = root.document.createElement('button');
+            button.type = 'button'; button.className = 'phone-edge-shortcut';
+            button.dataset.phoneShortcut = id;
+            const sync = () => {
+                button.textContent = id === 'sectionJumpTransportBtn' && source.textContent === 'Start' ? 'Play' : source.textContent;
+                button.disabled = source.disabled;
+                button.classList.toggle('is-running', source.classList.contains('is-running'));
+                for (const name of ['aria-label', 'aria-pressed', 'title', 'data-nav-section']) {
+                    const value = source.getAttribute(name);
+                    if (value === null) button.removeAttribute(name); else button.setAttribute(name, value);
+                }
+                for (const name of ['--nav-background', '--nav-foreground', '--nav-border', '--nav-running-background', '--nav-running-foreground', '--nav-running-border']) {
+                    button.style.setProperty(name, source.style.getPropertyValue(name));
+                }
+            };
+            button.addEventListener('click', () => { if (!source.disabled) source.click(); });
+            new MutationObserver(sync).observe(source, {
+                attributes: true, attributeFilter: ['disabled', 'class', 'aria-label', 'aria-pressed', 'title', 'data-nav-section', 'style'],
+                childList: true, subtree: true, characterData: true
+            });
+            sync(); stack.append(button);
+        }
+    }
+
     function initializeDesktopDock() {
         const drawer = root.document.getElementById('sectionJumpDrawer');
         const panel = root.document.getElementById('sectionJumpPanel');
         const handle = root.document.getElementById('sectionJumpHandle');
-        if (!drawer || !panel || !handle) return;
+        const grid = panel?.querySelector('.section-jump-grid');
+        const quickStack = drawer?.querySelector('.section-jump-quick-stack');
+        if (!drawer || !panel || !handle || !grid || !quickStack) return;
         const desktop = root.matchMedia('(min-width: 961px)');
-        const tools = root.document.createElement('div');
-        tools.className = 'desktop-nav-tools';
-        tools.innerHTML = '<label for="desktopNavSearch">Direct links</label><input id="desktopNavSearch" type="search" placeholder="Find a section…" autocomplete="off" aria-controls="sectionJumpPanel"><p class="desktop-nav-empty" hidden role="status">No matching sections.</p>';
+        const tools = root.document.createElement('div'); tools.className = 'desktop-nav-tools';
+        tools.innerHTML = '<label for="desktopNavSearch">Find / search</label><input id="desktopNavSearch" type="search" placeholder="Find a section…" autocomplete="off" aria-controls="sectionJumpPanel"><p class="desktop-nav-empty" hidden role="status">No matching sections.</p>';
         panel.before(tools);
-        const search = tools.querySelector('input');
-        const empty = tools.querySelector('p');
-        const links = () => [...panel.querySelectorAll('.section-jump-option')];
-        const quickTargets = new Set([...drawer.querySelectorAll('.section-jump-quick[data-jump-target]')].map(button => button.dataset.jumpTarget));
+        const search = tools.querySelector('input'), empty = tools.querySelector('p');
+        const origins = new Map();
+        const rememberQuick = node => {
+            if (origins.has(node)) return;
+            const anchor = root.document.createComment('Jump shortcut home');
+            if (node.parentElement === grid) {
+                let previous = node.previousElementSibling;
+                while (previous && !origins.has(previous)) previous = previous.previousElementSibling;
+                const home = origins.get(previous);
+                if (home?.isConnected) home.after(anchor); else quickStack.append(anchor);
+            } else node.before(anchor);
+            origins.set(node, anchor);
+        };
+        quickStack.querySelectorAll('.section-jump-quick').forEach(rememberQuick);
         const duplicateActions = new Set(['sectionJumpMegaRandomPanelBtn', 'sectionJumpSparseRandomPanelBtn', 'sectionJumpTransportPanelBtn']);
+        const links = () => [...grid.querySelectorAll('.section-jump-option, .section-jump-quick')];
         const filter = () => {
-            const query = search.value.trim().toLowerCase();
+            const normalize = text => String(text).replace(/\s+/g, ' ').trim().toLowerCase();
+            const query = normalize(search.value);
+            const quickTargets = new Set([...origins.keys()].map(node => node.dataset.jumpTarget || node.dataset.jumpClick).filter(Boolean));
             let matches = 0;
             for (const link of links()) {
-                const duplicate = desktop.matches && (quickTargets.has(link.dataset.jumpTarget) || duplicateActions.has(link.id));
-                link.hidden = duplicate || !link.textContent.toLowerCase().includes(query);
-                if (!link.hidden) matches += 1;
+                const duplicate = !origins.has(link) && (quickTargets.has(link.dataset.jumpTarget || link.dataset.jumpClick) || duplicateActions.has(link.id));
+                link.dataset.desktopDuplicate = String(duplicate);
+                link.hidden = duplicate || !normalize(link.textContent).includes(query);
+                if (!link.hidden && !link.closest('[hidden]')) matches += 1;
             }
             empty.hidden = matches > 0;
         };
-        search.addEventListener('input', filter);
-        handle.addEventListener('click', () => {
-            if (desktop.matches) { search.focus(); search.select(); }
-        });
+        const sync = () => {
+            // One shared list and identical ordering at every viewport.
+            drawer.querySelectorAll('.section-jump-quick').forEach(rememberQuick);
+            for (const node of origins.keys()) if (node.parentElement !== grid) grid.append(node);
+            arrangeJumpButtons(); filter();
+        };
+        search.addEventListener('input', () => { filter(); panel.scrollTop = 0; });
+        handle.addEventListener('click', () => { if (desktop.matches) { search.focus(); search.select(); } });
         search.addEventListener('keydown', event => {
-            if (event.key === 'Escape') {
-                search.value = '';
-                filter();
-                search.blur();
-            } else if (event.key === 'Enter') {
-                search.blur();
-                links().find(link => !link.hidden)?.click();
-            }
+            if (event.key === 'Escape') { search.value = ''; filter(); search.blur(); }
+            else if (event.key === 'Enter') { search.blur(); links().find(link => !link.hidden && !link.closest('[hidden]'))?.click(); }
         });
         const updateMode = () => {
-            // CSS keeps the desktop dock persistent; mobile retains its drawer.
             if (desktop.matches) { panel.before(tools); handle.setAttribute('aria-expanded', 'true'); }
-            else {
-                const grid = panel.querySelector('.section-jump-grid');
-                if (grid) grid.before(tools);
-                else panel.prepend(tools);
-                search.value = '';
-                handle.setAttribute('aria-expanded', String(drawer.classList.contains('is-open')));
-            }
-            filter();
+            else { panel.before(tools); search.value = ''; handle.setAttribute('aria-expanded', String(drawer.classList.contains('is-open'))); }
+            sync();
         };
         desktop.addEventListener('change', updateMode);
-        new MutationObserver(filter).observe(panel, { childList: true, subtree: true });
-        const observer = new MutationObserver(() => {
+        new MutationObserver(sync).observe(grid, { childList: true });
+        new MutationObserver(sync).observe(quickStack, { childList: true });
+        new MutationObserver(filter).observe(grid, { childList: true, subtree: true, characterData: true });
+        new MutationObserver(() => {
             if (desktop.matches && handle.getAttribute('aria-expanded') !== 'true') handle.setAttribute('aria-expanded', 'true');
-        });
-        observer.observe(handle, { attributes: true, attributeFilter: ['aria-expanded'] });
+        }).observe(handle, { attributes: true, attributeFilter: ['aria-expanded'] });
         drawer.addEventListener('click', event => {
             const link = event.target.closest('[data-jump-target]');
             if (!link || !desktop.matches) return;

@@ -35,7 +35,7 @@
 #qCustomChordKeep { width:100%; min-height:32px; margin-bottom:6px; padding:4px; border:1px solid #66c794; border-radius:6px; color:#d8ffe9; background:#21543b; font-size:10px; cursor:pointer; touch-action:manipulation; }
 #qCustomChordPool.q-custom-drop-ready { outline:2px dashed #99ffbe; outline-offset:-3px; background:#1c5037; }
 .q-custom-drag-ghost { position:fixed; z-index:2147483540; transform:translate(-50%,-120%); max-width:200px; padding:8px; background:#16623f; border:1px solid #a0ffca; border-radius:8px; color:white; font:12px system-ui; pointer-events:none; }
-#bastardLoopQPalette [draggable="true"] { touch-action:pan-y; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
+#bastardLoopQPalette [draggable="true"] { touch-action:none; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
 #bastardLoopQOverlay #bastardLoopQStepGrid .q-step.q-custom-step { background:#17613f; border-color:#66c794; color:#d8ffe9; }
 #bastardLoopQOverlay #bastardLoopQStepGrid .q-step.q-custom-step.selected { background:#287c50; border-color:#b0ffd1; }
 

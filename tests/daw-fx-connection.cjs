@@ -1,0 +1,25 @@
+'use strict';
+const {chromium,webkit}=require('playwright-core'),assert=require('node:assert/strict'),fs=require('node:fs'),{spawn}=require('node:child_process');
+const task=fs.readFileSync('/tmp/mygrain-fx-output','utf8').trim(),out=task+'/evidence',origin='https://openclaw.blackcarburning.com',local='http://127.0.0.1:19109',raw=out+'/fx-connection.f32',win=p=>'Z:'+p.replaceAll('/','\\');
+(async()=>{
+ const host=spawn('/usr/bin/env',['-i','PATH=/usr/bin:/bin','WINEPREFIX=/tmp/mygrain-vst3-wine-clean','WINEDEBUG=-all','xvfb-run','-a','/usr/lib/wine/wine64','/tmp/mygrain-bridge-win/fx-windows-host.exe',win(task+'/bundle/MYGRAIN FX.vst3/Contents/x86_64-win/MYGRAIN FX.vst3'),win(raw),'90']);let log='';host.stdout.on('data',b=>log+=b);host.stderr.on('data',()=>{});
+ const code=await new Promise((resolve,reject)=>{const t=setTimeout(()=>reject(Error('FX fixture start timeout')),10000);host.stdout.on('data',()=>{const m=log.match(/187\d{2}\.[a-f0-9]{32}/);if(m){clearTimeout(t);resolve(m[0]);}});host.on('exit',n=>{clearTimeout(t);reject(Error('Host exit '+n));});});
+ const b=await chromium.launch({executablePath:'/snap/bin/chromium',args:['--no-sandbox','--autoplay-policy=no-user-gesture-required','--host-resolver-rules=MAP openclaw.blackcarburning.com 127.0.0.1:19110']});
+ try{
+  const c=await b.newContext({ignoreHTTPSErrors:true,viewport:{width:1400,height:1000}}),p=await c.newPage(),errors=[];p.on('pageerror',e=>errors.push(e.message));
+  const cdp=await c.newCDPSession(p);await cdp.send('Browser.setPermission',{permission:{name:'local-network-access'},setting:'granted',origin});
+  const response=await p.goto(origin+'/mygrain/#fx='+code);assert.equal(response.headers()['x-mygrain-isolated-test'],'fx-19110');await p.waitForFunction(()=>document.documentElement.dataset.mygrainStartup==='ready');assert.equal(new URL(p.url()).hash,'#fx='+code);
+  await p.locator('#start-btn').click();await p.locator('#mygrainLoginUsername').fill('admin');await p.locator('#mygrainLoginPassword').fill('isolated-vst3-test');await p.locator('#mygrainLoginBtn').click();
+  await p.waitForFunction(()=>window.mygrainDawFx?.connected&&isAudioGraphReady()&&!engineStarting&&!stateSaveSuspended&&mygrainDawFx.diagnostics().clock?.browserReady,{},{timeout:30000});assert.equal(new URL(p.url()).hash,'');assert.equal(await p.locator('#dawFxCode').inputValue(),'');
+  await p.locator('#dawFxArm').click();await p.waitForFunction(()=>mygrainDawFx.diagnostics().clock?.running,{},{timeout:10000});
+  const duplicate=await c.newPage();await duplicate.goto(origin+'/mygrain/#fx='+code);await duplicate.waitForFunction(()=>window.mygrainDawFx&&document.documentElement.dataset.mygrainStartup==='ready');await duplicate.waitForFunction(()=>document.getElementById('dawFxStatus').textContent.includes('Another MYGRAIN tab'));assert.equal(await duplicate.evaluate(()=>isAudioGraphReady()),false);
+  const nativeRejection=await duplicate.evaluate(code=>new Promise(resolve=>{const [port,token]=code.split('.'),s=new WebSocket('ws://127.0.0.1:'+port+'/stream?token='+token);s.onopen=()=>{s.close();resolve(false);};s.onerror=()=>resolve(true);setTimeout(()=>{s.close();resolve(false)},4000);}),code);assert(nativeRejection);
+  // Generators remain opt-in, and a real UI Stop keeps native Arm off.
+  assert.equal(await p.evaluate(()=>mygrainDawFx.diagnostics().generators),false);await p.locator('#dawFxStop').click();await p.waitForFunction(()=>mygrainDawFx.diagnostics().clock?.armed===false);assert.equal(await p.evaluate(()=>mygrainDawFx.diagnostics().generators),false);
+  await p.locator('#dawFxDisconnect').click();await duplicate.close();
+  for(const [name,type]of Object.entries({chromium,webkit})){
+   const phoneBrowser=name==='chromium'?b:await type.launch();try{const phone=await phoneBrowser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,userAgent:'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1'});await phone.request.post(local+'/mygrain/api/auth/login',{data:{username:'admin',password:'isolated-vst3-test'}});const page=await phone.newPage();await page.goto(local+'/mygrain/');await page.waitForFunction(()=>document.documentElement.dataset.mygrainStartup==='ready');assert.equal(await page.locator('#dawInputCard').count(),0);assert.equal(await page.evaluate(()=>typeof mygrainDawFx),'undefined');await phone.close();}finally{if(phoneBrowser!==b)await phoneBrowser.close();}
+  }
+  assert.deepEqual(errors,[]);fs.writeFileSync(out+'/fx-connection.json',JSON.stringify({guestLogin:true,autoConnect:true,fragmentCleared:true,duplicateBeforeAudio:true,nativeDuplicateRejected:nativeRejection,generatorsOptIn:true,explicitStop:true,chromiumPhoneUnaffected:true,webkitPhoneUnaffected:true,errors},null,2));console.log('PASS FX normal guest/login/auto-connect, exclusive tab/native ownership, opt-in generators, Stop and Chromium/WebKit phone non-activation');
+ }finally{await b.close();fs.writeFileSync(raw+'.control','quit');host.kill('SIGTERM');}
+})().catch(e=>{console.error(e);process.exitCode=1;});

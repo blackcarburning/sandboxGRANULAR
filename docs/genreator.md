@@ -15,8 +15,7 @@ exact agreement. Canonical genre definitions live in `genre-presets.json`.
 G has its own header/icon and scoped CSS. The drawer-only jump link immediately
 follows AI on desktop and phone and use the existing jump handler. The existing AI
 progress/cancel/Undo mechanism is reused. Existing cards, render/viewport logic,
-FX graphs and DSP implementations are untouched. The W level/transpose contract uses existing live handlers; shared FX settings
-are not rewritten. Legacy loop cutoff IDs are retained as read-only inventory
+FX graphs and DSP implementations are untouched. The W level/transpose contract uses existing live handlers; shared FX settings are retained unless explicitly included in the recipe. Legacy loop cutoff IDs are retained as read-only inventory
 for client compatibility, not advertised as writable model controls. Recorded M/M+/K audio is preserved but disabled in fresh genre recipes.
 
 Experimental profiles require fresh W `samples_modular` and L `samples_terra`
@@ -129,3 +128,24 @@ choices, invalid input, unchanged patch fingerprints, and portrait/landscape mod
 bounds and hit targets in Chromium/WebKit. The existing bootstrap/browser genre
 fixtures explicitly confirm manually entered tempo. No audio engine, Song render
 compatibility or server genre rules change.
+
+## AIFX.1 — genre-aware effects
+
+All AI entry points (GENREator, free-text Generate, Regenerate, Refine and Song
+sections) use one validated optional `effects` / `cardEffects` contract in
+ai-patch-controls.json. Eight specialised effects are writable; Bubble Chamber
+is deliberately excluded. Source selectors are data, never UI actions. The
+server injects the full typed capability map, current bounded effect fields and
+version-two genre memory with advice for all 15 styles. No programmatic random
+effect recipe substitutes for model decisions. Omitted settings are retained;
+AI no longer unconditionally switches Turntable off, randomises D's Mutilator,
+or prunes unrelated effects at transaction completion. EQ protection retains
+its existing separate policy.
+
+Application is inside the existing account-guarded snapshot/history transaction.
+Actual semantic setters and readiness barriers drive native/Pot processors.
+Failure, cancellation, stale results and Undo use the existing complete settings
+and source snapshot. Cooking Pot power/order, output routing and master gain
+are not writable. Recipe-only extension: no DSP or stored patch format changes,
+and no additional Song render revision is needed; existing effect-specific and
+unified-input cache compatibility applies to generated snapshots.

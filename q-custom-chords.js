@@ -103,16 +103,17 @@
         return { ...theory.identifyChord(chord.notes), notes: chord.notes.slice(), customChord: true,
             customChordId: root.crypto.randomUUID(), customChordColour: chord.colour };
     }
-    function placeInCell(chord, index) {
+    function placeInCell(chord, index, candidate = false) {
         if (locked || root.mygrainCardHistory?.busy || q.chordEditor?.opened) throw new Error('Finish the current edit before placing a chord.');
         if (!Number.isInteger(index) || index < 0 || index >= q.length()) return;
         const edit = () => {
-            const step = theory.normalizeStep({ ...placementChord(chord), velocity: q.state.velocity, gate: q.state.gate });
+            const step = theory.normalizeStep({ ...(candidate ? { ...theory.identifyChord(chord.notes), notes: chord.notes.slice() } : placementChord(chord)), velocity: q.state.velocity, gate: q.state.gate });
+            if (candidate) { step.accent = step.accent || q.state.sequence[index]?.accent === true; q.state.enabled = true; }
             q.state.sequence[index] = step; q.state.selection = theory.copy(step); q.cursor = index;
             q.changed({ live: true });
         };
         if (root.mygrainCardHistory) root.mygrainCardHistory.run('Q place custom chord', edit); else edit();
-        q.status('Custom chord copied here. Edit and Save to create a new holding entry.');
+        q.status(candidate ? `Chord placed at step ${index + 1}. Recording mode is unchanged.` : 'Custom chord copied here. Edit and Save to create a new holding entry.');
     }
     const grid = document.getElementById('bastardLoopQStepGrid');
     let poolDrag = null;
@@ -262,6 +263,14 @@
         catch (_) { event.preventDefault(); dragged = null; }
     });
     palette.addEventListener('dragend', () => { dragged = null; custom.classList.remove('q-custom-drop-ready'); });
+    grid.addEventListener('dragover', event => { if (dragged && !locked && event.target.closest('[data-q-step]')) { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; } });
+    grid.addEventListener('drop', event => {
+        const cell = event.target.closest('[data-q-step]');
+        if (!dragged || locked || !cell) return;
+        event.preventDefault(); const notes = dragged; dragged = null;
+        custom.classList.remove('q-custom-drop-ready');
+        try { placeInCell({ notes }, Number(cell.dataset.qStep), true); } catch (error) { q.status(error.message, true); }
+    });
     custom.addEventListener('dragover', event => { if (dragged && !locked) { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; } });
     custom.addEventListener('drop', event => {
         if (!dragged || locked) return;
@@ -280,7 +289,7 @@
     function activateTouch() {
         if (!touch || locked || touch.active) return;
         touch.active = true;
-        const ghost = document.createElement('div'); ghost.className = 'q-custom-drag-ghost'; ghost.textContent = theory.identifyChord(touch.notes).name + ' → custom';
+        const ghost = document.createElement('div'); ghost.className = 'q-custom-drag-ghost'; ghost.textContent = theory.identifyChord(touch.notes).name + ' → step / custom';
         ghost.style.left = touch.x + 'px'; ghost.style.top = touch.y + 'px'; document.body.append(ghost); touch.ghost = ghost;
         try { touch.tile.setPointerCapture(touch.id); } catch (_) {}
         custom.classList.add('q-custom-drop-ready');
@@ -289,21 +298,26 @@
         if (event.pointerType !== 'touch' || locked) return;
         const notes = notesFromTile(event.target); if (!notes) return;
         finishTouch(); touch = { id: event.pointerId, x: event.clientX, y: event.clientY, notes, tile: event.target.closest('[data-q-degree]'), active: false };
+        try { touch.tile.setPointerCapture(touch.id); } catch (_) {}
         touch.timer = setTimeout(activateTouch, 300);
     });
     palette.addEventListener('pointermove', event => {
         if (!touch || touch.id !== event.pointerId) return;
         const dx = Math.abs(event.clientX - touch.x), dy = Math.abs(event.clientY - touch.y);
-        if (!touch.active && dy > 10 && dy > dx) { finishTouch(); return; }
+        if (!touch.active && (touch.scrolling || (dy > 10 && dy > dx))) { clearTimeout(touch.timer); touch.scrolling = true; palette.scrollTop -= event.clientY - (touch.lastY ?? touch.y); touch.lastY = event.clientY; event.preventDefault(); return; }
         if (!touch.active && dx > 10 && dx > dy) activateTouch();
         if (touch?.active) { event.preventDefault(); touch.ghost.style.left = event.clientX + 'px'; touch.ghost.style.top = event.clientY + 'px'; }
     }, { passive: false });
     palette.addEventListener('pointerup', event => {
         if (!touch || touch.id !== event.pointerId) return;
+        if (touch.scrolling) suppressClickUntil = Date.now() + 700;
         if (touch.active) {
             suppressClickUntil = Date.now() + 700;
+            const cell = document.elementFromPoint(event.clientX, event.clientY)?.closest('[data-q-step]');
             const box = custom.getBoundingClientRect();
-            if (event.clientX >= box.left && event.clientX <= box.right && event.clientY >= box.top && event.clientY <= box.bottom) {
+            if (cell && grid.contains(cell)) {
+                try { placeInCell({ notes: touch.notes }, Number(cell.dataset.qStep), true); } catch (error) { q.status(error.message, true); }
+            } else if (event.clientX >= box.left && event.clientX <= box.right && event.clientY >= box.top && event.clientY <= box.bottom) {
                 try { addChord(touch.notes); } catch (error) { message.textContent = error.message; }
             }
         }
@@ -312,6 +326,8 @@
     palette.addEventListener('pointercancel', finishTouch);
     document.getElementById('bastardLoopQCloseBtn').addEventListener('click', finishTouch);
     root.addEventListener('pagehide', finishTouch);
+    root.addEventListener('mygrain-account-lock', () => { dragged = null; finishTouch(); });
+    root.addEventListener('mygrain-account-changed', () => { dragged = null; finishTouch(); });
     palette.addEventListener('click', event => { if (Date.now() < suppressClickUntil) { event.preventDefault(); event.stopImmediatePropagation(); } }, true);
     root.addEventListener('mygrain-q-palette-change', () => { finishTouch(); });
     root.addEventListener('storage', event => { if (event.key === null || event.key === STORAGE_KEY || event.key?.endsWith(':' + STORAGE_KEY)) load(); });

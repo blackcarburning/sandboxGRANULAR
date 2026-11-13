@@ -460,3 +460,153 @@ three-column grid; Delete / Refresh use the second row. Labels and padding are
 reduced only inside the private patch section, retaining 32 px button height.
 The console browser fixture checks Recall's horizontal containment and shared
 row at 320/390/844/1024 px, alongside existing pinned meters/audio lifecycle.
+
+## The Master Baker — BAKER.1 / live-master-4 (2026-11-12)
+
+The Ferrari-red **The Master Baker** card reuses the existing live mastering
+console, private mastering patches, presets, cleanup, EQ, multiband compression,
+exciter, limiter, maximiser and target controls. Its header and navigation use a
+chef/oven icon. Stereo VU meters are built immediately and permanently visible;
+only offscreen display work pauses. A saved WAV's long filename wraps without
+squeezing the console title to one character per line.
+
+### Live final stage
+
+```
+main/dry ── main volume + trim + main mute ─┐
+wet returns ── their own Through main gates ├─ sum ─ Master Baker ─ final output
+Cooking Pot outputs ── same return gates ──┘                       │
+                                            speakers / WAV / DAW / plugin
+```
+
+The nine reorderable Cooking Pot stages and their existing native bridge protocol
+are unchanged. A tenth, visibly locked Master Baker row is pinned after them,
+without an input menu, Through main switch, Solo or reorder handle. It processes
+the **final sum**, not the Pot's pre-return carrier: main mute cannot bypass it,
+and an independent final-filter return still traverses it. The same final stage
+works with Cooking Pot Off. The DAW FX direct return also feeds this final sum.
+The last amplifier's transient panic/export-isolation gates remain downstream.
+Loudness weighting maps the original 48 kHz filter prototype to the native rate;
+400 ms / 3 s windows and maximiser feedback also follow 44.1/96 kHz contexts.
+
+The card and Pot row share one canonical power flag. Ordinary/Mega/Sparse patch
+randomisation disables Master Baker without changing any processing settings.
+Both Stir actions leave **both its settings and power unchanged**. There is no
+Master Baker randomise button, AI effect contract or shuffled-order entry.
+Missing legacy state defaults Off; manually enabled saved state is retained on
+preset, local-state, editable WAV/ZIP, Song and DAW-project recall. Console mirror
+controls are excluded from generic slider/select inventories; `modes.masterBaker`
+is their sole patch owner. Thus even different bypassed settings do not change a
+Song's legacy audio-content identity.
+
+An enabled graph adds the existing limiter's 5 ms lookahead. Exact-cut WAV and
+Song renders compensate it and retain the requested frame count. Disabled graphs
+are direct and retire their processor; they do not keep a limiter running under
+a zero-gain wet branch. A failed worklet admission restores the clean final path
+and visibly turns Master Baker Off. Live audition-only bypass/matching controls
+remain available in WAV mode, not as hidden modifiers to live patch exports.
+
+### Master to tape
+
+`Master to tape` enables tape-inspired soft saturation before the final limiter.
+Tape drive spans 0–24 dB. Speeds are 7½, 15 and 30 ips: progressively less treble
+loss and less low-frequency thickening. A two-substep soft curve rounds peaks and
+adds harmonics; speed shapes the low-frequency bump and HF roll-off. This is a
+lightweight tape-inspired processor, not a measured model of a specific machine
+or a claim of alias-free oversampling. No hiss or random wow/flutter is added.
+Tape Off is an exact bypass of this new stage, preserving old DSP at 48 kHz.
+The sample-peak limiter follows tape; exported true peak is measured/reported as
+before, not guaranteed by the live sample ceiling.
+
+WAV audition and the Node worker execute the same `mastering-dsp.js` engine,
+`live-master-4`. Old v1/v2/v3 master metadata remains readable. Old v3 private
+patches receive neutral tape defaults in memory without rewriting stored bytes
+until an explicit save/update. New cache identities use the v4 engine and exact
+settings, so old audio is never silently replaced.
+
+### WAV browser and overwrite
+
+**WAV Folder → Master** and **Master Reel** reveal this same card in WAV context,
+close the browser overlay and stop page transport before independent audition.
+**Back to live mix** restores the live console without changing its saved recipe.
+WAV context retains Load/Play, Stop, seek, loop, bypass, level match, private patch
+CRUD, Render & save copy and Previous mastering. Saved WAVs additionally retain
+**Replace original WAV → Yes, replace / Cancel**. Reels cannot replace originals.
+The existing hash/recheck/atomic-replace/recovery path is unchanged, and editable
+patches, comments, artwork, share copies and favourites retain their semantics.
+Opening the card from the Pot alone exposes no source-overwrite operation.
+
+### Song compatibility and checks
+
+Active Master Baker requires final-output capability `effectOutputVersion: 4` in
+server producer admission, part metadata, client compatibility and stale-cache
+checks. Missing/bypassed Master Baker is stripped from audio-content signatures;
+unchanged legacy neighbours keep their cache identity. New mastering is applied
+by the isolated current-engine deck, not by a second server-only audio recipe.
+
+- `tests/master-baker-dsp.cjs`: all tape speeds worklet/Node sample-identical;
+  finite/limited PCM, differing timbre, harmonics, silence and tape-Off identity.
+- `tests/master-baker-browser.cjs`: real D → final Playground → independent return
+  at main mute, final -18 dB attenuation, through-main mute, both tape extremes,
+  both Stir policies, randomisation Off, ZIP recall, desktop Chromium/phone WebKit,
+  Ferrari-red card, pinned row, navigation and visible VUs.
+- `tests/master-baker-song-browser.cjs`: eight real server fixtures (legacy,
+  bypassed, gain, main-muted independent/following returns, three tape speeds),
+  selective stale rebuild, warm reuse, immutable source SHA/revisions and phone
+  playback. Exact one-second/44.1k output frames.
+- Updated `tests/mastering-live-browser.cjs`: same WAV UI/API/overwrite/privacy
+  regression now exercises the embedded card instead of the previous modal.
+- Existing `mastering-live-dsp.cjs` and Python mastering/replacement/private-patch
+  suites remain applicable. Browser-emulated phones are not physical-device or
+  physical-DAW verification.
+
+### iPhone edge navigation
+On iPhone, the existing quick-jump buttons move from the right drawer to the
+left edge below Perf: Undo, Redo, Perf, Master Baker, Cooking Pot. They keep their
+IDs and canonical jump handlers; desktop and other platforms retain their
+existing navigation. The five-button stack fits portrait and landscape without
+changing audio, saved settings or output routing.
+
+
+## BAKER.3 — floating master meters and comparison controls
+
+**Float master VU & meters** in the console opens one modeless, draggable window
+with both stereo VUs and all six digital meters. Close (or Escape while focused
+inside it) hides only the floating copy; the permanent in-card meters remain.
+The title supports pointer dragging and arrow-key movement. The window is clamped
+on open, drag and rotation; short landscape windows scroll internally with Close
+kept reachable. It is portalled outside the visibility-parked card, so changing
+lower parameters or jumping elsewhere does not hide it or stop metering. It shares
+the existing bounded display timer and worklet messages, not another audio graph.
+Backgrounding, closing offscreen and account/console teardown stop its activity.
+
+**Bypass** and **Equal gain** are available in the card and floating copy in live
+and selected-WAV modes. They share the same checkbox state and processing owner.
+Bypass crossfades to latency-aligned unprocessed audio; Equal gain is the original
+approximate RMS comparison that only attenuates the processed audition. It is not
+an integrated-LUFS normalizer and can take a short time to settle. The floating
+copy closes without clearing either choice. Closing/replacing the live console
+clears comparison choices, as does account teardown.
+
+VU, peak, RMS and LUFS now meter the actual audible post-comparison samples.
+Compression reduction and maximiser gain remain processor-activity readings.
+Metering loudness is separate from the mastering DSP's loudness feedback, so a
+comparison choice cannot alter maximiser processing or cached output audio.
+
+Comparison flags and floating UI are transient, excluded from normal/private
+patches, plugin snapshots and Song identities. Normal live WAV/loop exports use
+a nested-safe comparison suspension restored in finally, including cancellation
+or capture failure. WAV-browser server renders and isolated Song decks apply the
+saved mastering recipe, never audition Bypass/Equal gain. Live monitoring/plugin
+streaming follows the current listening choice. No audible engine/capability bump
+is needed: normal processed PCM is unchanged, as checked against the shared Node
+renderer with the actual worklet.
+
+Verification: `tests/mastering-comparison-dsp.cjs` checks real worklet comparison
+PCM and audible VU/peak/RMS/LUFS plus paused telemetry. The floating browser test
+checks linked controls, live PCM, offscreen parameter edits, rotation, close/
+reopen, background/account cleanup, transient ZIP state and actual normal WAV
+capture with Bypass checked. Existing live-WAV overwrite/private-patch tests also
+exercise the floating controls. Song server fixtures capture with comparison
+choices enabled and still require the original processed output, exact frames,
+warm reuse and selective stale refresh. Physical devices/DAWs remain untested.

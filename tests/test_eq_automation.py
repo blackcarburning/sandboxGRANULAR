@@ -38,3 +38,30 @@ class AutomationTests(unittest.TestCase):
         eq['channels']['L']['automation']['points'][1]['phase'] = 0
         with self.assertRaises(ValueError):
             base.EQ.normalize(eq)
+
+    def test_all_channels_preserve_automation_and_extended_reads_require_new_render(self):
+        for key in base.EQ.KEYS:
+            eq = base.EQ.normalize()
+            initial = copy.deepcopy(eq['channels'][key])
+            initial['enabled'] = True
+            eq['channels'][key]['automation'] = {'version': 1, 'read': True, 'steps': 16,
+                'points': [{'phase': 0, **initial}, {'phase': 1, **initial}]}
+            result = base.SONGS.validate_part_zip(base.replace_eq(base.backend.part_zip(), eq))
+            self.assertEqual(result['eqVersion'], 1 if key in ('X', 'L') else 3, key)
+            eq['channels'][key]['automation']['read'] = False
+            result = base.SONGS.validate_part_zip(base.replace_eq(base.backend.part_zip(), eq))
+            self.assertNotIn('eqVersion', result, key)
+
+    def test_explicit_manual_bypass_survives_codec_but_is_not_audible(self):
+        for key in base.EQ.KEYS:
+            eq = base.EQ.normalize()
+            point = copy.deepcopy(eq['channels'][key]); point['enabled'] = True
+            eq['channels'][key].update(manualBypass=True, automation={'version': 1, 'read': True, 'steps': 16,
+                'points': [{'phase': 0, **point}, {'phase': 1, **point}]})
+            self.assertEqual(base.EQ.normalize(eq), eq)
+            self.assertFalse(base.EQ.audible(eq['channels'][key]))
+            result = base.SONGS.validate_part_zip(base.replace_eq(base.backend.part_zip(), eq))
+            self.assertNotIn('eqVersion', result)
+            js = "const E=require('./channel-eq.js');process.stdout.write(JSON.stringify(E.normalize(JSON.parse(process.argv[1]))))"
+            browser = subprocess.run(['node', '-e', js, json.dumps(eq)], cwd=pathlib.Path(__file__).resolve().parents[1], capture_output=True, text=True, check=True)
+            self.assertEqual(json.loads(browser.stdout), eq)

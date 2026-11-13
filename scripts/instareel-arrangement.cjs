@@ -133,7 +133,6 @@ module.exports=String.raw`(function(){
   let next=lane.original;
   if(!event.restore&&lane.buffer()&&lane.audible()>0&&(lane.key!=='V'||plan.options.recutV)){
    const base=lane.original,begin=base.enabled?base.start:0,end=base.enabled?base.end:1,span=end-begin;
-   const fractions=plan.variation==='subtle'?[.875,.75]:plan.variation==='moderate'?[.75,.5]:[.5,.25,.375];
    let seed=(plan.seed^Math.imul(lane.key.charCodeAt(0),2654435761)^Math.imul(++lane.turn,1597334677))>>>0;
    const random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296};
    if(lane.key==='V'){
@@ -141,11 +140,8 @@ module.exports=String.raw`(function(){
     lane.width=next.end-next.start;lane.developed=JSON.stringify(next);lane.set(next);lane.last=lane.developed;return next;
    }
    if(lane.key==='D'){next=window.mygrainD.gapSettings(base,random,plan.variation==='subtle'?1:plan.variation==='moderate'?3:5);lane.set(next);lane.last=JSON.stringify(next);return next;}
-   let fraction=fractions[Math.floor(random()*fractions.length)];if(fraction===lane.width)fraction=fractions[(fractions.indexOf(fraction)+1)%fractions.length];lane.width=fraction;
-   const slots=Math.round((1-fraction)*32),width=span*fraction;
-   let position=Math.floor(random()*(slots+1));
-   const build=()=>MygrainVocalCut.normalize({...base,enabled:true,start:begin+position*span/32,end:begin+position*span/32+width,repeat:true,fromStart:true,stretch:false,targetStart:null,targetDuration:null});
-   next=build();if(JSON.stringify(next)===lane.developed){position=(position+1)%(slots+1);next=build()}
+   next=MygrainVocalCut.randomizeV({...base,repeat:true},{cycle:lane.cycle(),bar:240/(Number(plan.bpm)||120)},random,{withinRegion:true,previousWidth:lane.width,stretch:false,fromStart:true});
+   lane.width=next.end-next.start;
    lane.developed=JSON.stringify(next);
   }
   const key=JSON.stringify(next);if(key!==lane.last){lane.set(next);lane.last=key}

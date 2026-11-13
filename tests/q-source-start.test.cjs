@@ -22,3 +22,18 @@ test('Stop during piano loading cancels the automatic restart',async()=>{
  c.preparePlayback=async()=>c.stop();let starts=0;c.start=()=>starts++;
  await c.setSoundSource('piano');assert.equal(starts,0);assert.equal(c.running,false);
 });
+
+test('preparation warms routing before its caller chooses the start deadline',async()=>{
+ const {c,context}=fixture();let builds=0;
+ c.ensureGraph=()=>{builds++;context.currentTime=2;return{input:{}}};
+ await c.preparePlayback();assert.equal(builds,1);assert.equal(context.currentTime,2);c.stop();
+});
+test('Stop during preparation cannot recreate an idle routing graph',async()=>{
+ const {c}=fixture();let builds=0;c.ensureGraph=()=>{builds++;return{input:{}}};
+ c.prepareSounds=async()=>c.stop();await assert.rejects(c.preparePlayback(),{name:'AbortError'});assert.equal(builds,0);
+});
+test('temporary restart retention preserves one graph; ordinary Stop still disposes it',()=>{
+ const {c}=fixture();let disposed=0;const graph={nodes:[{disconnect(){disposed++}}]};c.graph=graph;
+ c.stop({keepGraph:true});assert.equal(c.graph,graph);assert.equal(disposed,0);
+ c.stop();assert.equal(c.graph,null);assert.equal(disposed,1);
+});

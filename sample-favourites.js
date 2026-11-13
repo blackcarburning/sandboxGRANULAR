@@ -23,6 +23,7 @@
             this.loaded = false;
             this.loading = null;
             this.views = new Map();
+            this.listeners = new Set();
             this.states = {};
             try { this.states = JSON.parse(this.storage?.getItem('mygrain-favourite-views-v1') || '{}'); } catch (error) {}
             if (!this.states || typeof this.states !== 'object' || Array.isArray(this.states)) this.states = {};
@@ -129,7 +130,10 @@
                     }
                 }
             }
+            for (const listener of this.listeners) listener();
         }
+
+        subscribe(listener) { this.listeners.add(listener); return () => this.listeners.delete(listener); }
 
         syncToolbar(browser, view) {
             const state = this.state(browser);

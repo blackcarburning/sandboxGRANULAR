@@ -10,3 +10,42 @@
 #loopDLoadStatus{overflow-wrap:anywhere;color:#a9ddff}
 #loopDLoadStatus[data-state=error]{color:#ffb5aa}
 #loopDLoadStatus[data-state=success]{color:#a5edc4}
+
+/* D's Mutilator is deliberately local: no global colour or card overrides. */
+#loopDMutilator.d-mutilator{margin:14px 0;padding:14px;border:1px solid #b5ef4b70;border-radius:14px;background:linear-gradient(135deg,#12251d,#0b1722);min-width:0}
+#loopDMutilator .d-mutilator-head{display:flex;align-items:center;gap:12px;color:#c8ff62;margin-bottom:12px}
+#loopDMutilator .d-mutilator-head h4{margin:0;font-size:18px;letter-spacing:.16em}
+#loopDMutilator .d-mutilator-head p{margin:4px 0 0;color:#b7c5bb;font-size:12px}
+#loopDMutilator .d-mutilator-face{display:block;width:56px;height:56px;flex:0 0 56px;opacity:.5}
+#loopDMutilator .d-mutilator-face svg{width:100%;height:100%}
+#loopDMutilator.d-mutilator[data-active="true"] .d-mutilator-face{opacity:1;filter:drop-shadow(0 0 8px #bcff4d55)}
+#loopDMutilator.d-mutilator .performance-btn{border-color:#b5ef4b80;color:#d6ff9e;background:#193023;min-height:44px}
+#loopDMutilator.d-mutilator .performance-btn[aria-pressed="true"]{background:#b9f14d;color:#112013}
+#loopDMutilator .d-mutilator-control{display:grid;gap:8px;margin:14px 0;color:#d7e6d6;font-size:13px;min-width:0}
+#loopDMutilator .d-mutilator-control>span{display:flex;justify-content:space-between;gap:12px}
+#loopDMutilator .d-mutilator-control select{max-width:100%;width:100%;min-width:0;background:#0b1e19;color:#d6ff9e}
+#loopDMutilator.d-mutilator input[type=range]{accent-color:#b9f14d;width:100%;min-width:0}
+
+#bastardLoopDCard [data-mutilator-rhythm]{appearance:none;-webkit-appearance:none;display:inline-block;position:relative;flex:0 0 48px;width:48px;height:28px;margin:0;border:1px solid #75965c;border-radius:99px;background:#24332a;cursor:pointer;vertical-align:middle}
+#bastardLoopDCard [data-mutilator-rhythm]::before{content:"";position:absolute;left:3px;top:3px;width:20px;height:20px;border-radius:50%;background:#cfdeca;transition:transform .12s}
+#bastardLoopDCard [data-mutilator-rhythm]:checked{background:#b9f14d;border-color:#b9f14d}
+#bastardLoopDCard [data-mutilator-rhythm]:checked::before{transform:translateX(20px);background:#12251d}
+#bastardLoopDCard [data-mutilator-rhythm]:focus-visible{outline:2px solid #e3ffac;outline-offset:3px}
+#bastardLoopDCard [data-mutilator-rhythm]:disabled{opacity:.4;cursor:default}
+#bastardLoopDCard [data-mutilator-rhythm]::after{display:none}
+
+/* Scoped patch browser and extended controls. */
+#loopDMutilator .d-mutilator-bank{margin:16px 0;padding:12px;border:1px solid #b5ef4b65;border-radius:10px;background:#0a1915;min-width:0}
+#loopDMutilator .d-mutilator-bank>label{display:block;font-size:12px;color:#d6ff9e;margin-bottom:8px}
+#loopDMutilator .d-mutilator-preset-row{display:grid;grid-template-columns:44px minmax(0,1fr) 44px;gap:6px;min-width:0}
+#loopDMutilator .d-mutilator-preset-row select{width:100%;min-width:0;max-width:100%;min-height:44px;background:#0b1e19;color:#d6ff9e;font-size:16px}
+#loopDMutilator .d-mutilator-preset-row button{display:grid;place-items:center;padding:6px;margin:0;min-width:44px;min-height:44px;font-size:20px;line-height:1}
+#loopDMutilator #mutilatorPresetDescription{font-size:12px;line-height:1.5;color:#b7c5bb;overflow-wrap:anywhere;margin:8px 0 0;text-align:left}
+#loopDMutilator .d-mutilator-extras{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 16px;min-width:0}
+#loopDMutilator .d-mutilator-extras select{min-height:44px;font-size:16px}
+#loopDMutilator .d-mutilator-motion-help{grid-column:1/-1}
+@media(max-width:600px){#loopDMutilator .d-mutilator-extras{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:480px){#loopDMutilator .d-mutilator-preset-row{grid-template-columns:repeat(2,minmax(0,1fr))}#loopDMutilator .d-mutilator-preset-row select{grid-column:1/-1;grid-row:1}#loopDMutilator #mutilatorPrev{grid-column:1;grid-row:2}#loopDMutilator #mutilatorNext{grid-column:2;grid-row:2}}
+
+#bastardLoopDCard .d-source-library label{display:grid;gap:8px;min-width:0}
+#bastardLoopDCard [data-loop-d-repository]{display:block;width:100%;min-width:0;max-width:100%;min-height:44px;font-size:16px;background:#07346b;color:#e7f6ff;border:1px solid #168bff;border-radius:7px}

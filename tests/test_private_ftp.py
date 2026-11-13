@@ -133,6 +133,45 @@ class PrivateFTP(unittest.TestCase):
         self.assertEqual(result[0],201,result[1] if isinstance(result[1],dict) else '')
         self.assertTrue(result[1].startswith(b'RIFF'))
         self.assertEqual(self.dan.call('POST','/mygrain-bastardloops/api/bastardloop',json_body={'source':'user_ftp','sourceFiles':['private.wav'],'responseFormat':'audio'})[0],400)
+    def library(self, client, source, payload=None):
+        return client.call('POST' if payload else 'GET', '/mygrain/api/ftp/' + ('library-copy' if payload else 'library?' + urlencode({'source':source})), json_body=payload)
+
+    def test_045_library_copy_all_sources(self):
+        import hashlib
+        user=self.accounts.lookup_user('admin')
+        token=S._accounts_module.CURRENT_USER.set(user)
+        try:
+            S._radiolab_module.save_sample({'name':['FTP radio fixture']}, self.wav())
+            S._videolab_module.save_sample('FTP video fixture', self.wav())
+            wavs=self.accounts.path_for('wavs',user=user);wavs.mkdir(parents=True,exist_ok=True)
+            (wavs/'ftp-wave-fixture.wav').write_bytes(self.wav())
+            (wavs/'ftp-master-fixture.wav').write_bytes(self.wav())
+            S._mastering_module.save_info(wavs,'ftp-master-fixture.wav',{'kind':'waves','preset':'clean','targetLufs':-14})
+            reel=S._instareel_module.reel_root(self.accounts,user)
+            (S._instareel_module.saved_wavs(reel)/'ftp-reel-fixture.wav').write_bytes(self.wav())
+            S._instareel_module.write_library(reel,[{'id':'a'*32,'name':'FTP reel fixture','filename':'ftp-reel-fixture.wav','sha256':hashlib.sha256(self.wav()).hexdigest()}])
+        finally:S._accounts_module.CURRENT_USER.reset(token)
+        for source in ('radio','video','reels','masters','wav'):
+            with self.subTest(source=source):
+                response=self.library(self.admin,source)
+                self.assertEqual(response[0],200,response[1]);rows=response[1]['files'];self.assertTrue(rows,source)
+                row=next(r for r in rows if 'fixture' in r['filename'].lower())
+                self.assertNotIn('path',row)
+                folder='copy-'+source;self.admin.ftp('mkdir',method='POST',json_body={'path':folder})
+                payload={'source':source,'id':row['id'],'version':row['version'],'folder':folder}
+                self.assertEqual(self.library(self.dan,source,payload)[0],404)
+                self.assertEqual(self.library(self.admin,source,{**payload,'version':'stale'})[0],400)
+                self.assertEqual(self.library(self.admin,source,{**payload,'folder':'../dan'})[0],400)
+                copied=self.library(self.admin,source,payload);self.assertEqual(copied[0],201,copied[1])
+                downloaded=self.admin.ftp('file',copied[1]['path']);self.assertEqual(downloaded[0],200);self.assertTrue(downloaded[1].startswith(b'RIFF'))
+                token=S._accounts_module.CURRENT_USER.set(user)
+                try:original=next(x for x in S.mygrain_ftp_library(source,user) if x['id']==row['id'])['path'].read_bytes()
+                finally:S._accounts_module.CURRENT_USER.reset(token)
+                self.assertEqual(downloaded[1],original)
+                self.assertEqual(self.library(self.admin,source,payload)[0],409)
+                self.assertEqual(self.dan.ftp('file',copied[1]['path'])[0],404)
+        self.assertEqual(self.library(self.admin,'../../etc')[0],400)
+
     def test_05_public_assets_and_download_headers(self):
         for file in ('ftp.html','private-ftp.js','private-ftp.css'):
             self.assertEqual(Client(self.server).call('GET','/mygrain/'+file)[0],200)

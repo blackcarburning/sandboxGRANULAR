@@ -114,7 +114,7 @@ test('N enters even with no dormant sample lanes, withdraws and restores origina
  assert(entries.some(Boolean));assert(entries.slice(1,-1).some(x=>!x));assert(tones.size>1);assert(drivers.has('sample'));assert(c.window.mygrainNoise.running);assert.deepEqual(state,original);
  c.hasAnyPerformanceLayerSoloSelection=()=>true;c.loopLayerSolo=['bastardv'];assert(!apply(p.events[1]).added.includes('N'));assert.deepEqual(state,original);
 });
-test('V optional alternating original, fresh cuts every developed repeat; A/B/C/W never alternate back',()=>{
+test('one-bar reels retain coarse resolution without inventing finer variation; V still alternates originals',()=>{
  const f=fixture(),c=f.ctx,plan=require('../scripts/instareel-plan.cjs').plan({bpm:120,patternSteps:64},32,'subtle',123,{recutV:true});
  for(const suffix of ['','2','3','W']){c['bastardLoop'+suffix+'Enabled']=true;c['bastardLoop'+suffix+'Buffer']={}}
  const apply=vm.runInNewContext(script,c);apply.prepare(plan);
@@ -124,8 +124,8 @@ test('V optional alternating original, fresh cuts every developed repeat; A/B/C/
   const cut=apply.cut(event),suffix={A:'',B:'2',C:'3',V:'V',W:'W'}[event.key];
   if(event.restore){assert.equal(JSON.stringify(cut),originals[suffix]);continue}
   if(event.key==='V')assert.equal(event.repeat%2,1);
-  const width=Number((cut.end-cut.start).toFixed(6));assert.notEqual(width,widths[event.key]);widths[event.key]=width;
-  const key=JSON.stringify(cut);assert.notEqual(key,originals[suffix]);assert.notEqual(key,seen[event.key]);seen[event.key]=key;
+  const width=Number((cut.end-cut.start).toFixed(6));assert.equal(width,1);widths[event.key]=width;
+  const key=JSON.stringify(cut);assert.notEqual(key,originals[suffix]);seen[event.key]=key;
  }
  assert.deepEqual(Array.from(timeline.filter(e=>e.key==='V'&&e.at>0&&e.at<28).slice(0,6),e=>e.restore),[false,true,false,true,false,true]);
  for(const key of ['A','B','C','W']){const events=timeline.filter(e=>e.key===key&&e.at>0&&e.at<28);assert(events.length>8);assert(events.every(e=>!e.restore));assert.equal(events[1].at-events[0].at,2)}
@@ -272,14 +272,14 @@ test('No variation bypasses cuts, additions, notes, drums and filter automation'
  assert.equal(f.elements.get('lpfCutoff').value,'12000');
 });
 
-test('all reel intensities keep V generated cuts on half/quarter/eighth musical divisions without cumulative shrinking',()=>{
+test('all reel intensities keep V generated cuts on one/two-bar musical divisions without cumulative shrinking',()=>{
  for(const variation of ['subtle','moderate','extreme'])for(const bpm of [60,120,180,240]){
   const f=fixture(),c=f.ctx; c.getBastardLoopVCycleDuration=()=>8;
   const p=require('../scripts/instareel-plan.cjs').plan({bpm,patternSteps:64},60,variation,123,{recutV:true});
   f.apply.prepare(p);let n=0;
   for(const event of f.apply.cutEvents().filter(e=>e.key==='V'&&!e.restore)){
    const next=f.apply.cut(event),fraction=(next.end-next.start)*8/(240/bpm);
-   assert([.5,.25,.125].some(x=>Math.abs(x-fraction)<1e-8));assert(next.repeat);assert(!next.stretch);n++;
+   assert([2,1].some(x=>Math.abs(x-fraction)<1e-8));assert(next.repeat);assert(!next.stretch);n++;
   }assert(n>0);
  }
 });

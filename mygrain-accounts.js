@@ -102,7 +102,7 @@
 
     function protectedUrl(input, base) {
         const url = new URL(typeof input === 'string' || input instanceof URL ? input : input.url, base);
-        return /^https?:$/.test(url.protocol) && url.origin === new URL(base).origin && /^\/mygrain(?:\/(?:api|patches)(?:\/|$)|-(?:wavs|stems|midi|bastardloops)(?:\/|$)|\/?$)/.test(url.pathname);
+        return /^https?:$/.test(url.protocol) && url.origin === new URL(base).origin && /^\/mygrain(?:\/(?:api|patches)(?:\/|$)|-(?:wavs|stems|midi|bastardloops|loopstore)(?:\/|$)|\/?$)/.test(url.pathname);
     }
 
     function creditName(value) {

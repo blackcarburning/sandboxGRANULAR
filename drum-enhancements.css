@@ -84,3 +84,26 @@
 #drumMachineOverlay .drum-machine-accent-copy-row .performance-sound-card { min-width: 0; }
 #drumMachineOverlay .drum-machine-accent-copy-row input { width: 100%; min-width: 0; min-height: 30px; padding: 0; }
 #drumMachineOverlay .drum-machine-accent-copy-row > button { min-height: 34px; touch-action: manipulation; }
+
+/* Lane flow: title, sample actions/tone, EQ, normalization, Accent/Copy, steps.
+   Give the title its own row at every width; an auto-sized action column can
+   otherwise consume the whole lane once EQ automation controls are mounted. */
+#drumMachineOverlay .drum-machine-layout { align-items: start; }
+#drumMachineOverlay .drum-machine-track-card { align-content: start; }
+#drumMachineOverlay .drum-machine-track-card > .drum-machine-track-head { grid-template-columns: minmax(0, 1fr); align-items: start; }
+#drumMachineOverlay .drum-machine-track-copy { width: 100%; }
+#drumMachineOverlay .drum-machine-track-actions { align-items: stretch; }
+#drumMachineOverlay .drum-machine-track-card > .channel-eq-entry {
+    min-width: 0; max-width: 100%; margin: 0; gap: 6px 8px;
+    padding-block: 6px; border-block: 1px solid #304254;
+}
+#drumMachineOverlay .channel-eq-entry .ceq-automation { flex: 1 1 100%; min-width: 0; }
+#drumMachineOverlay .channel-eq-entry .ceq-action { font-size: 10px; }
+#drumMachineOverlay .channel-eq-entry .ceq-auto-status { flex: 1 1 100%; overflow-wrap: anywhere; }
+#drumMachineOverlay .drum-machine-track-card .performance-btn { color: #e3f5ff; max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+#drumMachineOverlay .drum-machine-track-card > .sample-browser-status { min-width: 0; font-size: 11px; overflow-wrap: anywhere; }
+@media (hover: none) and (pointer: coarse) {
+    #drumMachineOverlay .drum-machine-track-card .performance-btn,
+    #drumMachineOverlay .drum-machine-track-card .ceq-action,
+    #drumMachineOverlay .drum-machine-track-card .channel-eq-switch { min-height: 44px; }
+}

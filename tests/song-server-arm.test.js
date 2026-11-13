@@ -23,3 +23,18 @@ test('a stale generation rejects even a completed server job',async()=>{
 test('server-render requests are cache operations, never editorial writes requiring a lease',async()=>{
  const f=fixture(),headers=[];Object.assign(f.c,{api:'/mygrain/api/songs',key:'e'.repeat(64),requireEditing(){throw Error('Unexpected editorial write')},fetch:async(url,options)=>{headers.push(options.headers);return{ok:true,json:async()=>({ok:true,job:{state:'queued'}})}}});await Controller.prototype.request.call(f.c,`/${f.song.id}/parts/${f.part.id}/server-arm?sha256=${f.part.sha256}`,{method:'POST'});assert.equal(headers[0]['If-Match'],undefined);
 });
+test('Switchable Mutilator and dynamic Playground reject stale freezes but retain original legacy PCM',()=>{
+ const c={snapshots:new Map(),cache:new Map(),renderSources:new Map(),isRenderCompatible:Controller.prototype.isRenderCompatible,needsCurrentMutilator:Controller.prototype.needsCurrentMutilator};
+ const render={version:1,sourceSha256:'a'.repeat(64),loopDVersion:1,keyboardVersion:1,grainVersion:5,portableVersion:1,kReverbVersion:1};
+ const part={id:'d'.repeat(32),sha256:'a'.repeat(64),loopDVersion:1,render};
+ const old={snapshot:{state:{modes:{loopD:{enabled:true,mutilator:{enabled:true,strain:'gnaw'}}}},assets:[{key:'bastardD'}]}};
+ assert.equal(c.isRenderCompatible(part,old),true,'unmarked pre-rhythm original audio is unchanged');
+ assert.equal(c.isRenderCompatible({...part,render:{...render,mutilatorVersion:1}},old),false,'the accidentally always-rhythmic freeze must refresh');
+ old.snapshot.state.modes.loopD.mutilator.rhythm=false;
+ for(const value of [0,null,'','0'])assert.equal(c.needsCurrentMutilator({snapshot:{state:{modes:{loopD:{enabled:true,mutilator:{enabled:true,rhythm:true,mix:value}}}},assets:[{key:'bastardD'}]}}),false);
+ assert.equal(c.isRenderCompatible(part,old),false);assert.equal(c.isRenderCompatible({...part,render:{...render,mutilatorVersion:2}},old),true);
+ const fp={snapshot:{state:{modes:{wasp:{playground:{enabled:true,mode:'lowpass',modulation:{cutoff:{source:'drawn',amount:.3}}}}}},assets:[]}};
+ assert.equal(c.isRenderCompatible({...part,loopDVersion:undefined,playgroundVersion:1,render:{...render,playgroundVersion:1}},fp),false);
+ assert.equal(c.isRenderCompatible({...part,loopDVersion:undefined,playgroundVersion:2,render:{...render,playgroundVersion:2}},fp),true);
+ fp.snapshot.state.modes.wasp.playground.modulation.cutoff.source='off';assert.equal(c.isRenderCompatible({...part,loopDVersion:undefined,playgroundVersion:1,render:{...render,playgroundVersion:1}},fp),true,'static resonance audio stays reusable');
+});

@@ -59,3 +59,5 @@
 #mygrainFtpCard .ftp-detail .ftp-controls button{min-width:0;white-space:normal;overflow-wrap:normal;word-break:normal;line-height:1.25;height:auto;text-align:center}
 @media(max-width:900px){#mygrainFtpCard .ftp-detail .ftp-controls button{font-size:11px!important;letter-spacing:0!important;padding:6px 3px!important}}
 .ftp-picker .ftp-folder-create{display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin-top:12px}.ftp-picker .ftp-folder-create[hidden]{display:none}.ftp-picker .ftp-folder-create label{display:grid;gap:6px;flex:1 1 180px;min-width:0}.ftp-picker .ftp-folder-create input{width:100%;min-width:0;background:#182737;color:#fff;border:1px solid #72839c;border-radius:6px;min-height:44px}.ftp-picker .ftp-folder-create button{min-height:44px}.ftp-picker h3,.ftp-picker>p{overflow-wrap:anywhere}.ftp-picker .ftp-controls button{min-height:44px}
+
+.ftp-library-list{max-height:45vh;overflow:auto;margin:10px 0}.ftp-library-item{display:flex;align-items:center;gap:10px;min-height:48px;padding:6px;border-bottom:1px solid #465769;overflow-wrap:anywhere}.ftp-library-item input{width:22px;height:22px;flex:0 0 22px}.ftp-picker select{width:100%;min-height:44px}

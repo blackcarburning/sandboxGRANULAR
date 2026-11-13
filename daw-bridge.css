@@ -1,0 +1,21 @@
+#dawBridgeCard{margin:12px 0;padding:12px 16px;border:1px solid #45516a;border-radius:12px;background:#151d2b;color:#e5edf7}
+#dawBridgeCard summary{cursor:pointer;font-weight:700}
+#dawBridgeCard p,#dawBridgeCard li{font-size:.9rem;line-height:1.5}
+#dawBridgeCard a{color:#a8d8ff}
+#dawBridgeCard .daw-bridge-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:12px 0}
+#dawBridgeCard button,#dawBridgeCard .daw-bridge-download{padding:8px 12px;border:1px solid #60708c;border-radius:7px;background:#26364c;color:white;text-decoration:none;font-size:.9rem}
+#dawBridgeCard button:disabled{opacity:.45;cursor:default}
+#dawBridgeCode{min-width:260px;max-width:100%;flex:1;padding:9px;color:white;background:#0d1420;border:1px solid #60708c;border-radius:6px}
+#dawBridgeStatus{min-height:3em;margin:8px 0;overflow-wrap:anywhere}
+#dawBridgeCard .daw-bridge-note{color:#c8bda5}
+#dawBridgeCard[hidden]{display:none!important}
+
+#dawBridgeBars,#dawBridgeMode{padding:7px;border:1px solid #60708c;border-radius:6px;background:#0d1420;color:#fff}
+
+#dawBridgeRenderControls[hidden]{display:none!important}
+
+.daw-project-panel{margin:16px 0;padding:14px;border:1px solid #61788c;border-radius:10px;background:rgba(80,140,200,.08)}
+.daw-project-actions{display:flex;gap:10px;flex-wrap:wrap}.daw-project-actions button{min-height:42px;flex:0 0 auto}
+.daw-project-status{font-weight:600;min-height:2.5em;overflow-wrap:anywhere}.daw-project-help{font-size:12px;line-height:1.5;opacity:.8}
+
+.daw-project-auto{display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px;margin:14px 0}.daw-project-auto label{display:flex;align-items:center;gap:8px}.daw-project-interval{width:86px;min-width:70px}.daw-project-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;margin:12px 0}.daw-project-stats>div{border:1px solid #465268;border-radius:8px;padding:9px;background:#141c2b}.daw-project-stats dt{font-size:.78em;color:#abbccf}.daw-project-stats dd{margin:5px 0 0;font-variant-numeric:tabular-nums}.daw-project-actions button{min-width:140px;flex-shrink:0}.daw-project-help{line-height:1.6;color:#b6c5d6}

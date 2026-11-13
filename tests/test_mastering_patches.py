@@ -47,6 +47,22 @@ class PrivateMasteringPatches(unittest.TestCase):
         self.assertEqual(fresh.login('dan', 'charged')[0], 200)
         self.assertEqual(self.success(fresh, 'GET', API)['patches'], b['patches'])
 
+    def test_v3_patch_read_migrates_only_in_memory(self):
+        saved = self.save(self.admin)
+        path = next(p for p in self.root.rglob('.mastering-presets.json') if 'admin' in p.parts)
+        data = json.loads(path.read_text())
+        data['patches'][0]['engine'] = 'live-master-3'
+        for key in ('tape', 'tapeDrive', 'tapeSpeed'):
+            data['patches'][0]['settings'].pop(key, None)
+        path.write_text(json.dumps(data))
+        original = path.read_bytes()
+        result = self.success(self.admin, 'GET', API)['patches'][0]
+        self.assertEqual(result['engine'], 'live-master-4')
+        self.assertEqual(result['settings']['tape'], 0)
+        self.assertEqual(result['settings']['tapeSpeed'], 15)
+        self.assertEqual(result['settings']['tapeDrive'], 6)
+        self.assertEqual(path.read_bytes(), original)
+
     def test_auth_validation_and_hidden_file_denial(self):
         self.save(self.admin)
         self.assertEqual(self.anonymous.request('GET', API)[0], 401)

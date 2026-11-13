@@ -23,9 +23,9 @@
     <div class="radiolab-controls videolab-controls"><button class="performance-btn" id="videolabSaveURL" type="button" disabled>Save URL</button></div>
     <div class="videolab-capture-fields">
         <label for="videolabStart">Start time · mm:ss (minutes:seconds)<input id="videolabStart" type="text" value="00:00" placeholder="mm:ss" maxlength="10" inputmode="text" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="videolabStartHelp" disabled></label>
-        <label for="videolabDuration">Duration · seconds (max 180)<input id="videolabDuration" type="number" min="0.1" max="180" step="0.1" value="120" inputmode="decimal" disabled></label>
+        <label for="videolabDuration">Duration · seconds (max 600 / 10 minutes)<input id="videolabDuration" type="number" min="0.1" max="600" step="0.1" value="120" inputmode="decimal" disabled></label>
     </div>
-    <p class="videolab-note" id="videolabStartHelp">Use the source timestamp, e.g. 02:30 = 2 minutes 30 seconds. Duration remains in seconds. Reel audio includes music, speech and effects together; no isolated stems. Instagram login is not connected.</p>
+    <p class="videolab-note" id="videolabStartHelp">Use the source timestamp, e.g. 02:30 = 2 minutes 30 seconds. Duration remains in seconds; capture stops at the video end or the chosen duration, whichever comes first. Reel audio includes music, speech and effects together; no isolated stems. Instagram login is not connected.</p>
     <div class="radiolab-controls videolab-controls">
         <button class="performance-btn primary" id="videolabFetch" type="button" disabled>Record/Fetch audio</button>
         <button class="performance-btn" id="videolabCancel" type="button" disabled>Cancel</button>

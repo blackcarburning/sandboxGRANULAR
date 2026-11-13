@@ -1,7 +1,7 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const html=fs.readFileSync(__dirname+'/../index.html','utf8');
 function source(name){const start=html.indexOf('        function '+name+'(');return html.slice(start,html.indexOf('\n        }',start)+10);}
-function fixture(){const hits=[],levels=[],c={drumMachineLaneSolos:[],audioContext:{},drumMachineExtraTracks:{clap:{},cymbals:{},etc:{}},drumMachineRoll:{pattern:[true],ratchets:[0]},MygrainDrumRoll:{eventAt:()=>({count:1})},drumMachineHatPattern:[true],drumMachineHatAccentPattern:[false],drumMachineHatRatchetPattern:[0],getDrumMachineHatSwingOffset:()=>0,playDrumMachineHatHit:()=>hits.push('hat'),scheduleExtraDrumMachineRepeats:k=>hits.push(k),playDrumMachineHit:(b,t,p,o)=>{hits.push(o.eqChannel);levels.push({...o});},getDrumMachineAccentPattern:()=>[false],shouldRouteKickAroundFinalCompressor:()=>false,registerFinalSidechainKickTrigger(){}};c.window=c;
+function fixture(){const hits=[],levels=[],c={drumMachineLaneSolos:[],hasLoopLayerSolo:()=>false,audioContext:{},drumMachineExtraTracks:{clap:{},cymbals:{},etc:{}},drumMachineRoll:{pattern:[true],ratchets:[0]},MygrainDrumRoll:{eventAt:()=>({count:1})},drumMachineHatPattern:[true],drumMachineHatAccentPattern:[false],drumMachineHatRatchetPattern:[0],getDrumMachineHatSwingOffset:()=>0,playDrumMachineHatHit:()=>hits.push('hat'),scheduleExtraDrumMachineRepeats:k=>hits.push(k),playDrumMachineHit:(b,t,p,o)=>{hits.push(o.eqChannel);levels.push({...o});},getDrumMachineAccentPattern:()=>[false],shouldRouteKickAroundFinalCompressor:()=>false,registerFinalSidechainKickTrigger(){}};c.window=c;
 for(const k of ['Kick','Snare','Perc']){c['drumMachine'+k+'Pattern']=[true];c['drumMachine'+k+'RatchetPattern']=[0];c['drumMachine'+k+'Buffer']={};for(const suffix of ['LevelValue','PlaybackLevel','PitchRatio','DecayValue','LengthValue'])c['getDrumMachine'+k+suffix]=()=>1;}
 c.getDrumMachineSnareDistortionAmount=()=>0;vm.createContext(c);for(const n of ['isDrumMachineLaneAudible','scheduleDrumMachineRepeats','scheduleDrumMachineHatStep','scheduleDrumMachineRoll'])vm.runInContext(source(n),c);
 const tick=()=>{for(const k of ['kick','perc','clap','cymbals','etc'])c.scheduleDrumMachineRepeats(k,0,0,.1);if(!c.scheduleDrumMachineRoll(0,0,.1))c.scheduleDrumMachineRepeats('snare',0,0,.1);c.scheduleDrumMachineHatStep(0,0,.1);return hits.splice(0).sort();};return{c,tick,levels};}
@@ -38,3 +38,5 @@ test('Roll Dip retains legacy pattern compatibility and is validated/clamped',()
  assert.equal(roll.normalize({...old,dip:-1}).dip,0);
  for(const dip of [-1,101,NaN,'50']) assert.throws(()=>roll.validate({...old,dip}));
 });
+
+test('selecting the whole drum card adds all lanes to an existing lane selection',()=>{const {c,tick}=fixture();c.drumMachineLaneSolos=['kick'];c.hasLoopLayerSolo=k=>k==='drums';assert.deepEqual(tick(),['clap','cymbals','etc','hat','kick','perc','roll']);});

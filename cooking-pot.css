@@ -1,0 +1,76 @@
+#cookingPotCard{--pot:#f3b35e;border:2px solid var(--pot);background:linear-gradient(145deg,#2a211b,#111722 65%);border-radius:18px;padding:20px;min-width:0;scroll-margin-top:20px;color:#f7f0e7}
+#cookingPotCard .pot-heading{display:flex;align-items:center;gap:14px;margin-bottom:14px}
+#cookingPotCard .pot-heading>svg{width:58px;height:58px;color:var(--pot);flex:none}
+#cookingPotCard h3{margin:0;font-size:1.5rem;letter-spacing:.05em}
+#cookingPotCard .pot-kicker{color:var(--pot);font-size:.7rem;font-weight:800;letter-spacing:.18em}
+#cookingPotCard p{line-height:1.5;color:#d6cbbb;font-size:.86rem}
+#cookingPotCard .pot-actions{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0}
+#cookingPotCard .pot-actions button{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;color:#fff3dd;background:#332b22;border:1px solid #93714c}
+#cookingPotCard [data-pot-power][aria-pressed=true]{background:#60401c;border-color:var(--pot);color:#fff4df}
+#cookingPotCard .pot-table{width:100%;border-collapse:separate;border-spacing:0 7px;table-layout:fixed}
+#cookingPotCard th{font-size:.65rem;letter-spacing:.13em;color:#cdbda6;text-align:left;padding:3px 5px}
+#cookingPotCard .pot-order-col{width:46px}#cookingPotCard .pot-power-col{width:58px}#cookingPotCard .pot-move-col{width:92px}
+#cookingPotCard td{padding:7px 5px;background:#121923;vertical-align:middle}
+#cookingPotCard tr[data-pot-effect] td:first-child{border-radius:10px 0 0 10px;border-left:4px solid var(--effect-color)}
+#cookingPotCard tr[data-pot-effect] td:last-child{border-radius:0 10px 10px 0}
+#cookingPotCard tr[data-pot-effect]{color:var(--effect-color)}
+#cookingPotCard .pot-effect-name{display:flex;align-items:center;gap:8px;font-weight:800;min-width:0;font-size:.9rem}
+#cookingPotCard .pot-effect-name svg{width:29px;height:29px;flex:none;max-width:29px;max-height:29px}
+#cookingPotCard button{font:inherit;cursor:pointer}#cookingPotCard button:focus-visible{outline:3px solid #fff;outline-offset:3px}
+#cookingPotCard .pot-handle{touch-action:none;min-height:44px;width:38px;color:inherit;background:transparent;border:1px solid #ffffff25;border-radius:7px;font-size:1.05rem;cursor:grab}
+#cookingPotCard .pot-linked-power{display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;width:52px;min-height:44px;padding:8px 2px;border:1px solid currentColor;border-radius:8px;color:inherit;background:#ffffff12;font-weight:800;font-size:.7rem;line-height:1.2;letter-spacing:0;text-align:center;text-transform:uppercase;white-space:nowrap}
+#cookingPotCard .pot-linked-power[aria-pressed=false]{color:#92979f;background:#ffffff05}
+#cookingPotCard .pot-move{display:flex;gap:5px}#cookingPotCard .pot-move button{width:38px;min-height:44px;border:1px solid #ffffff35;border-radius:7px;background:#ffffff0b;color:#e5e6ea}
+#cookingPotCard button:disabled{opacity:.4;cursor:default}
+#cookingPotCard tr.pot-dragging{opacity:.5}#cookingPotCard tr.pot-drop-target td{box-shadow:inset 0 3px var(--pot)}
+#cookingPotCard .pot-status{min-height:2.8em;margin-bottom:0}
+@media(max-width:480px){#cookingPotCard{padding:12px}#cookingPotCard .pot-heading{gap:9px}#cookingPotCard h3{font-size:1.18rem}#cookingPotCard .pot-heading>svg{width:44px;height:44px}#cookingPotCard td{padding:5px 3px}#cookingPotCard .pot-order-col{width:37px}#cookingPotCard .pot-power-col{width:47px}#cookingPotCard .pot-move-col{width:67px}#cookingPotCard .pot-handle{width:30px}#cookingPotCard .pot-linked-power{width:43px}#cookingPotCard .pot-effect-name{font-size:.74rem;gap:5px;overflow-wrap:anywhere}#cookingPotCard .pot-effect-name svg{width:23px;height:23px;max-width:23px}#cookingPotCard .pot-move{gap:3px}#cookingPotCard .pot-move button{width:29px}}
+
+/* Navigation proxies own no power, audio or saved state. */
+#cookingPotCard .pot-effect-jump{width:100%;min-height:44px;padding:2px 0;border:0;background:transparent!important;color:var(--effect-color)!important;text-align:left;justify-content:flex-start;text-transform:none;border-radius:5px}
+#cookingPotCard .pot-effect-jump:hover{background:#ffffff0c!important}
+#cookingPotCard .pot-jump-label{display:block;margin-top:3px;font-size:.65rem;letter-spacing:.04em;font-weight:600;opacity:.9}
+.pot-return-nav{display:flex;justify-content:flex-end;box-sizing:border-box;max-width:100%;padding:5px 10px;gap:8px}
+.pot-return-nav .pot-return-jump{display:inline-flex;align-items:center;justify-content:center;flex:0 0 44px;width:44px;height:44px;min-width:44px;min-height:44px;padding:7px;border:1px solid #f3b35e;border-radius:9px;color:#f3b35e;background:#2a211b;cursor:pointer}
+.pot-return-nav .pot-return-jump:hover{background:#4a3521}
+.pot-return-nav .pot-return-jump:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.pot-return-nav .pot-return-jump svg{display:block!important;flex:0 0 26px!important;width:26px!important;height:26px!important;max-width:26px!important;max-height:26px!important;min-width:0!important;margin:0!important;color:inherit!important}
+#performanceLayerCookingPotJumpBtn{display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px}
+#performanceLayerCookingPotJumpBtn svg{width:24px;height:24px;flex:none}
+
+#cookingPotCard .pot-actions button svg{display:block;width:24px;height:24px;flex:0 0 24px;margin:0;color:inherit}
+#cookingPotCard [data-pot-big-stir]{border-color:var(--pot);background:#4b3020;font-weight:800}
+
+/* Pot sits directly below AI in the desktop dock and the phone Jump menu. */
+#sectionJumpCookingPotBtn,#sectionJumpPanel [data-jump-target="#cookingPotCard"]{grid-column:1 / -1;min-height:44px}
+#sectionJumpDrawer [data-jump-target="#cookingPotCard"] svg{display:block;flex:0 0 24px;width:24px;height:24px;max-width:24px;margin:0}
+.simplified-ui #sectionJumpDrawer [data-jump-target="#cookingPotCard"]::before{display:none}
+@media(max-width:960px){#sectionJumpCookingPotBtn{display:none!important}}
+
+/* Shared app master control: dry/main fader, never an extra Pot gain. */
+#cookingPotCard .pot-main-output{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:10px 14px;border-color:#93714c}
+#cookingPotCard .pot-main-output-actions{display:flex;flex-direction:column;gap:8px;min-width:0;max-width:290px}
+#cookingPotCard .pot-main-output-actions>button{min-height:44px;white-space:normal}
+#cookingPotCard [data-effect-through-main-all],#cookingPotCard [data-effect-main-mute]{color:#fff3dd;background:#332b22;border:1px solid #93714c}
+#cookingPotCard [data-effect-main-mute][aria-pressed=true]{background:#943b4b;border-color:#f09aa8}
+#cookingPotCard [data-effect-through-main-all][aria-pressed=true]{background:#60401c;border-color:var(--pot)}
+#cookingPotCard [data-effect-through-main-all][aria-pressed=mixed]{border-color:var(--pot);border-style:dashed}
+#cookingPotCard .pot-main-output>.effect-output-hint,#cookingPotCard .pot-main-output>.main-output-warning{grid-column:1/-1;margin:0}
+#cookingPotCard .pot-main-output>.main-output-warning{color:#ffdce0}
+@media(max-width:480px){#cookingPotCard .pot-main-output{grid-template-columns:minmax(0,1fr)}#cookingPotCard .pot-main-output-actions{width:100%;max-width:none}#cookingPotCard .pot-main-output-actions>button{width:100%}}
+
+/* Compact mirrors of the canonical effect-card inputs; no additional routing. */
+#cookingPotCard .pot-effect-cell{display:flex;align-items:center;gap:10px;min-width:0}
+#cookingPotCard .pot-effect-cell>.pot-effect-jump{flex:1 1 0;width:auto;min-width:0}
+#cookingPotCard .pot-inputs{display:grid;gap:3px;flex:0 1 210px;min-width:0;max-width:48%}
+#cookingPotCard .pot-input{display:flex;align-items:center;gap:4px;min-width:0;margin:0;color:#cdbda6;font-size:.65rem;line-height:1}
+#cookingPotCard .pot-input>span{flex:0 0 13px;text-align:center}
+#cookingPotCard .pot-input select{box-sizing:border-box;display:block;width:100%;min-width:0;max-width:100%;min-height:32px;height:32px;margin:0;padding:3px 18px 3px 5px;border:1px solid #ffffff35;border-radius:5px;background:#192330;color:#f7f0e7;font:inherit;font-size:.76rem;letter-spacing:normal;text-transform:none;text-overflow:ellipsis;-webkit-appearance:none;appearance:none;background-image:linear-gradient(45deg,transparent 50%,#cdbda6 50%),linear-gradient(135deg,#cdbda6 50%,transparent 50%);background-position:calc(100% - 9px) 13px,calc(100% - 5px) 13px;background-size:4px 4px;background-repeat:no-repeat}
+#cookingPotCard .pot-input select:focus-visible{outline:2px solid var(--pot);outline-offset:2px}
+#cookingPotCard .pot-input select:disabled{opacity:.5}
+@media(max-width:960px){
+ #cookingPotCard .pot-effect-cell{flex-direction:column;align-items:stretch;gap:2px}
+ #cookingPotCard .pot-effect-cell>.pot-effect-jump{flex:none;width:100%}
+ #cookingPotCard .pot-inputs{flex:none;width:100%;max-width:none}
+ #cookingPotCard .pot-input select{font-size:16px}
+}

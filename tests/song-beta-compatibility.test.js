@@ -308,3 +308,40 @@ test('legacy generated Sample solo is not confused with the new keyboard Sample 
         assert.equal(JSON.stringify(result.snapshot.extra.performanceSourceLayerSolo),JSON.stringify(solo));
     }
 });
+
+test('pre-D parts retain shared bastardLoopDivisions without false D inventory evidence', async () => {
+    const current = fixture();
+    delete current.snapshot.extra.audioSlots.bastardD;
+    delete current.snapshot.extra.metadata.bastardD;
+    delete current.snapshot.state.modes.loopD;
+    current.snapshot.state.modes.bastardLoopDivisions = ['1', '1/2', '1/16'];
+    const before = JSON.stringify(current.snapshot);
+    const metadata = current.adapter.inspectSnapshot(current.snapshot);
+    const archive = current.adapter.inspectPart(await current.archive());
+    for (const info of [metadata, archive]) {
+        assert.equal(info.snapshot.extra.audioSlots.bastardD, false);
+        assert.deepEqual([...info.snapshot.state.modes.bastardLoopDivisions], ['1', '1/2', '1/16']);
+        assert(info.upgrade.lanes.includes('D loop'));
+        assert.equal(info.upgrade.explicitOnly, true);
+    }
+    assert.equal(JSON.stringify(current.snapshot), before);
+});
+
+test('genuine D settings, controls, references and source audio still reject a missing D inventory', () => {
+    for (const mutate of [
+        s => { s.state.modes.loopD = { enabled: false }; },
+        s => { s.extra.controls.push({id:'loopDSpeed',type:'select-one',value:'1'}); },
+        s => { s.extra.metadata.bastardD = null; },
+        s => { s.state.sliders.performanceBastardLoopDLevel = '50'; },
+        s => { s.state.modes.loopLayerSolo = 'bastardd'; },
+        s => { s.assets[0].key = 'bastardD'; }
+    ]) {
+        const current = fixture();
+        delete current.snapshot.extra.audioSlots.bastardD;
+        delete current.snapshot.extra.metadata.bastardD;
+        delete current.snapshot.state.modes.loopD;
+        current.snapshot.state.modes.bastardLoopDivisions = ['1'];
+        mutate(current.snapshot);
+        assert.throws(() => current.adapter.inspectSnapshot(current.snapshot), /inventory is incomplete for bastardD/);
+    }
+});

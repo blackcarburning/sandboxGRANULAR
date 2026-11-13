@@ -144,7 +144,7 @@ test('stereo anti-phase alignment is shared, with no mono cancellation or indepe
     for (let frame = 0; frame < result.length; frame += 1) assert.equal(left[frame] + right[frame], 0);
 });
 
-test('same-ratio movement is an exact PCM copy; repeat uses edited duration and fades each section', () => {
+test('same-ratio movement is an exact PCM copy; repeat uses edited duration with continuous internal joins', () => {
     const source = context.createBuffer(2, 32, 16);
     for (let channel = 0; channel < 2; channel += 1) source.getChannelData(channel).set(Array.from({ length: 32 }, (unused, frame) => (frame + 1) * (channel ? -1 : 1)));
     const settings = { enabled: true, stretch: true, start: .375, end: .625, targetStart: 0, targetDuration: .25 };
@@ -157,11 +157,9 @@ test('same-ratio movement is an exact PCM copy; repeat uses edited duration and 
     const constant = context.createBuffer(1, 48000, 48000);
     constant.getChannelData(0).fill(.5);
     const faded = cut.gate(context, constant, { ...settings, repeat: true, targetStart: .125, targetDuration: .25 }).getChannelData(0);
-    for (const first of [6000, 18000, 30000, 42000]) {
-        assert.equal(faded[first], 0);
-        assert.equal(faded[Math.min(first + 12000, 48000) - 1], 0);
-        assert.ok(Math.abs(faded[first + 192] - .5) < .000001);
-    }
+    assert.equal(faded[6000],0);assert.equal(faded[47999],0);
+    for (const first of [18000,30000,42000]) {assert.equal(faded[first],faded[first-1]);assert.equal(faded[first],.5);}
+
 });
 
 test('silence, tiny selections, extreme ratios and metadata-limited loops remain finite and bounded', () => {
@@ -211,15 +209,15 @@ function editorHarness(run) {
     const calls = [];
     const element = id => {
         if (!elements.has(id)) elements.set(id, {
-            hidden: true, style: {}, attributes: {}, listeners: {}, classList: { toggle() {} },
+            hidden: true, style: {}, dataset: {}, attributes: {}, listeners: {}, classList: { toggle() {} },
             addEventListener(name, listener) { this.listeners[name] = listener; },
             setAttribute(name, value) { this.attributes[name] = value; },
             getBoundingClientRect() { return { left: 0, width: 1000 }; },
-            setPointerCapture() {}, append() {}, focus() {}
+            setPointerCapture() {}, append() {}, before() {}, focus() {}
         });
         return elements.get(id);
     };
-    globalThis.document = { getElementById: element, createElement: () => ({}) };
+    let created=0;globalThis.document = { getElementById: element, createElement: () => element('created'+(++created)) };
     globalThis.cancelAnimationFrame = () => {};
     let settings = cut.normalize({ enabled: true, start: .375, end: .625, snap: false });
     const editor = new cut.Editor({

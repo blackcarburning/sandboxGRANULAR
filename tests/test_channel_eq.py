@@ -31,10 +31,10 @@ def replace_eq(body, settings):
 
 
 class EqCodecTests(unittest.TestCase):
-    def test_legacy_defaults_and_canonical_javascript_agree_for_all_26_channels(self):
+    def test_legacy_defaults_and_canonical_javascript_agree_for_all_28_channels(self):
         result = subprocess.run(['node', '-e', "process.stdout.write(JSON.stringify(require('./channel-eq.js').normalize()))"], cwd=pathlib.Path(__file__).resolve().parents[1], capture_output=True, text=True, check=True)
         self.assertEqual(EQ.normalize(), json.loads(result.stdout))
-        self.assertEqual(len(EQ.KEYS), 26)
+        self.assertEqual(len(EQ.KEYS), 28)
         self.assertTrue(all(not c['enabled'] for c in EQ.normalize()['channels'].values()))
 
     def test_bypass_metadata_and_bypassed_edits_retain_legacy_audio_fingerprint(self):
@@ -112,3 +112,19 @@ class EqSongApiTests(unittest.TestCase):
         saved = self.request('POST', base+f'/parts/{part["id"]}/save?sha256={part["sha256"]}', body=backend.part_zip())
         self.assertEqual(saved.status, 200)
         self.assertNotIn('eqVersion', saved.response['song']['parts'][0])
+
+    def test_new_lane_automation_rejects_old_render_capability(self):
+        import copy
+        eq = EQ.normalize()
+        point = copy.deepcopy(eq['channels']['D']); point['enabled'] = True
+        eq['channels']['D']['automation'] = {'version': 1, 'read': True, 'steps': 16,
+            'points': [{'phase': 0, **point}, {'phase': 1, **point}]}
+        song = self.create(); base = f'/api/songs/{song["id"]}'
+        response = self.request('POST', base+'/parts?name=Auto', body=replace_eq(backend.part_zip(), eq))
+        part = response.response['song']['parts'][0]
+        self.assertEqual(part['eqVersion'], 3)
+        path = base+f'/parts/{part["id"]}/render?sha256={part["sha256"]}'
+        self.assertEqual(self.request('POST', path+'&channeleq=2', body=backend.render_wav(part)).status, 400)
+        accepted = self.request('POST', path+'&channeleq=3', body=backend.render_wav(part))
+        self.assertEqual(accepted.status, 200)
+        self.assertEqual(accepted.response['song']['parts'][0]['render']['channelEqVersion'], 3)
