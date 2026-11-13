@@ -89,7 +89,8 @@ void setup(){
  renderer.api.on_focused_node_changed=[](cef_render_process_handler_t*,cef_browser_t*,cef_frame_t* frame,cef_domnode_t* node){
   if(!frame)return;String name("mygrain-text-editing");auto* message=cef_process_message_create(name);
   auto* args=message->get_argument_list(message);args->set_bool(args,0,node&&node->is_editable(node));args->base.release(&args->base);
-  frame->send_process_message(frame,PID_BROWSER,message);message->base.release(&message->base);
+  // C API send transfers ownership and invalidates the message reference.
+  frame->send_process_message(frame,PID_BROWSER,message);
  };
  client.api.on_process_message_received=[](cef_client_t*,cef_browser_t*,cef_frame_t*,cef_process_id_t source,cef_process_message_t* message)->int{
   auto* name=message->get_name(message);const bool ours=source==PID_RENDERER&&utf8(name)=="mygrain-text-editing";cef_string_userfree_utf16_free(name);
