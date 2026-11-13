@@ -1,4 +1,4 @@
-# MyGrain CEF 0.1.3 preview
+# MyGrain CEF 0.1.4 preview
 
 Separate VST3 instrument, name **MyGrain CEF**, class ID
 `A44B25E13DE64853A16CC63921C9D4B2`. Never replaces MYGRAIN Bridge 0.8.0 or
@@ -165,3 +165,18 @@ For the embedded stereo effect counterpart to MYGRAIN FX 0.4.0, build
 `MyGrainCEFFX`. See [FX.md](FX.md), the separate `mygrain-cef-fx.yml` workflow and
 [CEF FX setup](https://openclaw.blackcarburning.com/mygrain/cef-fx-setup.html).
 Both CEF variants use the full private Chromium runtime, not an installed browser.
+
+## 0.1.4 focused Space passthrough
+
+Space belongs to the host transport even while the embedded app has focus.
+IPlugView returns kResultFalse for both down/up without sending them to CEF.
+Native Windows fallback forwards the original down/up to the host parent only
+when the host has not selected the VST3 keyboard route; AppKit returns them via
+the normal responder chain. Duplicate native delivery and WM_CHAR are suppressed.
+Chromium reports actual editable-node focus from its renderer through private IPC;
+text inputs, textareas and contenteditable retain spaces and consume the key.
+The route is fixed for a held key's repeat/down/up pair and resets on blur.
+Native dialogs keep their own normal OS keyboard handling. No audio engine,
+transport synchronization, project state, Song rendering or saved schema changes.
+The private display/input IPC is version 3, so replace the WHOLE CEF bundle.
+A hosted app reload alone cannot change this native behavior.

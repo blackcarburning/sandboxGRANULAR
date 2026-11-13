@@ -24,7 +24,7 @@ static NSColor* mgToolbarColor(unsigned rgb){return [NSColor colorWithSRGBRed:((
 @interface MGCefSurface010 : NSView {
 @public mygrain::Bridge* owner;
  NSTimer* pulse;NSTextField* status;NSTextField* details;NSTextField* interval;uint32_t frame,width,height,displayedInterval;
- std::vector<uint8_t> pixels;NSTrackingArea* tracking;BOOL hostKeyboard,focused;
+ std::vector<uint8_t> pixels;NSTrackingArea* tracking;BOOL hostKeyboard,focused;mygrain::cef::SpaceKey space;
 }
 - (void)tick:(NSTimer*)timer;
 - (void)action:(NSControl*)button;
@@ -75,15 +75,15 @@ static NSColor* mgToolbarColor(unsigned rgb){return [NSColor colorWithSRGBRed:((
 - (void)otherMouseUp:(NSEvent*)e{[self mouse:e type:mygrain::cef::Up];}
 - (void)scrollWheel:(NSEvent*)e{auto p=[self convertPoint:e.locationInWindow fromView:nil];const double scale=e.hasPreciseScrollingDeltas?1:40;owner->embedded.ipc.push({mygrain::cef::Wheel,int(p.x),int(p.y-mygrain::cef::toolbarHeight),int(e.scrollingDeltaX*scale),int(e.scrollingDeltaY*scale),[self modifiers:e]});}
 - (BOOL)becomeFirstResponder{focused=YES;owner->embedded.ipc.push({mygrain::cef::Focus,0,0,1});return YES;}
-- (BOOL)resignFirstResponder{focused=NO;hostKeyboard=NO;owner->embedded.ipc.push({mygrain::cef::Focus});return YES;}
+- (BOOL)resignFirstResponder{focused=NO;hostKeyboard=NO;space={};owner->embedded.ipc.push({mygrain::cef::Focus});return YES;}
 - (void)key:(NSEvent*)e up:(BOOL)up{
  if(hostKeyboard)return;int key=0;NSString* chars=e.charactersIgnoringModifiers;
  if(chars.length){unichar c=[chars characterAtIndex:0];if(c>='a'&&c<='z')key=c-32;else if(c==NSDeleteCharacter)key=8;else if(c<128)key=c;else if(c==NSLeftArrowFunctionKey)key=37;else if(c==NSUpArrowFunctionKey)key=38;else if(c==NSRightArrowFunctionKey)key=39;else if(c==NSDownArrowFunctionKey)key=40;else if(c==NSDeleteCharacter)key=8;else if(c==NSDeleteFunctionKey)key=46;else if(c==NSHomeFunctionKey)key=36;else if(c==NSEndFunctionKey)key=35;}
  owner->embedded.ipc.push({up?mygrain::cef::KeyUp:mygrain::cef::KeyDown,int(e.characters.length?[e.characters characterAtIndex:0]:chars.length?[chars characterAtIndex:0]:0),0,key,int(e.keyCode),[self modifiers:e]});
  if(!up&&!(e.modifierFlags&(NSEventModifierFlagCommand|NSEventModifierFlagControl))){for(NSUInteger i=0;i<e.characters.length;i++){unichar c=[e.characters characterAtIndex:i];if(c<0xf700)owner->embedded.ipc.push({mygrain::cef::Char,0,0,int(c),int(e.keyCode),[self modifiers:e]});}}
 }
-- (void)keyDown:(NSEvent*)e{[self key:e up:NO];}
-- (void)keyUp:(NSEvent*)e{[self key:e up:YES];}
+- (void)keyDown:(NSEvent*)e{if(!hostKeyboard&&space.toHost(owner->embedded.ipc,e.keyCode==49?32:0,false)){[super keyDown:e];return;}[self key:e up:NO];}
+- (void)keyUp:(NSEvent*)e{if(!hostKeyboard&&space.toHost(owner->embedded.ipc,e.keyCode==49?32:0,true)){[super keyUp:e];return;}[self key:e up:YES];}
 - (void)dealloc{[pulse invalidate];[pulse release];if(tracking){[self removeTrackingArea:tracking];[tracking release];}[super dealloc];}
 @end
 namespace mygrain {
@@ -112,16 +112,18 @@ namespace mygrain {
 tresult PLUGIN_API BridgeView::onFocus(TBool focused){
  if(!native)return kResultFalse;auto* s=(MGCefSurface010*)native;
  s->focused=focused;if(focused&&(![s.window.firstResponder isKindOfClass:[NSView class]]||![(NSView*)s.window.firstResponder isDescendantOf:s]))[s.window makeFirstResponder:s];
- if(!focused)s->hostKeyboard=NO;
+ if(!focused){s->hostKeyboard=NO;s->space={};}
  return owner.embedded.ipc.push({cef::Focus,0,0,focused?1:0})?kResultTrue:kResultFalse;
 }
 tresult PLUGIN_API BridgeView::onKeyDown(char16 key,int16 code,int16 modifiers){
  if(!native||!((MGCefSurface010*)native)->focused||[(NSView*)native window].firstResponder!=(NSView*)native)return kResultFalse;
  ((MGCefSurface010*)native)->hostKeyboard=YES;
+ if(((MGCefSurface010*)native)->space.toHost(owner.embedded.ipc,cef::virtualKey(key,code),false))return kResultFalse;
  return cef::hostKey(owner.embedded.ipc,false,key,code,modifiers)?kResultTrue:kResultFalse;
 }
 tresult PLUGIN_API BridgeView::onKeyUp(char16 key,int16 code,int16 modifiers){
  if(!native||!((MGCefSurface010*)native)->focused||[(NSView*)native window].firstResponder!=(NSView*)native)return kResultFalse;
+ if(((MGCefSurface010*)native)->space.toHost(owner.embedded.ipc,cef::virtualKey(key,code),true))return kResultFalse;
  return cef::hostKey(owner.embedded.ipc,true,key,code,modifiers)?kResultTrue:kResultFalse;
 }
 }

@@ -9,6 +9,8 @@
 #include "include/capi/cef_permission_handler_capi.h"
 #include "include/capi/cef_download_handler_capi.h"
 #include "include/capi/cef_frame_capi.h"
+#include "include/capi/cef_render_process_handler_capi.h"
+#include "include/capi/cef_process_message_capi.h"
 #include "include/capi/cef_jsdialog_handler_capi.h"
 #include "include/capi/cef_cookie_capi.h"
 #include "include/cef_api_hash.h"
@@ -71,6 +73,7 @@ void script(const std::string& s){auto* f=browser->get_main_frame(browser);if(f)
 Object<cef_app_t> app;
 Object<cef_client_t> client;
 Object<cef_render_handler_t> render;
+Object<cef_render_process_handler_t> renderer;
 Object<cef_life_span_handler_t> life;
 Object<cef_load_handler_t> load;
 Object<cef_permission_handler_t> permissions;
@@ -82,6 +85,17 @@ Object<cef_audio_handler_t> audio;
 Object<cef_completion_callback_t> cookieReady;
 Object<cef_set_cookie_callback_t> cookieSet;
 void setup(){
+ app.api.get_render_process_handler=[](cef_app_t*){return renderer.get();};
+ renderer.api.on_focused_node_changed=[](cef_render_process_handler_t*,cef_browser_t*,cef_frame_t* frame,cef_domnode_t* node){
+  if(!frame)return;String name("mygrain-text-editing");auto* message=cef_process_message_create(name);
+  auto* args=message->get_argument_list(message);args->set_bool(args,0,node&&node->is_editable(node));args->base.release(&args->base);
+  frame->send_process_message(frame,PID_BROWSER,message);message->base.release(&message->base);
+ };
+ client.api.on_process_message_received=[](cef_client_t*,cef_browser_t*,cef_frame_t*,cef_process_id_t source,cef_process_message_t* message)->int{
+  auto* name=message->get_name(message);const bool ours=source==PID_RENDERER&&utf8(name)=="mygrain-text-editing";cef_string_userfree_utf16_free(name);
+  if(!ours)return 0;auto* args=message->get_argument_list(message);if(mapping.data)mapping.data->textEditing.store(args->get_bool(args,0)?1:0,std::memory_order_release);args->base.release(&args->base);return 1;
+ };
+ load.api.on_load_start=[](cef_load_handler_t*,cef_browser_t*,cef_frame_t* frame,cef_transition_type_t){if(frame->is_main(frame)&&mapping.data)mapping.data->textEditing.store(0,std::memory_order_release);};
  app.api.on_before_command_line_processing=[](cef_app_t*,const cef_string_t*,cef_command_line_t* cmd){
   // Closing a DAW editor is not permission to suspend audio or the auto-store timer.
   for(const auto* s:{"disable-background-timer-throttling","disable-renderer-backgrounding","disable-backgrounding-occluded-windows","disable-gpu","disable-gpu-compositing","disable-pinch"}){String v(s);cmd->append_switch(cmd,v);}
