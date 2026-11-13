@@ -28,6 +28,7 @@ SEED_HASHES = {
 CURRENT_USER = contextvars.ContextVar('mygrain_account', default=None)
 USERNAME_PATTERN = re.compile(r'[a-z0-9][a-z0-9_-]{0,31}')
 PUBLIC_FILES = {
+    'cef-fx-setup.html', 'mygrain-cef-fx-windows-0.1.0.zip', 'mygrain-cef-fx-macos-0.1.0.zip',
     'sample-grid-browser.js', 'sample-grid-browser.css',
     'parts-bin.js', 'parts-bin.css',
     'mygrain-cef-windows-0.1.3.zip', 'mygrain-cef-macos-0.1.3.zip',
