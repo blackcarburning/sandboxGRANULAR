@@ -12,6 +12,8 @@ module.exports=async function({p,run,close,command,acknowledged,toolbar,rms,dela
  await acknowledged('cef-auto','CEF_CONTROL=');await p.waitForFunction(()=>!mygrainDawFx.diagnostics().project.auto.enabled);assert.match(await toolbar(),/Auto-save: Off/);
  await acknowledged('cef-auto','CEF_CONTROL=');await p.waitForFunction(()=>mygrainDawFx.diagnostics().project.auto.enabled);
  await acknowledged('cef-size-small','CEF_SIZE=');await acknowledged('cef-size-normal','CEF_SIZE=');
+ // Measure DSP independently of periodic snapshot/readiness transitions.
+ await acknowledged('cef-auto','CEF_CONTROL=');await p.waitForFunction(()=>!mygrainDawFx.diagnostics().project.auto.enabled);
  const route=async name=>{await p.locator('#dawFxRoute').selectOption(name);await delay(2600);results[name]=rms();fs.writeFileSync(path.join(out,'fx-audio-observed.json'),JSON.stringify(results,null,2));assert(results[name]>.001&&results[name]<.12,'audible native stereo '+name+': '+results[name]);};
  await p.locator('#dawFxRoute').selectOption('direct');command('arm-plugin');
  await p.waitForFunction(()=>mygrainDawFx.diagnostics().clock.running,null,{timeout:25000});await delay(2600);const direct=rms();assert(direct>.04&&direct<.08,'no duplicated browser return: '+direct);results.direct=direct;
@@ -26,7 +28,7 @@ module.exports=async function({p,run,close,command,acknowledged,toolbar,rms,dela
  // Actual filter processing, not only a connected/silent graph.
  await p.locator('#dawFxRoute').selectOption('filters');await p.evaluate(()=>{setFilterEnabled('lpf',true);setSliderValue('lpfCutoff',90);setSliderValue('lpfQ',.707);updateEffects();});await delay(2800);results.filtered=rms();fs.writeFileSync(path.join(out,'fx-audio-observed.json'),JSON.stringify(results,null,2));assert(results.filtered<results.filters*.7,'LPF must attenuate against the SAME route baseline: '+JSON.stringify(results));await p.evaluate(()=>setFilterEnabled('lpf',false));
  await p.locator('#dawFxRoute').selectOption('direct');command('offline');await p.waitForFunction(()=>mygrainDawFx.diagnostics().clock.offline);await delay(1700);assert(Math.abs(rms()/direct-1)<.06,'offline is dry, not an obsolete cached effect');command('realtime');await p.waitForFunction(()=>mygrainDawFx.diagnostics().clock.running);
- command('close-editor');await slider('#dawFxGain',-6);await delay(2700);assert(rms()<direct*.57,'FX continues while editor closed');
+ await acknowledged('cef-auto','CEF_CONTROL=');await p.waitForFunction(()=>mygrainDawFx.diagnostics().project.auto.enabled);command('close-editor');await slider('#dawFxGain',-6);await delay(2700);assert(rms()<direct*.57,'FX continues while editor closed');
  await slider('#dawFxMix',37);
  const before=(await diag()).project.stats.count;await p.waitForFunction(n=>mygrainDawFx.diagnostics().project.stats.count>n,before,{timeout:35000});results.closedEditorAutoStore=true;
  command('reopen-editor');await delay(500);const count=(await diag()).project.stats.count;await acknowledged('cef-store','CEF_CONTROL=');await p.waitForFunction(n=>mygrainDawFx.diagnostics().project.stats.count>n,count,{timeout:45000});
