@@ -1,4 +1,4 @@
-# MyGrain CEF FX 0.1.0
+# MyGrain CEF FX 0.1.1
 
 Separate stereo VST3 effect: **MyGrain CEF FX**, CID
 `2642D59B6C824E319ADE03F7B8562C10`, category `Fx|Filter`.
@@ -8,7 +8,7 @@ It reuses the FX 0.4.0 Engine/FxTransport, stereo input/output, bypass parameter
 MGX1 v2 project state. No DSP fork, new Song schema or render-version migration.
 The existing plugins/CIDs/releases remain independent and byte-preserved.
 
-The CEF 0.1.3 runtime/editor/native dialogs/keyboard/login are shared. The whole
+The CEF 0.1.4 runtime/editor/native dialogs/keyboard/login are shared. The whole
 private Chromium runtime ships inside each bundle; the browser process is owned
 by the component, not its editor. No external Chrome window is needed. As with
 the CEF instrument, the app is the current hosted MYGRAIN app, requiring internet.
@@ -81,3 +81,14 @@ Chromium source rationale:
 - https://chromium.googlesource.com/chromium/src/+/refs/heads/main/content/renderer/media/renderer_webaudiodevice_impl.cc
 - https://chromium.googlesource.com/chromium/src/+/refs/heads/main/third_party/blink/renderer/modules/webaudio/realtime_audio_destination_handler.cc
 - https://chromium.googlesource.com/chromium/src/+/refs/heads/main/third_party/blink/renderer/modules/webaudio/audio_worklet_handler.cc
+
+## 0.1.1 focused Space passthrough
+
+Shares the CEF instrument 0.1.4 Space routing: return unhandled from VST3
+callbacks, native-window parent/responder fallback, duplicate/WM_CHAR suppression,
+and editable focus reported by Chromium through private display/input IPC v3.
+Text/password inputs, textarea and contenteditable retain ordinary spaces.
+Replace the whole FX bundle with the DAW closed, then rescan; app reload alone
+cannot update native keyboard handling. The instrument installers, FX DSP,
+fixed one-second PDC, bypass/offline dry fallback and MGX1 v2 state are unchanged.
+Native FX release tests run the same six focus cases before FX audio/state tests.

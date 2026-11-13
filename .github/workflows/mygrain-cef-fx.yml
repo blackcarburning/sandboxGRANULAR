@@ -2,7 +2,7 @@ name: MyGrain CEF FX preview
 on:
   workflow_dispatch:
   push:
-    branches: [mygrain-cef-fx-20261113]
+    branches: [mygrain-cef-fx-space-20261113]
     paths: ['vst3/**', '.github/workflows/mygrain-cef-fx.yml']
 permissions:
   contents: read
@@ -60,22 +60,22 @@ jobs:
           node vst3/cef/tests.cjs "$hostExe" "$bundle/Contents/x86_64-win/MyGrain CEF FX.vst3" "$env:RUNNER_TEMP/release/evidence"
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           @"
-          MyGrain CEF FX 0.1.0 preview - Windows x64
+          MyGrain CEF FX 0.1.1 preview - Windows x64
           Source commit: $env:GITHUB_SHA
           Current checkout public frontend; isolated account routes, no production writes.
           SDK validator: 47 passed, 0 failed against the shipped native plugin.
-          Native Windows runner: CEF 156, actual native login keyboard/focus input, stereo DAW input/processed PCM return, four routes, filter processing, sustained silent-browser FX clock beyond 30 seconds, gain/mute, native dry/wet, VST3 bypass, offline aligned-dry fallback, native auto-store interval/toggle, automatic storage and processing while editor closed, UI-thread dirty notification, store-before-real-document reload, fresh native FX input/preferences recall, remembered sign-in, preview bypass/offline suppression and clean unload.
+          Native Windows runner: CEF 156, actual native login keyboard/focus input, focused Space host passthrough through both VST3/native fallback with app/button focus, editable spaces and duplicate suppression, stereo DAW input/processed PCM return, four routes, filter processing, sustained silent-browser FX clock beyond 30 seconds, gain/mute, native dry/wet, VST3 bypass, offline aligned-dry fallback, native auto-store interval/toggle, automatic storage and processing while editor closed, UI-thread dirty notification, store-before-real-document reload, fresh native FX input/preferences recall, remembered sign-in, preview bypass/offline suppression and clean unload.
           Physical DAWs, driver/device recording alignment, performance under multiple plugin instances and international IME are not tested.
           Auto-store retains a completed plugin snapshot; the user must still save the DAW project normally.
           "@ | Set-Content "$env:RUNNER_TEMP/release/VERIFICATION.txt"
-          python vst3/cef/package.py --fx --platform windows --bundle "$bundle" --sdk "$env:RUNNER_TEMP/vst3sdk" --verification "$env:RUNNER_TEMP/release/VERIFICATION.txt" --output "$env:RUNNER_TEMP/release/mygrain-cef-fx-windows-0.1.0.zip"
+          python vst3/cef/package.py --fx --platform windows --bundle "$bundle" --sdk "$env:RUNNER_TEMP/vst3sdk" --verification "$env:RUNNER_TEMP/release/VERIFICATION.txt" --output "$env:RUNNER_TEMP/release/mygrain-cef-fx-windows-0.1.1.zip"
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: mygrain-cef-fx-windows-preview
           path: |
-            ${{ runner.temp }}/release/mygrain-cef-fx-windows-0.1.0.zip
+            ${{ runner.temp }}/release/mygrain-cef-fx-windows-0.1.1.zip
             ${{ runner.temp }}/release/validator.txt
             ${{ runner.temp }}/release/VERIFICATION.txt
             ${{ runner.temp }}/release/evidence/
@@ -125,18 +125,18 @@ jobs:
           node vst3/cef/worklet_test.cjs
           MYGRAIN_CEF_FX_TEST=1 MYGRAIN_CEF_APP_PATH="$GITHUB_WORKSPACE" node vst3/cef/tests.cjs "$RUNNER_TEMP/plugin/cef-fx-mac-host" "$RUNNER_TEMP/release/MyGrain CEF FX.vst3" "$RUNNER_TEMP/release/evidence"
           cat > "$RUNNER_TEMP/release/VERIFICATION.txt" <<EOF
-          MyGrain CEF FX 0.1.0 preview - macOS 13+, universal arm64 + x86_64
+          MyGrain CEF FX 0.1.1 preview - macOS 13+, universal arm64 + x86_64
           Source commit: $GITHUB_SHA
           Current checkout public frontend; isolated account routes, no production writes.
           SDK validator: 47 passed, 0 failed against the shipped native plugin.
-          Native Apple Silicon macOS runner: CEF 156, actual native login keyboard/focus input, stereo DAW input/processed PCM return, four routes, filter processing, sustained silent-browser FX clock beyond 30 seconds, gain/mute, native dry/wet, VST3 bypass, offline aligned-dry fallback, native auto-store interval/toggle, automatic storage and processing while editor closed, UI-thread dirty notification, store-before-real-document reload, fresh native FX input/preferences recall, remembered sign-in, preview bypass/offline suppression and clean unload.
+          Native Apple Silicon macOS runner: CEF 156, actual native login keyboard/focus input, focused Space host passthrough through both VST3/native fallback with app/button focus, editable spaces and duplicate suppression, stereo DAW input/processed PCM return, four routes, filter processing, sustained silent-browser FX clock beyond 30 seconds, gain/mute, native dry/wet, VST3 bypass, offline aligned-dry fallback, native auto-store interval/toggle, automatic storage and processing while editor closed, UI-thread dirty notification, store-before-real-document reload, fresh native FX input/preferences recall, remembered sign-in, preview bypass/offline suppression and clean unload.
           Universal plugin/helper/Chromium framework inspected; ad-hoc code signatures verified deep/strict. Not Developer-ID signed/notarized.
           Physical Macs/DAWs/CoreAudio recording alignment, native Intel runtime, performance under multiple plugin instances and international IME are not tested.
           Auto-store retains a completed plugin snapshot; the user must still save the DAW project normally.
           EOF
-          python3 vst3/cef/package.py --fx --platform macos --bundle "$RUNNER_TEMP/release/MyGrain CEF FX.vst3" --sdk "$RUNNER_TEMP/vst3sdk" --verification "$RUNNER_TEMP/release/VERIFICATION.txt" --output "$RUNNER_TEMP/release/mygrain-cef-fx-macos-0.1.0.zip"
+          python3 vst3/cef/package.py --fx --platform macos --bundle "$RUNNER_TEMP/release/MyGrain CEF FX.vst3" --sdk "$RUNNER_TEMP/vst3sdk" --verification "$RUNNER_TEMP/release/VERIFICATION.txt" --output "$RUNNER_TEMP/release/mygrain-cef-fx-macos-0.1.1.zip"
           mkdir -p "$RUNNER_TEMP/package-inspection"
-          unzip -q "$RUNNER_TEMP/release/mygrain-cef-fx-macos-0.1.0.zip" -d "$RUNNER_TEMP/package-inspection"
+          unzip -q "$RUNNER_TEMP/release/mygrain-cef-fx-macos-0.1.1.zip" -d "$RUNNER_TEMP/package-inspection"
           bash "$RUNNER_TEMP/package-inspection/Install MyGrain CEF FX.command"
           installed="$HOME/Library/Audio/Plug-Ins/VST3/MyGrain CEF FX.vst3"
           "$validator" "$installed" > "$RUNNER_TEMP/release/installed-validator.txt"
@@ -149,7 +149,7 @@ jobs:
         with:
           name: mygrain-cef-fx-macos-preview
           path: |
-            ${{ runner.temp }}/release/mygrain-cef-fx-macos-0.1.0.zip
+            ${{ runner.temp }}/release/mygrain-cef-fx-macos-0.1.1.zip
             ${{ runner.temp }}/release/validator.txt
             ${{ runner.temp }}/release/installed-validator.txt
             ${{ runner.temp }}/release/VERIFICATION.txt

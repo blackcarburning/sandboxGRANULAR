@@ -273,7 +273,7 @@ public:
 #endif
 BEGIN_FACTORY_DEF("MYGRAIN","https://openclaw.blackcarburning.com/mygrain/","mailto:claw@blackcarburning.com")
 #if defined(MYGRAIN_CEF) && defined(MYGRAIN_FX)
-DEF_CLASS2(INLINE_UID(0x2642d59b,0x6c824e31,0x9ade03f7,0xb8562c10),PClassInfo::kManyInstances,kVstAudioEffectClass,"MyGrain CEF FX",0,"Fx|Filter","0.1.0",kVstVersionString,mygrain::Bridge::create)
+DEF_CLASS2(INLINE_UID(0x2642d59b,0x6c824e31,0x9ade03f7,0xb8562c10),PClassInfo::kManyInstances,kVstAudioEffectClass,"MyGrain CEF FX",0,"Fx|Filter","0.1.1",kVstVersionString,mygrain::Bridge::create)
 #elif defined(MYGRAIN_CEF)
 DEF_CLASS2(INLINE_UID(0xa44b25e1,0x3de64853,0xa16cc639,0x21c9d4b2),PClassInfo::kManyInstances,kVstAudioEffectClass,"MyGrain CEF",0,"Instrument|Synth","0.1.4",kVstVersionString,mygrain::Bridge::create)
 #elif defined(MYGRAIN_FX)

@@ -3,7 +3,7 @@
 import argparse,pathlib,shutil,json,plistlib,os,subprocess
 p=argparse.ArgumentParser();p.add_argument('platform',choices=['windows','macos']);p.add_argument('--plugin',required=True,type=pathlib.Path);p.add_argument('--helper',required=True,type=pathlib.Path);p.add_argument('--sdk',required=True,type=pathlib.Path);p.add_argument('--output',required=True,type=pathlib.Path);p.add_argument('--fx',action='store_true');a=p.parse_args()
 name='MyGrain CEF FX' if a.fx else 'MyGrain CEF'
-version='0.1.0' if a.fx else '0.1.4'
+version='0.1.1' if a.fx else '0.1.4'
 browser_id='com.blackcarburning.mygrain.cef.fx.browser' if a.fx else 'com.blackcarburning.mygrain.cef.browser'
 bundle=a.output/(name+'.vst3')
 if a.platform=='windows':
