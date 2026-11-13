@@ -484,7 +484,9 @@ are unchanged. A tenth, visibly locked Master Baker row is pinned after them,
 without an input menu, Through main switch, Solo or reorder handle. It processes
 the **final sum**, not the Pot's pre-return carrier: main mute cannot bypass it,
 and an independent final-filter return still traverses it. The same final stage
-works with Cooking Pot Off. The DAW FX direct return also feeds this final sum.
+works with legacy native routing (`cookingPot.enabled:false`). The visible
+Cooking pot group Off switch now also powers Master Baker Off and remembers it
+for group On (2026-11-13). The DAW FX direct return also feeds this final sum.
 The last amplifier's transient panic/export-isolation gates remain downstream.
 Loudness weighting maps the original 48 kHz filter prototype to the native rate;
 400 ms / 3 s windows and maximiser feedback also follow 44.1/96 kHz contexts.

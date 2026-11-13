@@ -1,18 +1,20 @@
-# The cooking pot · v2026.11.11.POT.4
+# The cooking pot · v2026.11.13.POT-POWER.1
 
 Optional source-aware serial rack for Mutilator, Bass Face, Turntable, Olaf’s Resonator,
 WireWorld, Sonic Crystal, Bubble Chamber, The Wasp and Filter Playground. Drag a
 handle or use its arrow keys / Move buttons. A committed move or Stir enables the
 pot. Cancel, Escape, a stationary tap and pointer cancellation do not write state.
-Old patches default to Pot Off and retain original routing. The separate card is
+Old patches without serial routing retain their original routing and effect powers. The separate card is
 next to Layers, with pot-icon drawer and mixer shortcuts.
 
 ## One state owner
 
 `modes.cookingPot = {version:1, enabled:boolean, order:[nine unique semantic keys]}`.
-No effect power copies live in this object: its nine On/Off proxies invoke the
-existing Layers power actions. Card setters remain canonical, retain settings,
-and synchronize all three views. No transient row/drag/proxy state is serialized.
+Optional `power:{enabled:boolean, remembered:{[effectKey]:boolean}}` records the
+user's group switch and ten remembered powers (the nine stages plus Master Baker).
+It is not another audible power owner: the canonical card flags are actually set
+Off/On, and the nine rack proxies still invoke existing Layers actions. Card
+setters remain canonical, retain settings and synchronize all views. No transient row/drag/proxy state is serialized.
 The ordinary history/account/Song guards apply. JSON presets, editable ZIPs, local
 restart snapshots and Undo/Redo retain pot enable/order plus existing powers.
 Mega uses Fisher–Yates to shuffle all nine slots and enables the pot before the
@@ -25,10 +27,12 @@ One context-owned graph receives the post-global-FX/compressor mix before the ol
 master insert block. Active effect stages connect in the stored order; disabled
 stages are removed and bypassed. Mutilator/Bass Face use their shared native graph
 builders. Other stages use existing versioned worklets. Reordering rewires only
-owned edges, preserving active processor objects and tails. Switching Pot Off
-releases rack processors and restores original routes without changing powers.
+owned edges, preserving active processor objects and tails. The legacy saved
+`enabled` flag selects serial versus native routing. Restoring it never migrates
+saved effect powers. The visible Cooking pot On/Off button now controls the
+remembered group selection instead and does not change this routing flag.
 
-Pot On retains each card's selected input and Turntable's mix/drum route. Each
+Serial routing retains each card's selected input and Turntable's mix/drum route. Each
 stage receives that selected original excitation plus preceding wet audio. Base
 worklets apply earlier global dry coefficients; selected-source dry corrections
 preserve the main dry mix without feeding unrelated loops into independent wet
@@ -38,7 +42,7 @@ sidechain, and Playground detector taps are pre-effect source copies, not return
 Native duplicate wet processing is bypassed while the rack owns it. D's raw card
 level/envelope taps survive scheduled voice handoffs and retire with their voices.
 Mutilator power is independent of D power, but a selected input must actually be
-playing to excite it, just as with Pot Off.
+playing to excite it, just as with native routing.
 
 The sum worklet decomposes `Y[n] = d[n]Y[n−1] + wet[n]` into the original dry input
 and each card’s wet contribution after all downstream dry coefficients. At unity
@@ -355,3 +359,32 @@ input selectors, canonical power, reorder and pinned Master Baker are retained.
 Verification includes blocked external CSS, current CEF query mode, desktop/phone
 Chromium/WebKit, fully hydrated effect icons, responsive icon/control bounds and
 unchanged saved snapshots. Physical Windows/macOS CEF needs a device check.
+
+## Remembered group power (Mark, 2026-11-13)
+
+Cooking pot **Off** snapshots the current ten On/Off switches and switches every
+one Off through its canonical setter. **On** reinstates only that snapshot,
+including Master Baker and a manually enabled Bubble Chamber. The rack buttons,
+original cards and Layers visibly agree. It preserves recipes, inputs, routing,
+order, source controls, main mute/return routing and running transport. Individual
+manual effects remain usable while the group is Off; the next Off captures the
+then-current selection. Normal/BIG Stir and patch generation replace stale group
+memory; they retain their existing manual-only Bubble and Master Baker Off rules.
+
+One group toggle is one Undo/Redo edit. `power` survives local restart, JSON/ZIP,
+DAW/project and Song amendment recall, but never activates effects during recall
+or rendering: saved canonical flags alone own audio. Backend validation bounds
+memory to exactly ten booleans and excludes it from audible content identity, so
+identical original/restored On and legacy/group Off states share renders. No DSP
+or compatibility revision change and no rewriting old archives is required.
+Native action 6 uses the same group setter; its enabled field reports group power,
+while the existing nine-bit mask and effect order protocol remain unchanged.
+
+Regression: `tests/cooking-pot-power-browser.cjs` covers mixed/all-ten selections,
+visible linked switches, repeats, native commands, Undo/Redo, ZIP recall, real
+playing PCM, native/serial preservation, saved-part amendment stopped/running,
+actual legacy/Off/restored Song render jobs, source immutability and warm reuse in
+an isolated store. `tests/test_cooking_pot_power.py` checks strict metadata and
+unchanged audible identities; `tests/cooking-pot.test.cjs` checks normalization.
+Earlier sections describing the old Pot power/routing toggle are historical;
+this group-switch contract supersedes them.

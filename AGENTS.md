@@ -110,6 +110,20 @@ replacement. Console mirror controls are excluded from generic saved-control
 inventories; modes.masterBaker is canonical. See docs/mastering.md for routing,
 latency, tape, compatibility and isolated checks.
 
+## Cooking Pot remembered group power (Mark, 2026-11-13)
+
+The visible Cooking Pot On/Off switch is group effect power, NOT serial/native
+routing. Off remembers all ten powers (including Master Baker), then sets their
+canonical switches Off; On restores exactly that selection. Keep rack/card/Layers
+buttons physically synchronized, recipes/order/input/output routes unchanged and
+live transport running. The legacy modes.cookingPot.enabled flag remains serial
+routing for saved-audio compatibility; optional power metadata stores group memory
+and must not affect render identity or auto-enable saved effects. Preserve the
+memory through Undo/Redo, portable/local/project saves and Song amendments.
+Stir/new patch generation clears stale memory and retains Master Baker/Bubble
+randomisation exclusions. Native Pot action 6 follows the same group power rule.
+See docs/cooking-pot.md and tests/cooking-pot-power-browser.cjs.
+
 ## App card placement (Mark, 2026-11-12)
 
 Keep Top (the performance toolbar) first. Add new app cards/sections at the

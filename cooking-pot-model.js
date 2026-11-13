@@ -2,7 +2,10 @@
 (function(root){
 'use strict';
 const KEYS=['mutilator','bassFace','turntable','resonator','wireWorld','sonicCrystal','bubbleChamber','wasp','playground'];
-function normalize(value){const order=Array.isArray(value?.order)?value.order:[];return{version:1,enabled:value?.enabled===true,order:[...new Set([...order.filter(k=>KEYS.includes(k)),...KEYS])]};}
+function normalize(value){const order=Array.isArray(value?.order)?value.order:[],state={version:1,enabled:value?.enabled===true,order:[...new Set([...order.filter(k=>KEYS.includes(k)),...KEYS])]};
+ // Optional group-switch memory is not an audio routing flag. Legacy enabled
+ // continues to select the original native/serial engine without migration.
+ if(typeof value?.power?.enabled==='boolean'&&value.power.remembered&&typeof value.power.remembered==='object')state.power={enabled:value.power.enabled,remembered:Object.fromEntries([...KEYS,'masterBaker'].map(key=>[key,value.power.remembered[key]===true]))};return state;}
 function shuffle(value,random=Math.random){const order=normalize(value).order;for(let i=order.length-1;i>0;i--){const j=Math.max(0,Math.min(i,Math.floor(random()*(i+1))));[order[i],order[j]]=[order[j],order[i]];}return{version:1,enabled:true,order};}
 // A combined wet return cannot be split back into its original sources. A later
 // selector may receive it only when that selector covers its entire provenance.

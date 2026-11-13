@@ -166,6 +166,14 @@ def validate_cooking_pot(value):
     order = value.get('order')
     if not isinstance(order, list) or len(order) != len(COOKING_POT_KEYS) or any(not isinstance(k, str) for k in order) or set(order) != set(COOKING_POT_KEYS):
         raise ValueError('The cooking pot must contain each of the nine effects exactly once.')
+    power = value.get('power')
+    if power is not None:
+        keys = set((*COOKING_POT_KEYS, 'masterBaker'))
+        if (not isinstance(power, dict) or type(power.get('enabled')) is not bool
+                or not isinstance(power.get('remembered'), dict)
+                or set(power['remembered']) != keys
+                or any(type(v) is not bool for v in power['remembered'].values())):
+            raise ValueError('Invalid cooking pot remembered effect power.')
 
 def needs_cooking_pot_render(state):
     return bool((state.get('modes', {}).get('cookingPot') or {}).get('enabled') and needs_effect_output_render(state))
@@ -217,6 +225,8 @@ def apply_cooking_pot_content(content, state):
     # Keep them in the content identity; only affected Pot-on freezes regenerate.
     target = content['state']['modes']
     target['cookingPot'] = json.loads(json.dumps(modes['cookingPot']))
+    # Group-switch memory is editor metadata; canonical effect flags own the audio.
+    target['cookingPot'].pop('power', None)
     content['cookingPotEngineRevision'] = cooking_pot_render_version(state)
     for key in ('bassFace', 'turntable', 'resonatorR', 'wireWorld', 'sonicCrystal', 'bubbleChamber', 'wasp'):
         value = modes.get(key)
