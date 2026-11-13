@@ -1100,6 +1100,9 @@
                 } finally { busy = false; update(); }
             }
             try {
+                // Mastering is opt-in after every randomisation. Keep this inside
+                // the accepted history edit so Undo restores power and recall is untouched.
+                if (!aiPatch && /random|generat|re-cut|^Loop [A-Z] (pattern|notes|cut)$|^drum (patterns|sounds|sample)|^OSC3 sound$|^(Clap|Cymbals|Etc|Roll) pattern$|^(Mutilator|Bass Face) strain$/i.test(label)) window.mygrainMasterBaker?.randomiseOff();
                 // Reset inside the history transaction, never on a rejected UI click.
                 if (!aiPatch && /random|re-cut|^Loop [QOX] (pattern|cut)$|^(Clap|Cymbals|Etc|Roll) pattern$/i.test(label)) { window.mygrainTurntable?.off(); window.mygrainChannelEq?.resetForGeneration(); }
                 const result = action();
@@ -1281,6 +1284,7 @@
             const original = window[name];
             if (typeof original !== 'function') continue;
             const execute = function (...args) { return run(label, () => {
+                if (/random|generat/i.test(name)) window.mygrainMasterBaker?.randomiseOff();
                 if (/random|generat|^loadBastardLoop[LX]SampleFromSource$|^loadDropboxSampleLayerFromSource$/i.test(name)) { window.mygrainTurntable?.off(); window.mygrainChannelEq?.resetForGeneration(); }
                 return original.apply(this, args);
             }, false, false, draftActions.has(name)); };

@@ -491,8 +491,10 @@ Loudness weighting maps the original 48 kHz filter prototype to the native rate;
 
 The card and Pot row share one canonical power flag. Ordinary/Mega/Sparse patch
 randomisation disables Master Baker without changing any processing settings.
-Both Stir actions leave **both its settings and power unchanged**. There is no
-Master Baker randomise button, AI effect contract or shuffled-order entry.
+Individual card randomisers and both Stir actions also leave it **Off while
+preserving its settings**. Undo restores the previous power; cancelled or rejected
+randomisations leave it untouched. Saved patch recall and Song rendering still
+respect the saved power. There is no Master Baker randomise button, AI effect contract or shuffled-order entry.
 Missing legacy state defaults Off; manually enabled saved state is retained on
 preset, local-state, editable WAV/ZIP, Song and DAW-project recall. Console mirror
 controls are excluded from generic slider/select inventories; `modes.masterBaker`
@@ -610,3 +612,18 @@ capture with Bypass checked. Existing live-WAV overwrite/private-patch tests als
 exercise the floating controls. Song server fixtures capture with comparison
 choices enabled and still require the original processed output, exact frames,
 warm reuse and selective stale refresh. Physical devices/DAWs remain untested.
+
+### Randomisation power regression (2026-11-13)
+
+`tests/master-baker-randomise-browser.cjs` exercises ordinary/Mega/Sparse, drum
+patterns, OSC3, acoustic Randomise, Bass Face, Mutilator, Noise and both Stir
+actions with Master Baker initially On. Every action keeps the recipe, leaves
+power Off, and includes that change in Undo/Redo. Cancellation, operation guards
+and manual edits preserve power. The acoustic preset chooser remains a manual
+choice; only its Randomise button disables mastering.
+
+This is a generation default only: no DSP, schema or Song render compatibility
+version changes. `tests/master-baker-browser.cjs` verifies canonical ZIP recall
+and real final-stage PCM on desktop Chromium and phone WebKit.
+`tests/master-baker-song-browser.cjs` verifies enabled and bypassed saved state
+through actual isolated server renders, legacy identity and warm-cache reuse.

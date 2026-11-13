@@ -96,13 +96,14 @@ v2-v4 markers, and enforce current requirements on both render GET and POST.
 Check stale render admission as well as fresh renders, source hashes and warm reuse.
 The Q chord editor's explicitly chord-local Solo Note remains a local preview.
 
-## Master Baker final-stage policy (Mark, 2026-11-12)
+## Master Baker final-stage policy (Mark, 2026-11-12; randomisation updated 2026-11-13)
 
 The Master Baker is a final post-main/post-independent-return mastering stage,
 not a reorderable insert or independent return. Its tenth Cooking Pot row stays
 pinned last even with the Pot Off. Main mute must not bypass mastering of
-independent returns. Ordinary/Mega/Sparse patch randomisation leaves it Off while
-preserving its recipe; both Stir actions preserve its recipe AND power. Never
+independent returns. Every randomisation (ordinary/Mega/Sparse, individual cards and both Stir
+actions) leaves it Off while preserving its recipe. Keep the power change inside
+the accepted Undo/Redo transaction; cancelled/rejected edits change nothing. Never
 apply this generation rule on saved patch recall or server rendering. Keep the
 WAV browser route, private patch library and explicit confirmed original-WAV
 replacement. Console mirror controls are excluded from generic saved-control
