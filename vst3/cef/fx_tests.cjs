@@ -1,8 +1,9 @@
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 module.exports=async function({p,run,close,command,acknowledged,toolbar,rms,delay,until,out,raw,control,loginPath}){
- const trace=[];const audit=async label=>{const d=await p.evaluate(()=>({time:performance.now(),audio:{state:audioContext.state,time:audioContext.currentTime,rate:audioContext.sampleRate,baseLatency:audioContext.baseLatency,outputLatency:audioContext.outputLatency},wire:window.cefFxWireDiagnostics,fx:mygrainDawFx.diagnostics(),capture:{engineStarting,stateSaveSuspended,historyBusy:mygrainCardHistory.busy}}));trace.push({label,nativeRms:rms(),...d});fs.writeFileSync(path.join(out,'fx-stream-trace.json'),JSON.stringify(trace,null,2));};
+ const trace=[];const audit=async label=>{const d=await p.evaluate(()=>({time:performance.now(),audio:{state:audioContext.state,time:audioContext.currentTime,rate:audioContext.sampleRate,baseLatency:audioContext.baseLatency,outputLatency:audioContext.outputLatency},wire:window.cefFxWireDiagnostics,clockGuard:window.mygrainCefFxClock,fx:mygrainDawFx.diagnostics(),capture:{engineStarting,stateSaveSuspended,historyBusy:mygrainCardHistory.busy}}));trace.push({label,nativeRms:rms(),...d});fs.writeFileSync(path.join(out,'fx-stream-trace.json'),JSON.stringify(trace,null,2));};
  const results={},diag=()=>p.evaluate(()=>mygrainDawFx.diagnostics());
+ await p.waitForFunction(()=>window.mygrainCefFxClock?.ready,null,{timeout:15000});
  assert.equal(await p.evaluate(()=>mygrainDawBridge.connected),false);
  assert.equal((await diag()).mutedMonitor,true);assert.equal((await diag()).clock.latencySamples,48000);
  await p.evaluate(async()=>{stopAllPerformancePlayback({silent:true});clearAllPerformanceSoloStates({silent:true,skipSave:true});setFxMuted(true,{silent:true});setFilterEnabled('lpf',false);setFilterEnabled('hpf',false);setDrumMachineEnabled(false,{silent:true,skipSave:true});
@@ -28,6 +29,8 @@ module.exports=async function({p,run,close,command,acknowledged,toolbar,rms,dela
  for(const name of ['filters','master','final','direct'])await route(name);
  // Actual filter processing, not only a connected/silent graph.
  await p.locator('#dawFxRoute').selectOption('filters');await p.evaluate(()=>{setFilterEnabled('lpf',true);setSliderValue('lpfCutoff',90);setSliderValue('lpfQ',.707);updateEffects();});await delay(2800);results.filtered=rms();await audit('filtered');if(results.filtered>=results.filters*.7)for(let i=0;i<8;i++){await delay(1000);await audit('filtered-after-'+i);};fs.writeFileSync(path.join(out,'fx-audio-observed.json'),JSON.stringify(results,null,2));assert(results.filtered<results.filters*.7,'LPF must attenuate against the SAME route baseline: '+JSON.stringify(results));await p.evaluate(()=>setFilterEnabled('lpf',false));
+ // No UI gestures: remain wet beyond Chromium's 30-second silent-sink threshold.
+ await p.locator('#dawFxRoute').selectOption('direct');await delay(2500);for(let i=0;i<12;i++){await delay(3000);await audit('silent-clock-'+i);const d=await diag();assert(d.clock.running,'silent browser output must not stall FX clock');assert(Math.abs(rms()/direct-1)<.06,'continuous native wet after silence threshold');}results.silentClockStable=true;
  await p.locator('#dawFxRoute').selectOption('direct');command('offline');await p.waitForFunction(()=>mygrainDawFx.diagnostics().clock.offline);await delay(1700);assert(Math.abs(rms()/direct-1)<.06,'offline is dry, not an obsolete cached effect');command('realtime');await p.waitForFunction(()=>mygrainDawFx.diagnostics().clock.running);
  await acknowledged('cef-auto','CEF_CONTROL=');await p.waitForFunction(()=>mygrainDawFx.diagnostics().project.auto.enabled);command('close-editor');await slider('#dawFxGain',-6);await delay(2700);assert(rms()<direct*.57,'FX continues while editor closed');
  await slider('#dawFxMix',37);

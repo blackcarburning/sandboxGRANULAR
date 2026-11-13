@@ -48,3 +48,36 @@ Checks include PCM gain/mute/mix/routes/filter, host bypass/offline, native tool
 closed editor processing/auto-store, real reload and fresh project/settings recall.
 No claim of physical DAW/device testing, native Intel runtime, international IME
 or production multi-instance performance; Mac signatures are ad-hoc, not notarized.
+
+## Integration fixture isolation
+
+Use a deterministic patch for audio measurements: zero LFO/motion depths,
+normalize mixer gains and explicitly turn unrelated effects off. Compare an
+effect against its own route baseline rather than assuming every route has
+Direct's amplitude. Pause periodic auto-store during DSP sweeps, then re-enable
+it and verify processing/storage with the editor closed in a separate phase.
+Project capture/readiness transitions legitimately invoke the existing FX dry
+fallback and must not be mistaken for a filter's frequency response.
+
+Capture the store count before sending the native Store command: a small delta
+can complete before its UI acknowledgement reaches the test. For input silence,
+allow the fixed one-second dry delay PLUS the complete one-second RMS window to
+drain. Persist per-route PCM metrics and the FX (not disconnected Bridge)
+diagnostics on failure. Match real native processing, not only an analyser
+upstream of the plugin's dry fallback.
+
+## Silent FX clock
+
+The helper installs an FX-only zero-input/zero-output automatic-pull worklet in
+the main interactive AudioContext. It generates no samples and changes no FX
+DSP, mapping, latency or native callback. Chromium otherwise migrates a silent
+output to its fake sink after 30 seconds, which is inappropriate for this
+sample-timestamped return. Native integration keeps the browser output silent
+and asserts continued processed PCM without UI gestures beyond that threshold.
+The guard is disposed on navigation and recreated for a replacement context;
+the CEF instrument does not install it. See `fx_clock.h`.
+
+Chromium source rationale:
+- https://chromium.googlesource.com/chromium/src/+/refs/heads/main/content/renderer/media/renderer_webaudiodevice_impl.cc
+- https://chromium.googlesource.com/chromium/src/+/refs/heads/main/third_party/blink/renderer/modules/webaudio/realtime_audio_destination_handler.cc
+- https://chromium.googlesource.com/chromium/src/+/refs/heads/main/third_party/blink/renderer/modules/webaudio/audio_worklet_handler.cc

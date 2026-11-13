@@ -1,5 +1,6 @@
 // The ONLY executable that initializes CEF. The DAW plugin never loads libcef.
 #include "ipc.h"
+#include "fx_clock.h"
 #include "include/capi/cef_app_capi.h"
 #include "include/capi/cef_client_capi.h"
 #include "include/capi/cef_render_handler_capi.h"
@@ -111,7 +112,7 @@ void setup(){
  render.api.on_popup_size=[](cef_render_handler_t*,cef_browser_t*,const cef_rect_t* rect){popupRect=*rect;popupPixels.clear();};
  life.api.on_before_close=[](cef_life_span_handler_t*,cef_browser_t*){closed=true;};
  life.api.on_before_popup=[](cef_life_span_handler_t*,cef_browser_t*,cef_frame_t*,int,const cef_string_t*,const cef_string_t*,cef_window_open_disposition_t,int,const cef_popup_features_t*,cef_window_info_t*,cef_client_t**,cef_browser_settings_t*,cef_dictionary_value_t**,int*)->int{return 1;};
- load.api.on_load_end=[](cef_load_handler_t*,cef_browser_t*,cef_frame_t* frame,int http){if(frame->is_main(frame)){mapping.data->status.store(http==200?2:3);}};
+ load.api.on_load_end=[](cef_load_handler_t*,cef_browser_t*,cef_frame_t* frame,int http){if(frame->is_main(frame)){mapping.data->status.store(http==200?2:3);if(http==200&&target.find("#fx=")!=std::string::npos)script(fxClockScript);}};
  // Local network permission is required only by the existing authenticated loopback bridge.
  // Do not grant microphone/camera or unrelated origins permissions.
  permissions.api.on_show_permission_prompt=[](cef_permission_handler_t*,cef_browser_t*,uint64_t,const cef_string_t* origin,uint32_t requested,cef_permission_prompt_callback_t* callback)->int{

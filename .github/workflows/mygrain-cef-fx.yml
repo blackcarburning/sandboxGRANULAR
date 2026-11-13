@@ -63,7 +63,7 @@ jobs:
           Source commit: $env:GITHUB_SHA
           Current checkout public frontend; isolated account routes, no production writes.
           SDK validator: 47 passed, 0 failed against the shipped native plugin.
-          Native Windows runner: CEF 156, actual native login keyboard/focus input, stereo DAW input/processed PCM return, four routes, filter processing, gain/mute, native dry/wet, VST3 bypass, offline aligned-dry fallback, native auto-store interval/toggle, automatic storage and processing while editor closed, UI-thread dirty notification, store-before-real-document reload, fresh native FX input/preferences recall, remembered sign-in, preview bypass/offline suppression and clean unload.
+          Native Windows runner: CEF 156, actual native login keyboard/focus input, stereo DAW input/processed PCM return, four routes, filter processing, sustained silent-browser FX clock beyond 30 seconds, gain/mute, native dry/wet, VST3 bypass, offline aligned-dry fallback, native auto-store interval/toggle, automatic storage and processing while editor closed, UI-thread dirty notification, store-before-real-document reload, fresh native FX input/preferences recall, remembered sign-in, preview bypass/offline suppression and clean unload.
           Physical DAWs, driver/device recording alignment, performance under multiple plugin instances and international IME are not tested.
           Auto-store retains a completed plugin snapshot; the user must still save the DAW project normally.
           "@ | Set-Content "$env:RUNNER_TEMP/release/VERIFICATION.txt"
@@ -127,7 +127,7 @@ jobs:
           Source commit: $GITHUB_SHA
           Current checkout public frontend; isolated account routes, no production writes.
           SDK validator: 47 passed, 0 failed against the shipped native plugin.
-          Native Apple Silicon macOS runner: CEF 156, actual native login keyboard/focus input, stereo DAW input/processed PCM return, four routes, filter processing, gain/mute, native dry/wet, VST3 bypass, offline aligned-dry fallback, native auto-store interval/toggle, automatic storage and processing while editor closed, UI-thread dirty notification, store-before-real-document reload, fresh native FX input/preferences recall, remembered sign-in, preview bypass/offline suppression and clean unload.
+          Native Apple Silicon macOS runner: CEF 156, actual native login keyboard/focus input, stereo DAW input/processed PCM return, four routes, filter processing, sustained silent-browser FX clock beyond 30 seconds, gain/mute, native dry/wet, VST3 bypass, offline aligned-dry fallback, native auto-store interval/toggle, automatic storage and processing while editor closed, UI-thread dirty notification, store-before-real-document reload, fresh native FX input/preferences recall, remembered sign-in, preview bypass/offline suppression and clean unload.
           Universal plugin/helper/Chromium framework inspected; ad-hoc code signatures verified deep/strict. Not Developer-ID signed/notarized.
           Physical Macs/DAWs/CoreAudio recording alignment, native Intel runtime, performance under multiple plugin instances and international IME are not tested.
           Auto-store retains a completed plugin snapshot; the user must still save the DAW project normally.
