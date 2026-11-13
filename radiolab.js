@@ -1,7 +1,7 @@
 (function (root) {
     'use strict';
 
-    const BUILD = 'v2026.11.04.LAB-10MIN.1';
+    const BUILD = 'v2026.11.13.RADIO-IDLE.1';
     const TUNE_TIMEOUT_MS = 12000;
     const BUFFER_SECONDS = 15;
     const MAX_RECORD_SECONDS = 600;
@@ -577,6 +577,13 @@
 
         get state() {
             return Object.freeze({ build: BUILD, account: this.locked ? null : this.username, locked: this.locked, listening: this.listening, monitoring: this.monitor && this.listening, armed: Boolean(this.pendingRecord), recording: this.recorder?.state === 'recording', station: this.element('radiolabStation').value || null, bufferSeconds: 0, rewindSeconds: 0, recordedSeconds: this.recorder?.duration || 0, hasTake: this.recorder?.state === 'stopped' && this.recorder.frames > 0, normalized: Boolean(this.recorder?.normalized), tap: this.tapKind || null, busy: this.busy, previewing: Boolean(this.preview), previewingTake: Boolean(this.previewTake), trimStartSeconds: this.recorder ? this.recorder.trimStartFrame / this.recorder.sampleRate : 0, trimEndSeconds: this.recorder ? this.recorder.endFrame / this.recorder.sampleRate : 0, trimmedSeconds: this.recorder ? this.recorder.selectedFrames / this.recorder.sampleRate : 0 });
+        }
+
+        // Monitoring and auditions borrow the editor context even when its
+        // transport is stopped. Include pending audition preparation, but not
+        // completed takes, an open browser or independent server PCM capture.
+        get needsAudio() {
+            return !this.locked && Boolean(this.listening || this.preview || this.previewFilename || this.previewTake || this.savedTrimPreview);
         }
 
         mediaState() {
@@ -1777,6 +1784,7 @@
     const controller = new Controller(card, root.mygrainRadiolabAdapter);
     Object.defineProperty(root, 'mygrainRadiolab', { configurable: false, value: Object.freeze({
         get state() { return controller.state; },
+        get needsAudio() { return controller.needsAudio; },
         get diagnostics() { return controller.diagnostics; },
         openBrowser: target => { controller.assertActive(); if (controller.busy && controller.actionOperation === controller.stationStartup) { controller.actionOperation = null; controller.busy = false; } if (controller.busy || controller.pendingRecord || controller.recorder?.state === 'recording') throw new Error('RadioLab is busy. Finish or cancel its current action, then reopen the sample browser.'); return controller.run(() => controller.openBrowser(target), true); }
     }) });

@@ -196,7 +196,7 @@ document.addEventListener('click',event=>{const button=event.target.closest('[da
 document.addEventListener('DOMContentLoaded',()=>{
  if(root.__mygrainSongRenderDeck)return;
  const opening=document.getElementById('start-overlay');if(opening)new MutationObserver(()=>{if(getComputedStyle(opening).display==='none'||getComputedStyle(opening).opacity==='0'){for(const card of jobs.keys()){observer.unobserve(card);observer.observe(card)}}}).observe(opening,{attributes:true,attributeFilter:['style']});
- const radio=()=>load('radiolab.js?v=20261104-ftp-libraries-1');
+ const radio=()=>load('radiolab.js?v=20261113-radio-idle-1');
  whenVisible(document.getElementById('radiolabCard'),radio);
  whenVisible(document.getElementById('performanceVideoLabCard'),async()=>{const status=document.getElementById('videolabStatus');if(status)status.textContent='Loading Video Lab controls…';await radio();await load('videolab.js?v=20261104-ftp-libraries-1')});
  const card=document.createElement('section');card.id='waspCard';card.className='performance-feature-card wasp-card';card.innerHTML='<h3>F · THE WASP</h3><p>Two stings. Open to load controls.</p>';

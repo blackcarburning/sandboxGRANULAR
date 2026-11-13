@@ -35,7 +35,7 @@ function fixture(hooks = {}) {
         tagName: tagName.toUpperCase(), value: '', textContent: '', open: false, dataset: {}, attributes: {}, children: [],
         style: { setProperty() {} },
         setAttribute(name, value) { this.attributes[name] = value; }, toggleAttribute() {},
-        replaceChildren(...children) { this.children = children; }, append(...children) { this.children.push(...children); },
+        replaceChildren(...children) { this.children = children; }, append(...children) { this.children.push(...children); }, after() {},
         focus() { document.activeElement = this; },
         showModal() { this.open = true; }, close() { this.open = false; this.dispatch('close'); }
     });
@@ -134,6 +134,35 @@ async function deliverCapture(transport) {
     transport.stream.enqueue(Uint8Array.of(0, 32, 0, 224));
     await new Promise(resolve => setImmediate(resolve));
 }
+
+test('shared-context activity follows monitoring, not monitor mute or a retained take', async () => {
+    const state = fixture();
+    assert.equal(state.controller.needsAudio, false);
+    await state.controller.listen();
+    assert.equal(state.controller.needsAudio, true);
+    state.controller.element('radiolabMonitor').dispatch('click');
+    assert.equal(state.controller.monitor, false);
+    assert.equal(state.controller.needsAudio, true, 'muted monitoring still owns the running PCM tap');
+    state.controller.stop();
+    assert.equal(state.controller.needsAudio, false);
+    assert.equal(state.controller.state.hasTake, true, 'a retained recording must not keep the editor awake');
+    await state.controller.listen();
+    state.context.state = 'interrupted';
+    state.context.dispatch('statechange');
+    assert.equal(state.controller.needsAudio, false, 'a genuine interruption releases activity without auto-restarting');
+});
+
+test('independent server PCM recording does not hold an unused shared context awake', async () => {
+    const state = fixture();
+    const transports = captureTransport(state);
+    await state.controller.record();
+    assert.equal(state.controller.needsAudio, false);
+    await deliverCapture(transports[0]);
+    assert.equal(state.controller.state.recording, true);
+    assert.equal(state.controller.needsAudio, false);
+    state.controller.stop();
+    assert.equal(state.controller.needsAudio, false);
+});
 
 test('monitor context interruption cannot gate or stop independent server PCM capture', async () => {
     const state = fixture();

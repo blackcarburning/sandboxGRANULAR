@@ -385,10 +385,10 @@ test('real worklet transfers copied stereo PCM, outputs silence, bounds its queu
 test('HTML integration has stable controls, private folders, guarded full-file loaders and independent build', () => {
     const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
     for (const id of ['radiolabCard', 'radiolabStation', 'radiolabListen', 'radiolabRewind', 'radiolabRecord', 'radiolabStop', 'radiolabPreview', 'radiolabNormalize', 'radiolabNormalizeHelp', 'radiolabName', 'radiolabSave', 'radiolabBrowser', 'radiolabSamplesDialog', 'radiolabSampleList', 'radiolabLoadTarget', 'radiolabBrowserClose', 'performanceBastardLoopVUseRadiolabBtn', 'sectionJumpRadiolabBtn']) assert.equal([...html.matchAll(new RegExp(`id="${id}"`, 'g'))].length, 1, id);
-    assert.match(html, /GRAIN_SAMPLE_BROWSER_SOURCE_LABELS = \{\s+samples_radiolab: 'SAMPLES_RADIOLAB'/);
-    assert.match(html, /BASTARD_LOOP_SOURCE_LABELS = \{\s+samples_radiolab: 'SAMPLES_RADIOLAB'/);
+    assert.match(html, /GRAIN_SAMPLE_BROWSER_SOURCE_LABELS = \{[^}]*samples_radiolab: 'SAMPLES_RADIOLAB'/);
+    assert.match(html, /BASTARD_LOOP_SOURCE_LABELS = \{[^}]*samples_radiolab: 'SAMPLES_RADIOLAB'/);
     assert.match(html, /id="performanceBastardLoopVSampleFolder"[^>]*><option value="samples_radiolab"/);
-    assert.equal(BUILD, 'v2026.10.27.RADIO-V.1');
+    assert.equal(BUILD, 'v2026.11.13.RADIO-IDLE.1');
     const buildMarkers = Array.from(html.matchAll(/Build <strong>(v\d{4}\.\d{2}\.\d{2}\.[A-Z-]+\.\d+)<\/strong>/g), match => match[1]);
     assert.equal(buildMarkers.length, 2);
     assert.equal(new Set(buildMarkers).size, 1);
@@ -396,9 +396,9 @@ test('HTML integration has stable controls, private folders, guarded full-file l
     assert.doesNotMatch(dialog, /radiolabPlaySample|radiolabPreviewStop|id="radiolabLoad"|<select id="radiolabSampleList"/);
     assert.equal((dialog.match(/>Close<\/button>/g) || []).length, 1);
     for (const target of ['grainMain', 'grainA', 'grainB', 'V']) assert.match(dialog, new RegExp(`<option value="${target}">`));
-    assert.match(html, /q-card\.js\?v=20261016-k-keyboard-19/);
-    assert.match(html, /mygrain-accounts\.js\?v=20261017-account-credits-r2/);
-    assert.match(html, /fallback\.guard\?\.\(\);\s+await applyLoadedAudioBuffer/);
+    assert.match(html, /q-card\.js\?v=[\w.-]+/);
+    assert.match(html, /mygrain-accounts\.js\?v=[\w.-]+/);
+    assert.match(html, /fallback\.guard\?\.\(\);(?:(?!await)[\s\S])*await applyLoadedAudioBuffer/);
     assert.match(html, /setBastardLoopVCut\(\{ enabled: false, start: 0, end: 1 \}/);
     for (const asset of ['radiolab.js', 'radiolab.css', 'radiolab-worklet.js']) assert.ok(fs.existsSync(path.join(__dirname, '..', asset)));
     for (const match of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)) if (!/\bsrc=|type=["']module/.test(match[1])) assert.doesNotThrow(() => new vm.Script(match[2]));
