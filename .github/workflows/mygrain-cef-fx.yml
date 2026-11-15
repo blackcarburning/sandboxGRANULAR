@@ -2,7 +2,7 @@ name: MyGrain CEF FX preview
 on:
   workflow_dispatch:
   push:
-    branches: [mygrain-cef-fx-space-20261113]
+    branches: [mygrain-fx-startup-20261115]
     paths: ['vst3/**', '.github/workflows/mygrain-cef-fx.yml']
 permissions:
   contents: read

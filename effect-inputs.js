@@ -35,19 +35,26 @@ function soloSources(modes={},sourceSelection=[]){
 function effectSettings(modes={}){return {...modes,mutilator:modes.loopD?.mutilator||{},resonator:modes.resonatorR||{},playground:modes.wasp?.playground||{}};}
 function routedEffects(sources,settings={}){
  const has=selection=>selection==='all'?sources.length>0:sources.some(key=>key!=='*'&&matches(selection,key)),out=[];
- for(const key of ['resonator','turntable','playground','mutilator','bassFace','sonicCrystal','bubbleChamber','wireWorld','wasp']){
+ for(const key of ['resonator','turntable','playground','mutilator','bassFace','sonicCrystal','bubbleChamber','wireWorld','wasp','henrysHose','heavyLifter']){
   const v=settings[key]||{};if(v.enabled!==true)continue;
   let inputs=[];
   if(key==='resonator')inputs=(v.slots||[{enabled:true,source:'drumKick',level:.45}]).filter((s,i)=>(s.enabled??i===0)&&(s.level??.45)>0).map(s=>s.source||'drumKick');
   else if(key==='wasp'){if((v.blend??.5)<=0)continue;inputs=(v.routes||[]).slice(0,2).filter(s=>s.enabled&&s.depth!==0).flatMap(s=>[s.source||'V',s.destination||'X']);}
   else if(key==='turntable')inputs=[v.input||(v.route==='drums'?'drums':'all')];
   else if(key==='playground'){if((v.mix??.5)<=0)continue;inputs=[v.input||'all'];}
-  else if(['mutilator','bassFace'].includes(key)){if((v.mix??.5)<=0||(v.amount??.5)<=0)continue;inputs=[v.input||(key==='mutilator'?'D':'X')];}
-  else {if((v.level??.5)<=0)continue;inputs=[v.source||'all'];}
+  else if(['mutilator','bassFace'].includes(key)){if(root.MygrainEffectLfo?!root.MygrainEffectLfo.audible(key,v):(v.mix??.5)<=0||(v.amount??.5)<=0)continue;inputs=[v.input||(key==='mutilator'?'D':'X')];}
+  else {if((v.level??.5)<=0&&!(key==='heavyLifter'?root.MygrainHeavyLifter?.levelCanMove(v):root.MygrainEffectLfo?.canMove(key,v,'level')))continue;inputs=[v.source||'all'];}
   if(inputs.some(has))out.push(key);
  }
  return out;
 }
-const api=Object.freeze({SOURCES,label,matches,jumpTarget,soloSources,effectSettings,routedEffects,options:()=>SOURCES.map(key=>[key,label(key)])});root.MygrainEffectInputs=api;
+// Saved source-Solo parts with powered matching inserts need source-isolated PCM.
+// No-Solo, Off, unrelated and external-only parts retain their previous identity.
+function soloInsertVersion(modes={},sourceSelection=[]){
+ const model=root.MygrainCookingPot||(typeof module==='object'&&module.exports?require('./cooking-pot-model.js'):null);
+ if(!model)return 0;const settings=model.effectValues(modes);
+ return soloSources(modes,sourceSelection).some(source=>model.plan(modes.cookingPot,settings,source).length)?7:0;
+}
+const api=Object.freeze({SOURCES,label,matches,jumpTarget,soloSources,effectSettings,routedEffects,soloInsertVersion,options:()=>SOURCES.map(key=>[key,label(key)])});root.MygrainEffectInputs=api;
 if(typeof module==='object'&&module.exports)module.exports=api;
 })(globalThis);

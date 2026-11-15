@@ -1,0 +1,13 @@
+#dfeederCard{background:linear-gradient(145deg,#30221f,#172a2b);border:2px solid #e8a78d;border-radius:18px;color:#f6e6de;padding:20px;min-width:0;box-sizing:border-box;scroll-margin-top:22px;grid-column:1/-1}
+#dfeederCard *{box-sizing:border-box;min-width:0}
+#dfeederCard .dfeeder-heading{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+#dfeederCard svg{width:42px;height:42px;color:#f5b399;flex:none}#sectionJumpDfeederBtn svg{width:20px;height:20px;flex:none;margin-right:5px}
+#dfeederCard h2{margin:0;font-size:26px;color:#fff0e9}#dfeederCard header small{font-size:11px;letter-spacing:.15em;color:#f5b399}
+#dfeederCard p{line-height:1.5;font-size:14px}#dfeederCard form{display:grid;gap:10px;margin:20px 0}#dfeederCard label{font-size:14px}#dfeederCard label span{color:#c9bfb8}
+#dfeederCard input{width:100%;background:#152223;color:#fff;border:1px solid #bb8b75;border-radius:9px;padding:13px;font-size:16px;min-height:44px}
+#dfeederCard button{min-height:44px;border:1px solid #ba8e7a;border-radius:10px;color:#fff0e9;background:#513e35;padding:10px;font:inherit;cursor:pointer;white-space:normal;overflow-wrap:anywhere}#dfeederCard button:disabled{opacity:.5;cursor:default}#dfeederCard [data-generate-button]{width:100%;background:#77513c;font-weight:700}
+#dfeederCard .dfeeder-status{font-size:14px;line-height:1.5;overflow-wrap:anywhere;color:#ffd0b9}#dfeederCard progress{width:100%;height:12px;margin:12px 0;accent-color:#f5b399}#dfeederCard [hidden]{display:none!important}
+#dfeederCard .dfeeder-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:20px}#dfeederCard .dfeeder-toolbar span{font-size:11px;letter-spacing:.06em;overflow-wrap:anywhere}#dfeederCard .dfeeder-help{font-size:12px;color:#c6c3b8}
+#dfeederCard audio{width:100%;max-width:100%;margin:10px 0}#dfeederCard [data-candidates]{display:grid;gap:12px;margin-top:14px;max-height:660px;overflow-y:auto;overscroll-behavior:contain}
+#dfeederCard .dfeeder-row{background:#152323b8;border:1px solid #a6816a70;border-radius:12px;padding:12px;display:grid;gap:8px}#dfeederCard .dfeeder-row strong{font-size:13px;overflow-wrap:anywhere;line-height:1.4}#dfeederCard .dfeeder-row small{font-size:12px;color:#c8d2c6}#dfeederCard .dfeeder-row-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}#dfeederCard [data-approve]{background:#24583e}#dfeederCard [data-reject]{background:#6c3532}
+@media(max-width:480px){#dfeederCard{padding:14px}#dfeederCard .dfeeder-row{padding:9px}#dfeederCard .dfeeder-row-actions button{font-size:12px;padding:8px 3px}}

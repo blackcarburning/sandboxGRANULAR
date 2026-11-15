@@ -392,7 +392,10 @@ body .synth-container > .performance-controls { order: -1; }
   position:fixed;right:env(safe-area-inset-right,0px);z-index:9989;
   display:flex; flex-direction:column; align-items:flex-end; width:34px; min-height:0; justify-content:flex-start;
   top:calc(max(12px, 2svh, env(safe-area-inset-top)) + 84px);
-  bottom:max(12px, 2svh, env(safe-area-inset-bottom));
+  /* Like the left rail, use the stable small viewport, not the browser-chrome
+     dependent bottom edge: its flex buttons must not stretch during scrolling. */
+  height:calc(100svh - max(12px, 2svh, env(safe-area-inset-top)) - 84px - max(12px, 2svh, env(safe-area-inset-bottom)));
+  bottom:auto;
   gap:6px; overflow-x:hidden; overflow-y:auto; overscroll-behavior:contain;
   scrollbar-width:none; pointer-events:auto; transition:transform .24s ease;
  }
@@ -418,9 +421,21 @@ body .synth-container > .performance-controls { order: -1; }
 
 /* Narrow rails have their own clearance; do not paint over card controls. */
 @media (max-width: 960px) {
+ body.simplified-ui {
+  --phone-app-left:calc(34px + env(safe-area-inset-left,0px));
+  --phone-app-right:calc(34px + env(safe-area-inset-right,0px));
+  padding-left:0;
+  padding-right:0;
+ }
  body.simplified-ui .synth-container {
-  padding-left:calc(30px + env(safe-area-inset-left,0px));
-  padding-right:calc(30px + env(safe-area-inset-right,0px));
+  padding-left:var(--phone-app-left);
+  padding-right:var(--phone-app-right);
+ }
+ body.simplified-ui .synth-container > .performance-controls {
+  margin-left:calc(0px - var(--phone-app-left));
+  margin-right:calc(0px - var(--phone-app-right));
+  padding-left:calc(var(--phone-app-left) - 1px);
+  padding-right:calc(var(--phone-app-right) - 1px);
  }
  /* Solid shaded finishes: only shadows use alpha, never the button surface. */
  body.simplified-ui .section-jump-drawer { opacity:1!important; }
@@ -455,4 +470,33 @@ body .synth-container > .performance-controls { order: -1; }
  body.simplified-ui .history-edge-controls #audioClockWidgetBtn { --phone-edge-light:#205e77; --phone-edge-dark:#16475d; --phone-edge-border:#6899ae; }
  body.simplified-ui .history-edge-controls #historyEdgeMasterBakerBtn { --phone-edge-light:#c63b29; --phone-edge-dark:#94271d; --phone-edge-border:#df8971; }
  body.simplified-ui .history-edge-controls #historyEdgeCookingPotBtn { --phone-edge-light:#d9aa4c; --phone-edge-dark:#b17b2c; --phone-edge-border:#e5c585; --phone-edge-ink:#30210a; }
+}
+
+/* Wide desktop Jump: four readable columns; narrow/zoomed windows retain
+   the original two-column dock/drawer and its single vertical scroll owner.
+   Use the shared width token so the editor and Start button keep clear. */
+@media (min-width: 1280px) {
+    body.simplified-ui { --desktop-nav-width: 448px; }
+    .simplified-ui #sectionJumpPanel .section-jump-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+    .simplified-ui #sectionJumpPanel .section-jump-grid > button {
+        flex-direction: column;
+        justify-content: center;
+        gap: 4px;
+        min-height: 60px;
+        padding: 7px 5px;
+        text-align: center;
+        white-space: normal;
+        overflow-wrap: normal;
+        word-break: normal;
+    }
+    .simplified-ui #sectionJumpPanel .section-jump-grid > .desktop-jump-wide {
+        grid-column: span 2;
+        flex-direction: row;
+        min-height: 44px;
+    }
+    .simplified-ui #sectionJumpPanel .section-jump-grid > #sectionJumpInitialisePanelBtn {
+        height: 48px;
+    }
 }

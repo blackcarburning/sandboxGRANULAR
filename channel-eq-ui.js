@@ -33,8 +33,9 @@
     for (const channelKey of ['A', 'B', 'C', 'D', 'V', 'W', 'P', 'O', 'L', 'X', 'Q', 'M', 'M+']) {
         const selector = channelKey === 'Q' ? '#bastardLoopQCard' : `[aria-label="Bastardloop${channelKey === 'A' ? '' : ' ' + channelKey} controls"]`;
         const card = document.querySelector(selector);
-        mount(card?.querySelector('.performance-feature-head, .q-header') || card, channelKey);
+        mount(channelKey === 'D' ? card.querySelector('[data-d-eq-slot="1"]') : card?.querySelector('.performance-feature-head, .q-header') || card, channelKey);
     }
+    for (const number of [2, 3, 4]) mount(document.querySelector(`[data-d-eq-slot="${number}"]`), `D${number}`);
     mount(document.querySelector('[aria-label="Dropbox sample layer controls"]'), 'sample');
     mount(document.getElementById('generatedWaveformEditor'), 'generated');
     for (let i = 0; i < 5; i++) mount(document.querySelector(`[data-k-track="${i}"] .k-track-heading`), `K${i + 1}`);

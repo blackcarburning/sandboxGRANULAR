@@ -168,7 +168,7 @@ function createGraph(ctx,destination,initial,bpm=120,origin=0,startTime=ctx.curr
   }
  }
  function updateFilter(s,tempo,immediate){
-  const effectiveSlope=root.mygrainPower?.isLive(ctx)?Math.min(24,s.filterSlope):s.filterSlope;
+  const effectiveSlope=root.mygrainPower?.isLive(ctx)?Math.min(12,s.filterSlope):s.filterSlope;
   const key=[s.filterEnabled,s.filterType,effectiveSlope,s.legacyHighpass||20].join(':');
   if(filterBranch?.key!==key){
    clearTimeout(filterTimer);releaseBranch(oldBranch);oldBranch=filterBranch;

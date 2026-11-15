@@ -17,9 +17,10 @@ module.exports=async function({p,run,close,command,acknowledged,toolbar,rms,dela
  // Measure DSP independently of periodic snapshot/readiness transitions.
  await acknowledged('cef-auto','CEF_CONTROL=');await p.waitForFunction(()=>!mygrainDawFx.diagnostics().project.auto.enabled);
  const route=async name=>{await p.locator('#dawFxRoute').selectOption(name);await delay(2600);results[name]=rms();await audit(name);fs.writeFileSync(path.join(out,'fx-audio-observed.json'),JSON.stringify(results,null,2));assert(results[name]>.001&&results[name]<.12,'audible native stereo '+name+': '+results[name]);};
- await p.locator('#dawFxRoute').selectOption('direct');command('arm-plugin');
+ await p.locator('#dawFxRoute').selectOption('direct');assert.equal((await diag()).clock.armed,true,'automatic Arm on load');
  await p.waitForFunction(()=>mygrainDawFx.diagnostics().clock.running,null,{timeout:25000});await delay(2600);const direct=rms();assert(direct>.04&&direct<.08,'no duplicated browser return: '+direct);results.direct=direct;
  const slider=async(id,value)=>p.locator(id).evaluate((e,v)=>{e.value=String(v);e.dispatchEvent(new Event('input',{bubbles:true}));},value);
+ results.startupContinuity=await require('./fx_startup_test.cjs')({p,diag,command,toolbar,assert,delay,rms,raw,out,fs,path,direct});
  await slider('#dawFxGain',-6);await delay(2700);results.gain=rms();assert(results.gain/direct>.44&&results.gain/direct<.57,'-6dB gain reaches native callback');
  await p.locator('#dawFxMute').click();await delay(2700);assert(rms()<.0001,'input mute produces silence after queued audio');
  await slider('#dawFxMix',0);await delay(1700);results.dry=rms();assert(Math.abs(results.dry/direct-1)<.06,'native dry/wet dry ignores muted wet');

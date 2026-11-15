@@ -97,7 +97,8 @@
         ...(window.mygrainKMultitrack ? [1, 2, 3, 4].map(index => [window.MygrainKMultitrack.rawKey(index), () => window.mygrainKMultitrack.getBuffer(index), buffer => window.mygrainKMultitrack.setBuffer(index, buffer), window.MygrainKMultitrack.dbKey(index)]) : []),
         ['qSourceSample', () => qSourceSampleBuffer, buffer => { qSourceSampleBuffer = buffer; window.mygrainQSoundSources?.sync(); }, 'qSourceSampleBuffer'],
         ['bastardW', () => bastardLoopWBuffer, buffer => { bastardLoopWBuffer = buffer; }, BASTARD_LOOP_W_AUDIO_BUFFER_KEY],
-        ['bastardD', () => bastardLoopDBuffer, buffer => { bastardLoopDBuffer = buffer; window.mygrainD?.invalidate(); }, BASTARD_LOOP_D_AUDIO_BUFFER_KEY]
+        ['bastardD', () => bastardLoopDBuffer, buffer => { bastardLoopDBuffer = buffer; window.mygrainD?.invalidate(); }, BASTARD_LOOP_D_AUDIO_BUFFER_KEY],
+        ...[2,3,4].map(n=>[`bastardD${n}`,()=>window.mygrainD.lane(n).buffer,b=>window.mygrainD.lane(n).setBuffer(b),`bastardLoopD${n}Buffer`])
     ];
     const metadataBindings = [
         ['bastardA', () => bastardLoopMetadata, metadata => { bastardLoopMetadata = metadata; }],
@@ -105,6 +106,7 @@
         ['bastardC', () => bastardLoop3Metadata, metadata => { bastardLoop3Metadata = metadata; }],
         ['bastardV', () => bastardLoopVMetadata, metadata => { bastardLoopVMetadata = metadata; }],
         ['bastardD', () => bastardLoopDMetadata, metadata => { bastardLoopDMetadata = metadata; }],
+        ...[2,3,4].map(n=>[`bastardD${n}`,()=>window.mygrainD.lane(n).metadata,m=>window.mygrainD.lane(n).setMetadata(m)]),
         ['bastardW', () => bastardLoopWMetadata, metadata => { bastardLoopWMetadata = metadata; }],
         ['bastardP', () => bastardLoopPMetadata, metadata => { bastardLoopPMetadata = metadata; }],
         ['bastardO', () => bastardLoopOMetadata, metadata => { bastardLoopOMetadata = metadata; }],
@@ -132,7 +134,7 @@
     }
 
     const additiveSongLanes = [
-        { name: 'D loop', slots: ['bastardD'], settings: /^(?:loopD|bastard(?:Loop)?D|performanceBastardLoopD)(?:$|[A-Z])/, references: /^(?:d|bastard(?:loop)?d)$/i },
+        { name: 'D loop', slots: ['bastardD','bastardD2','bastardD3','bastardD4'], settings: /^(?:loopD|bastard(?:Loop)?D|performanceBastardLoopD)(?:$|[A-Z])/, references: /^(?:d|bastard(?:loop)?d)$/i },
         { name:'Q sample', slots:['qSourceSample'], settings:/^qSourceSample/, references:/^qsourcesample$/i, qSample:true },
         { name: 'Keyboard Sample', slots: ['keyboardSample'], settings: /^(?:keyboardSample|performanceKeyboardSample)/, references: /^keyboardsample$/i, keyboardSource: 'sample' },
         { name: 'ETC', slots: ['drumEtc'], settings: /^(?:etc|drumEtc|drumMachineEtc.*)$/i, references: /^etc$/i },
@@ -505,7 +507,7 @@
                     performanceSourceLayerSolo: cloneJson(performanceSourceLayerSolo),
                     performanceSourceLayerSoloSnapshot: cloneJson(performanceSourceLayerSoloSnapshot),
                     controls: Array.from(document.querySelectorAll('input[type="checkbox"], input[type="number"], input[type="radio"]'))
-                        .filter(input => input.id && !input.closest('#partsBinCard, #partsBinDialog, #dawBridgeCard, #dawInputCard, #songBetaCard, #aiPatchCard, #bastardLoopCutOverlay, #bastardLoop2CutOverlay, #bastardLoop3CutOverlay, #bastardLoopVCutOverlay, #bastardLoopWCutOverlay, #bastardLoopDCutOverlay, #bastardLoopPCutOverlay, #bastardLoopOCutOverlay, #qArpOverlay, #qChordEditorOverlay, #drumMachineLane-roll, #kTrackControlSection, #channelEqDialog, .loop-fx, #waspCard, #filterPlaygroundCard, #turntableCard, #resonatorCard, #bassFaceCard, .acoustic-card, #mutilatorInput, [data-resonator-proxy], [data-mutilator-owned]'))
+                        .filter(input => input.id && !input.closest('#partsBinCard, #partsBinDialog, #dawBridgeCard, #dawInputCard, #songBetaCard, #aiPatchCard, #bastardLoopCutOverlay, #bastardLoop2CutOverlay, #bastardLoop3CutOverlay, #bastardLoopVCutOverlay, #bastardLoopWCutOverlay, #bastardLoopDCutOverlay, #bastardLoopD2CutOverlay, #bastardLoopD3CutOverlay, #bastardLoopD4CutOverlay, #bastardLoopPCutOverlay, #bastardLoopOCutOverlay, #qArpOverlay, #qChordEditorOverlay, #drumMachineLane-roll, #kTrackControlSection, #channelEqDialog, .loop-fx, #waspCard, #filterPlaygroundCard, #turntableCard, #resonatorCard, #bassFaceCard, .acoustic-card, #mutilatorInput, [data-resonator-proxy], [data-mutilator-owned]'))
                         .map(input => ({ id: input.id, type: input.type, value: input.value, checked: input.checked })),
                     metadata: Object.fromEntries(metadataBindings.map(([key, getMetadata]) => [key, cloneJson(getMetadata())]))
                 },
@@ -556,7 +558,7 @@
             // repair. Arm can use this normalized snapshot and existing renders
             // without copying an entire source ZIP just to add empty audio slots.
             const explicitOnly = lanes.length > 0 && lanes.every(lane => ['D loop', 'K five-track recorder', 'W loop', 'Loop filters / space'].includes(lane));
-            const fxBytes = (window.MygrainAcousticFx?.estimatedBytes(snapshot.state.modes, audioContext.sampleRate) || 0) + (window.MygrainBassFace?.estimatedBytes(snapshot.state.modes.bassFace) || 0) + (snapshot.state.modes.loopD?.mutilator?.enabled && snapshot.state.modes.loopD.mutilator.input && !['D','DAW'].includes(snapshot.state.modes.loopD.mutilator.input) ? 1024*1024 : 0) + (window.MygrainResonator?.audible(snapshot.state.modes.resonatorR) ? window.MygrainResonator.estimatedBytes(audioContext.sampleRate) : 0) + (snapshot.state.modes.turntable?.enabled ? Math.ceil(audioContext.sampleRate * .08) * 2 * 4 * (snapshot.state.modes.turntable.route === 'drums' ? 3 : 1) : 0) + (window.MygrainLoopFx?.estimatedBytes(snapshot.state.modes.loopFx, audioContext.sampleRate) || 0) + (window.MygrainNoise?.estimatedBytes(audioContext.sampleRate) || 0);
+            const fxBytes = (window.MygrainCookingPot?.estimatedBytes(snapshot.state.modes, audioContext.sampleRate) || 0) + (window.MygrainLoopFx?.estimatedBytes(snapshot.state.modes.loopFx, audioContext.sampleRate) || 0) + (window.MygrainNoise?.estimatedBytes(audioContext.sampleRate) || 0);
             return { snapshot, decodedBytes, fxBytes, upgrade: lanes.length ? { lanes, explicitOnly } : null };
         },
 
@@ -567,6 +569,7 @@
 
         async decode(arrayBuffer, cache) {
             const { snapshot } = adapter.inspectPart(arrayBuffer);
+            await window.mygrainEffectLfo?.prepare(audioContext);
             await window.mygrainResonator?.prepare(audioContext, snapshot.state.modes.resonatorR);
             await window.mygrainAcousticFx?.prepare(audioContext, snapshot.state.modes);
             await window.mygrainWasp?.prepare(audioContext, snapshot.state.modes.wasp);
@@ -743,8 +746,7 @@
             const fxBytes = (editingPreparationDepth
                 ? (window.MygrainLoopFx?.estimatedBytes(null, audioContext.sampleRate) || 0)
                 : (Number(info.fxBytes) || 0) + (window.MygrainLoopFx?.estimatedBytes(window.mygrainLoopFx?.settings(), audioContext.sampleRate) || 0))
-                + (window.MygrainAcousticFx?.estimatedBytes(window.mygrainAcousticFx?.settings(), audioContext.sampleRate, true) || 0)
-                + (window.MygrainBassFace?.estimatedBytes(window.mygrainBassFace?.settings()) || 0) + (window.mygrainD?.settings().mutilator?.enabled && window.mygrainD.settings().mutilator.input && !['D','DAW'].includes(window.mygrainD.settings().mutilator.input) ? 1024*1024 : 0)
+                + (window.MygrainCookingPot?.estimatedBytes({...window.mygrainAcousticFx?.settings(),cookingPot:window.mygrainCookingPot?.settings(),bassFace:window.mygrainBassFace?.settings(),loopD:window.mygrainD?.settings(),resonatorR:window.mygrainResonator?.settings(),turntable:window.mygrainTurntable?.settings(),wasp:window.mygrainWasp?.settings()}, audioContext.sampleRate, true) || 0)
                 + (window.MygrainNoise?.estimatedBytes(audioContext.sampleRate) || 0);
             const bytes = 16 * 1048576 + fxBytes + Math.max(residency.bytes + newBytes + decodeScratch, finalBytes + persistScratch);
             const emptyDecodeScratch = Math.max(0, ...[...groups.values()].map(entry => entry.record.bytes * 2 + (entry.nativePcm16 ? 0 : entry.bytes * 2)));
@@ -838,7 +840,7 @@
                 syncPatternLengthControls(snapshot.state.patternLength, { skipSave: true });
                 for (const control of snapshot.extra.controls || []) {
                     const input = document.getElementById(control.id);
-                    if (!input || input.closest('#partsBinCard, #partsBinDialog, #dawBridgeCard, #dawInputCard, #songBetaCard, #aiPatchCard, #bastardLoopCutOverlay, #bastardLoop2CutOverlay, #bastardLoop3CutOverlay, #bastardLoopVCutOverlay, #bastardLoopWCutOverlay, #bastardLoopDCutOverlay, #bastardLoopPCutOverlay, #bastardLoopOCutOverlay, #qArpOverlay, #qChordEditorOverlay, #drumMachineLane-roll, #kTrackControlSection, #channelEqDialog, .loop-fx, #waspCard, #filterPlaygroundCard, #turntableCard, #resonatorCard, #bassFaceCard, .acoustic-card, #mutilatorInput, [data-resonator-proxy], [data-mutilator-owned]') || input.type !== control.type) continue;
+                    if (!input || input.closest('#partsBinCard, #partsBinDialog, #dawBridgeCard, #dawInputCard, #songBetaCard, #aiPatchCard, #bastardLoopCutOverlay, #bastardLoop2CutOverlay, #bastardLoop3CutOverlay, #bastardLoopVCutOverlay, #bastardLoopWCutOverlay, #bastardLoopDCutOverlay, #bastardLoopD2CutOverlay, #bastardLoopD3CutOverlay, #bastardLoopD4CutOverlay, #bastardLoopPCutOverlay, #bastardLoopOCutOverlay, #qArpOverlay, #qChordEditorOverlay, #drumMachineLane-roll, #kTrackControlSection, #channelEqDialog, .loop-fx, #waspCard, #filterPlaygroundCard, #turntableCard, #resonatorCard, #bassFaceCard, .acoustic-card, #mutilatorInput, [data-resonator-proxy], [data-mutilator-owned]') || input.type !== control.type) continue;
                     if (input.type === 'checkbox' || input.type === 'radio') input.checked = Boolean(control.checked);
                     else input.value = control.value;
                     input.dispatchEvent(new Event('change', { bubbles: true }));

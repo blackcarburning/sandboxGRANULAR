@@ -1418,6 +1418,204 @@
         "min": 0,
         "max": 1
       }
+    },
+    "henrysHose": {
+      "enabled": {
+        "type": "boolean"
+      },
+      "input": {
+        "enum": [
+          "all",
+          "A",
+          "B",
+          "C",
+          "D",
+          "V",
+          "W",
+          "P",
+          "O",
+          "L",
+          "X",
+          "Q",
+          "M",
+          "M+",
+          "generated",
+          "sample",
+          "K",
+          "K1",
+          "K2",
+          "K3",
+          "K4",
+          "K5",
+          "drums",
+          "drumKick",
+          "drumSnare",
+          "drumHat",
+          "drumPerc",
+          "drumClap",
+          "drumCymbals",
+          "drumEtc",
+          "drumRoll",
+          "N"
+        ]
+      },
+      "length": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      },
+      "bore": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      },
+      "ribs": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      },
+      "damping": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      },
+      "reflection": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      },
+      "orbit": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      },
+      "freeRate": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      },
+      "rotationMode": {
+        "enum": [
+          "free",
+          "sync"
+        ]
+      },
+      "division": {
+        "enum": [
+          "1",
+          "2",
+          "4",
+          "8",
+          "16",
+          "32",
+          "0.25",
+          "0.5"
+        ]
+      },
+      "direction": {
+        "enum": [
+          "forward",
+          "reverse"
+        ]
+      },
+      "phase": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      },
+      "sing": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      },
+      "stereoFeed": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      },
+      "micLType": {
+        "enum": [
+          "modern",
+          "omni",
+          "ribbon",
+          "broadcast",
+          "snare",
+          "kick",
+          "rifle"
+        ]
+      },
+      "micRType": {
+        "enum": [
+          "modern",
+          "omni",
+          "ribbon",
+          "broadcast",
+          "snare",
+          "kick",
+          "rifle"
+        ]
+      },
+      "micLX": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      },
+      "micLY": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      },
+      "micLHeight": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      },
+      "micLAim": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      },
+      "micRX": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      },
+      "micRY": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      },
+      "micRHeight": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      },
+      "micRAim": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      },
+      "width": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      },
+      "level": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      },
+      "micMode": {
+        "enum": [
+          "mono",
+          "stereo"
+        ]
+      },
+      "doppler": {
+        "type": "number",
+        "min": 0,
+        "max": 1
+      }
     }
   },
   "cardEffects": {

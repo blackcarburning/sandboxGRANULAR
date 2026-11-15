@@ -3,6 +3,7 @@
 
     const palette = Object.freeze({
         song: '#b8efbe',
+        dfeeder: '#f5b399',
         'ai-patch': '#ff299b',
         mega: 'linear-gradient(180deg, rgba(8, 54, 70, 0.96), rgba(17, 103, 125, 0.96))',
         sparse: 'linear-gradient(180deg, rgba(74, 46, 10, 0.96), rgba(138, 98, 18, 0.96))',
@@ -61,7 +62,7 @@
         wasp: 'repeating-linear-gradient(125deg, #ffdc38 0px, #ffdc38 16px, #e23c30 16px, #e23c30 28px)',
         turntable: '#c19a67',
         resonator: '#e8a278',
-        wireWorld: '#ffba76', sonicCrystal: '#95fbd9', bubbleChamber: '#a6ccff',
+        heavyLifter: '#c4cbd0', henrysHose: '#ff6267', wireWorld: '#ffba76', sonicCrystal: '#95fbd9', bubbleChamber: '#a6ccff',
         pan: '#efc4cf'
     });
     const foreground = '#f2f6ff';
@@ -91,6 +92,7 @@
     })));
     const targets = Object.freeze({
         '#songBetaCard': 'song',
+        '#dfeederCard': 'dfeeder',
         '#aiPatchCard': 'ai-patch',
         '.performance-keyboard-card': 'keyboard',
         '.synth-container': 'synth',
@@ -150,7 +152,7 @@
         '#bassFaceCard': 'bassFace',
         '#cookingPotCard': 'cookingPot',
         '#partsBinCard': 'partsBin',
-        '#wireWorldCard': 'wireWorld', '#sonicCrystalCard': 'sonicCrystal', '#bubbleChamberCard': 'bubbleChamber',
+        '#heavyLifterCard': 'heavyLifter', '#henrysHoseCard': 'henrysHose', '#wireWorldCard': 'wireWorld', '#sonicCrystalCard': 'sonicCrystal', '#bubbleChamberCard': 'bubbleChamber',
         '#finalPanSection': 'pan',
         '#performancePanLabResetBtn': 'pan'
     });
@@ -336,7 +338,7 @@
     const effectCardIds = Object.freeze([
         'cookingPotCard', 'turntableCard', 'filterPlaygroundCard', 'loopDMutilator',
         'bassFaceCard', 'waspCard', 'resonatorCard', 'wireWorldCard',
-        'sonicCrystalCard', 'bubbleChamberCard', 'masterBakerCard'
+        'sonicCrystalCard', 'bubbleChamberCard', 'masterBakerCard', 'henrysHoseCard', 'heavyLifterCard'
     ]);
     function arrangeEffectCards() {
         if (root.__mygrainSongRenderDeck) return;
@@ -350,8 +352,11 @@
         const bin = doc.getElementById('partsBinCard');
         if (bin) bin.style.order = '199';
         // Move existing instances, retaining listeners, controls and lazy placeholders.
-        const tail = [...shell.children].slice(-cards.length);
-        if (cards.some((card, index) => tail[index] !== card)) shell.append(...cards);
+        const feeder = doc.getElementById('dfeederCard');
+        if (feeder) feeder.style.order = '300';
+        const tailCards = [...cards, ...(feeder ? [feeder] : [])];
+        const tail = [...shell.children].slice(-tailCards.length);
+        if (tailCards.some((card, index) => tail[index] !== card)) shell.append(...tailCards);
         arrangeJumpButtons();
     }
     const jumpOriginalOrder = new Map();
@@ -367,23 +372,22 @@
         const add = node => { if (node && !selected.has(node)) { selected.add(node); ordered.push(node); } };
         {
             for (const selector of [
-                '#sectionJumpInitialisePanelBtn', '[data-jump-target=".performance-toolbar"]',
+                '#sectionJumpInitialisePanelBtn', '[data-jump-target=".performance-toolbar"]', '#iphoneLowPowerControl',
                 '#sectionJumpAiBtn', '#sectionJumpCookingPotBtn', '#sectionJumpPartsBinBtn', '#sectionJumpMasterBakerBtn', '#sectionJumpSongBtn',
                 '#sectionJumpLayerSwitchBtn', '#sectionJumpBastardMixerBtn',
                 '#sectionJumpMegaRandomBtn', '#sectionJumpSparseRandomBtn',
                 '#sectionJumpFinalMixBtn', '[data-jump-click="#performanceWavBrowserBtn"]',
                 '#sectionJumpLoopStoreAddBtn', '[data-jump-click="#performanceLoopStoreBrowserBtn"]',
-                '#sectionJumpKeyboardBtn', '#sectionJumpActionsBtn',
-                '[data-jump-target="[aria-label=\'Drum machine controls\']"]', '[data-jump-target="#genreatorCard"]'
+                ...(desktop ? ['#sectionJumpKeyboardBtn', '#sectionJumpActionsBtn', '[data-jump-target="[aria-label=\'Drum machine controls\']"]', '[data-jump-target="#genreatorCard"]'] : ['[data-jump-target="[aria-label=\'Drum machine controls\']"]', '[data-jump-target="#genreatorCard"]', '#sectionJumpKeyboardBtn', '#sectionJumpActionsBtn'])
             ]) add(button(selector));
-            const wide = ordered.slice(0, 7);
+            const wide = ordered.filter(node => node.id !== 'iphoneLowPowerControl').slice(0, 7);
             for (const child of grid.children) child.classList.toggle('desktop-jump-wide', wide.includes(child));
         }
         const effects = new Set([
             ...['[aria-label=\'Filter controls\']', '#internalEffectsPanel', '#internalDelayCard', '#internalReverbCard'],
             ...effectCardIds.map(id => '#' + id)
         ]);
-        const rest = [...grid.children].filter(node => !selected.has(node) && !effects.has(node.dataset.jumpTarget));
+        const rest = [...grid.children].filter(node => !selected.has(node) && !effects.has(node.dataset.jumpTarget) && node.id !== 'sectionJumpDfeederBtn');
         // Loop order is explicit: parked/detached card geometry must not reshuffle it.
         const loopOrder = ['Loop A', 'Loop B', 'Loop C', 'Loop D', 'Loop V', 'Loop W', 'Loop P', 'Loop O', 'Loop L', 'Loop X', 'Loop Q', 'Loop M', 'Loop M+', 'Loop K'];
         rest.sort((a, b) => {
@@ -393,6 +397,7 @@
         });
         rest.forEach(add);
         for (const selector of effects) [...grid.children].filter(node => node.dataset.jumpTarget === selector).forEach(add);
+        add(button('#sectionJumpDfeederBtn'));
         if (ordered.some((node, index) => grid.children[index] !== node)) grid.append(...ordered);
     }
     function initializeEffectCardOrder() {
@@ -566,7 +571,7 @@
             empty.hidden = matches > 0;
         };
         const sync = () => {
-            // One shared list and identical ordering at every viewport.
+            // Shared controls; phone priority puts Drums/GENREator before Keys/Actions.
             drawer.querySelectorAll('.section-jump-quick').forEach(rememberQuick);
             for (const node of origins.keys()) if (node.parentElement !== grid) grid.append(node);
             arrangeJumpButtons(); filter();

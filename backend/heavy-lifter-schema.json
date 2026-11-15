@@ -1,0 +1,132 @@
+{
+  "defaults": {
+    "version": 1,
+    "enabled": false,
+    "source": "all",
+    "mode": "materialBody",
+    "level": 0.7,
+    "width": 0.75,
+    "recipes": {
+      "materialBody": {
+        "size": 0.5,
+        "decay": 0.45,
+        "damping": 0.3,
+        "detail": 0.7,
+        "blend": 0.35,
+        "drive": 0.25,
+        "seed": 13871
+      },
+      "mechanicalMotion": {
+        "speed": 0.5,
+        "depth": 0.65,
+        "colour": 0.5,
+        "flutter": 0.25,
+        "irregularity": 0.3,
+        "blend": 0.65,
+        "seed": 21790
+      },
+      "spectralImprint": {
+        "imprint": 0.7,
+        "detail": 0.5,
+        "shift": 0.5,
+        "motion": 0.4,
+        "focus": 0.5,
+        "transients": 0.55,
+        "seed": 29709
+      },
+      "livingConvolution": {
+        "length": 0.35,
+        "morph": 0.5,
+        "speed": 0.4,
+        "decay": 0.55,
+        "reverse": 0,
+        "colour": 0.65,
+        "seed": 37628
+      },
+      "spectralAlloy": {
+        "alloy": 0.6,
+        "anchor": 0.25,
+        "inharmonicity": 0.6,
+        "motion": 0.4,
+        "focus": 0.5,
+        "transients": 0.65,
+        "seed": 45547
+      },
+      "stressedMetal": {
+        "size": 0.5,
+        "decay": 0.45,
+        "stress": 0.55,
+        "speed": 0.5,
+        "loss": 0.3,
+        "drive": 0.3,
+        "seed": 53466
+      }
+    },
+    "samples": {
+      "materialBody": [],
+      "mechanicalMotion": [],
+      "spectralImprint": [],
+      "livingConvolution": [],
+      "spectralAlloy": [],
+      "stressedMetal": []
+    }
+  },
+  "params": {
+    "materialBody": {
+      "size": 0.5,
+      "decay": 0.45,
+      "damping": 0.3,
+      "detail": 0.7,
+      "blend": 0.35,
+      "drive": 0.25
+    },
+    "mechanicalMotion": {
+      "speed": 0.5,
+      "depth": 0.65,
+      "colour": 0.5,
+      "flutter": 0.25,
+      "irregularity": 0.3,
+      "blend": 0.65
+    },
+    "spectralImprint": {
+      "imprint": 0.7,
+      "detail": 0.5,
+      "shift": 0.5,
+      "motion": 0.4,
+      "focus": 0.5,
+      "transients": 0.55
+    },
+    "livingConvolution": {
+      "length": 0.35,
+      "morph": 0.5,
+      "speed": 0.4,
+      "decay": 0.55,
+      "reverse": 0,
+      "colour": 0.65
+    },
+    "spectralAlloy": {
+      "alloy": 0.6,
+      "anchor": 0.25,
+      "inharmonicity": 0.6,
+      "motion": 0.4,
+      "focus": 0.5,
+      "transients": 0.65
+    },
+    "stressedMetal": {
+      "size": 0.5,
+      "decay": 0.45,
+      "stress": 0.55,
+      "speed": 0.5,
+      "loss": 0.3,
+      "drive": 0.3
+    }
+  },
+  "modes": [
+    "materialBody",
+    "mechanicalMotion",
+    "spectralImprint",
+    "livingConvolution",
+    "spectralAlloy",
+    "stressedMetal"
+  ]
+}

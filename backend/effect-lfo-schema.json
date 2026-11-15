@@ -1,0 +1,223 @@
+{
+  "wireWorld": {
+    "dispersion": {
+      "def": 0.72,
+      "min": 0,
+      "max": 1
+    },
+    "travel": {
+      "def": 0.38,
+      "min": 0,
+      "max": 1
+    },
+    "feedback": {
+      "def": 0.42,
+      "min": 0,
+      "max": 1
+    },
+    "damping": {
+      "def": 0.35,
+      "min": 0,
+      "max": 1
+    },
+    "width": {
+      "def": 0.75,
+      "min": 0,
+      "max": 1
+    },
+    "level": {
+      "def": 0.5,
+      "min": 0,
+      "max": 1
+    }
+  },
+  "sonicCrystal": {
+    "tuning": {
+      "def": 0.48,
+      "min": 0,
+      "max": 1
+    },
+    "spacing": {
+      "def": 0.35,
+      "min": 0,
+      "max": 1
+    },
+    "coupling": {
+      "def": 0.55,
+      "min": 0,
+      "max": 1
+    },
+    "disorder": {
+      "def": 0.12,
+      "min": 0,
+      "max": 1
+    },
+    "defect": {
+      "def": 0.25,
+      "min": 0,
+      "max": 1
+    },
+    "loss": {
+      "def": 0.25,
+      "min": 0,
+      "max": 1
+    },
+    "reflection": {
+      "def": 0.28,
+      "min": 0,
+      "max": 1
+    },
+    "width": {
+      "def": 0.7,
+      "min": 0,
+      "max": 1
+    },
+    "level": {
+      "def": 0.7,
+      "min": 0,
+      "max": 1
+    },
+    "cells": {
+      "def": 8,
+      "choices": [
+        4,
+        8,
+        12
+      ]
+    }
+  },
+  "bubbleChamber": {
+    "radius": {
+      "def": 0.48,
+      "min": 0,
+      "max": 1
+    },
+    "spread": {
+      "def": 0.42,
+      "min": 0,
+      "max": 1
+    },
+    "decay": {
+      "def": 0.4,
+      "min": 0,
+      "max": 1
+    },
+    "resonance": {
+      "def": 0,
+      "min": 0,
+      "max": 1
+    },
+    "damping": {
+      "def": 0,
+      "min": 0,
+      "max": 1
+    },
+    "fizz": {
+      "def": 0,
+      "min": 0,
+      "max": 1
+    },
+    "motion": {
+      "def": 0.86,
+      "min": 0,
+      "max": 1
+    },
+    "flow": {
+      "def": 0,
+      "min": 0,
+      "max": 1
+    },
+    "width": {
+      "def": 0.62,
+      "min": 0,
+      "max": 1
+    },
+    "level": {
+      "def": 0.88,
+      "min": 0,
+      "max": 1
+    },
+    "population": {
+      "def": 8,
+      "choices": [
+        8,
+        16,
+        24
+      ]
+    }
+  },
+  "bassFace": {
+    "amount": {
+      "def": 0.35,
+      "min": 0,
+      "max": 1
+    },
+    "tone": {
+      "def": 0.45,
+      "min": 0,
+      "max": 1
+    },
+    "mix": {
+      "def": 0.5,
+      "min": 0,
+      "max": 1
+    },
+    "body": {
+      "def": 0.85,
+      "min": 0,
+      "max": 1
+    }
+  },
+  "mutilator": {
+    "amount": {
+      "def": 0.5,
+      "min": 0,
+      "max": 1
+    },
+    "tone": {
+      "def": 0.5,
+      "min": 0,
+      "max": 1
+    },
+    "mix": {
+      "def": 0.5,
+      "min": 0,
+      "max": 1
+    },
+    "resonance": {
+      "def": 0.5,
+      "min": 0,
+      "max": 1
+    },
+    "sweep": {
+      "def": 1,
+      "min": 0,
+      "max": 1
+    },
+    "freeDepth": {
+      "def": 0,
+      "min": 0,
+      "max": 1
+    },
+    "freeRate": {
+      "def": 1,
+      "min": 0.125,
+      "max": 12
+    },
+    "output": {
+      "def": 0,
+      "min": -18,
+      "max": 6
+    },
+    "cycleBeats": {
+      "def": 4,
+      "choices": [
+        0.5,
+        1,
+        2,
+        4,
+        8
+      ]
+    }
+  }
+}

@@ -35,6 +35,8 @@
     const contextListeners = [];
     const captureOption = options => typeof options === 'boolean' ? options : Boolean(options?.capture);
     bridge.disposeContext = () => {
+        window.mygrainCookingPot?.releaseContext();
+        window.mygrainEffectLfo?.release();
         window.mygrainEffectOutput?.releaseContext();
         window.mygrainTurntable?.releaseContext();
         window.mygrainResonator?.releaseContext();

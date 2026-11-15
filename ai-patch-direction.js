@@ -133,7 +133,7 @@
         byId('aiPatchLibraryStatus').textContent = `Recalled “${saved.name}”. Sound unchanged; Generate to try this direction.`;
     }
     async function refreshSchema(signal) {
-        const response = await root.fetch(new URL('ai-patch-controls.json?v=20261113-vocals-1', document.baseURI), { credentials: 'same-origin', cache: 'no-store', ...(signal ? { signal } : {}) });
+        const response = await root.fetch(new URL('ai-patch-controls.json?v=20261113-hose-doppler-2', document.baseURI), { credentials: 'same-origin', cache: 'no-store', ...(signal ? { signal } : {}) });
         if (!response.ok) throw Error('AI controls could not refresh. Nothing was changed; retry.');
         const data = await response.json();
         if (data.version !== 4 || !data.controls || Object.keys(data.loops || {}).length !== 14) throw Error('AI controls changed. Reload MYGRAIN. Nothing was changed.');
@@ -187,7 +187,7 @@
         if(key==='bassFace') return root.mygrainBassFace.settings();
         if(key==='turntable') {const s=root.mygrainTurntable.settings();return {...s,input:s.input||(s.route==='drums'?'drums':'all')};}
         if(key==='resonator') {const s=root.mygrainResonator.settings();return {...s.slots[0],enabled:s.enabled,input:s.slots[0].source};}
-        if(['wireWorld','sonicCrystal'].includes(key)) {const s=root.mygrainAcousticFx.settings(key);return {...s,input:s.source};}
+        if(['wireWorld','sonicCrystal','henrysHose'].includes(key)) {const s=root.mygrainAcousticFx.settings(key);return {...s,input:s.source};}
         const s=root.mygrainWasp.settings();
         if(key==='playground') {const v=s.playground,m=v.modulation.cutoff;return {...v,input:v.input||'all',lfoBeats:m.beats,lfoDepth:m.source==='drawn'?Math.max(0,m.amount):0};}
         return {...s,...s.routes[0],enabled:s.enabled,input:s.routes[0].source};
@@ -208,7 +208,7 @@
             if(key==='mutilator') root.mygrainD.setMutilator({...root.mygrainD.settings().mutilator,...v},{skipSave:true});
             else if(key==='bassFace') root.mygrainBassFace.restore({...root.mygrainBassFace.settings(),...v});
             else if(key==='turntable') {const s=root.mygrainTurntable.settings();await root.mygrainTurntable.restore({...s,...v,...(v.input?{route:v.input==='drums'?'drums':'mix'}:{})});}
-            else if(['wireWorld','sonicCrystal'].includes(key)) {const {input,...fields}=v;await root.mygrainAcousticFx.set(key,{...root.mygrainAcousticFx.settings(key),...fields,...(input?{source:input}:{})});}
+            else if(['wireWorld','sonicCrystal','henrysHose'].includes(key)) {const {input,...fields}=v;await root.mygrainAcousticFx.set(key,{...root.mygrainAcousticFx.settings(key),...fields,...(key==='henrysHose'&&fields.doppler!=null?{version:2}:{}),...(input?{source:input}:{})});}
             else if(key==='resonator') {const s=root.mygrainResonator.settings(),{input,enabled,...fields}=v,configure=input!==undefined||Object.keys(fields).length>0;await root.mygrainResonator.restore({...s,...(enabled!==undefined?{enabled}:{}),...(configure?{slots:[{...s.slots[0],...fields,enabled:true,...(input?{source:input}:{})},{...s.slots[1],enabled:false}]}:{})});}
             else {
                 const s=root.mygrainWasp.settings();
