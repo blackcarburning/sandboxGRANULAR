@@ -111,11 +111,15 @@ async function run(state,signedOutOnly=false){
  await p.waitForFunction(api=>window[api].connected&&window[api].diagnostics().project.ready&&isAudioGraphReady()&&!engineStarting&&!stateSaveSuspended&&!mygrainCardHistory.busy,api,{timeout:90000});
 
  if(!state){
+  // Playwright's CDP attachment can install its own deny/allowAndName policy.
+  // Restore the embedder default to exercise CefDownloadHandler, not Playwright.
+  const downloadCDP=await c.newCDPSession(p);await downloadCDP.send('Browser.setDownloadBehavior',{behavior:'default',eventsEnabled:true});
   const downloads=path.join(require('node:os').homedir(),'Downloads'),name='mygrain-cef-download-'+Date.now()+'.wav';
   fs.mkdirSync(downloads,{recursive:true});fs.writeFileSync(path.join(downloads,name),'existing file must survive');
   await p.evaluate(({name,data})=>{for(let i=0;i<2;i++){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([Uint8Array.from(data)],{type:'audio/wav'}));a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),30000)}},{name,data:[...previewWav]});
   const copies=[1,2].map(n=>path.join(downloads,name.replace(/\.wav$/,` (${n}).wav`)));
-  await until(()=>copies.every(file=>fs.existsSync(file)&&fs.statSync(file).size===previewWav.length),'native Downloads WAVs without dialogs');
+  try{await until(()=>copies.every(file=>fs.existsSync(file)&&fs.statSync(file).size===previewWav.length),'native Downloads WAVs without dialogs');}catch(error){fs.writeFileSync(path.join(out,'download-failure.json'),JSON.stringify({files:fs.readdirSync(downloads),notice:await p.evaluate(()=>document.getElementById('mygrainNativeDownloadStatus')?.textContent)},null,2));throw error;}
+  await downloadCDP.detach();
   for(const file of copies)assert.deepEqual(fs.readFileSync(file),previewWav);
   assert.equal(fs.readFileSync(path.join(downloads,name),'utf8'),'existing file must survive');
   fs.writeFileSync(path.join(out,'native-download-results.json'),JSON.stringify({directory:downloads,files:copies,exactWavBytes:true,duplicateNamesSafe:true,noSaveDialog:true},null,2));
