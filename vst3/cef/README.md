@@ -1,4 +1,4 @@
-# MyGrain CEF 0.1.4 preview
+# MyGrain CEF 0.1.5 preview
 
 Separate VST3 instrument, name **MyGrain CEF**, class ID
 `A44B25E13DE64853A16CC63921C9D4B2`. Never replaces MYGRAIN Bridge 0.8.0 or
@@ -166,7 +166,7 @@ For the embedded stereo effect counterpart to MYGRAIN FX 0.4.0, build
 [CEF FX setup](https://openclaw.blackcarburning.com/mygrain/cef-fx-setup.html).
 Both CEF variants use the full private Chromium runtime, not an installed browser.
 
-## 0.1.4 focused Space passthrough
+## 0.1.5 focused Space passthrough
 
 Space belongs to the host transport even while the embedded app has focus.
 IPlugView returns kResultFalse for both down/up without sending them to CEF.

@@ -109,6 +109,17 @@ async function run(state,signedOutOnly=false){
  await p.waitForFunction(()=>window.mygrainDawBridge&&document.documentElement.dataset.mygrainStartup==='ready',null,{timeout:90000}).catch(async error=>{fs.writeFileSync(path.join(out,'startup-diagnostic.json'),JSON.stringify(await p.evaluate(()=>({url:location.href,build:document.querySelector('.build-badge')?.textContent,status:document.documentElement.dataset,body:document.body.innerText.slice(0,15000)})),null,2));throw error;});
  if(await p.locator('#start-btn').isVisible())await p.locator('#start-btn').click();
  await p.waitForFunction(api=>window[api].connected&&window[api].diagnostics().project.ready&&isAudioGraphReady()&&!engineStarting&&!stateSaveSuspended&&!mygrainCardHistory.busy,api,{timeout:90000});
+
+ if(!state){
+  const downloads=path.join(require('node:os').homedir(),'Downloads'),name='mygrain-cef-download-'+Date.now()+'.wav';
+  fs.mkdirSync(downloads,{recursive:true});fs.writeFileSync(path.join(downloads,name),'existing file must survive');
+  await p.evaluate(({name,data})=>{for(let i=0;i<2;i++){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([Uint8Array.from(data)],{type:'audio/wav'}));a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),30000)}},{name,data:[...previewWav]});
+  const copies=[1,2].map(n=>path.join(downloads,name.replace(/\.wav$/,` (${n}).wav`)));
+  await until(()=>copies.every(file=>fs.existsSync(file)&&fs.statSync(file).size===previewWav.length),'native Downloads WAVs without dialogs');
+  for(const file of copies)assert.deepEqual(fs.readFileSync(file),previewWav);
+  assert.equal(fs.readFileSync(path.join(downloads,name),'utf8'),'existing file must survive');
+  fs.writeFileSync(path.join(out,'native-download-results.json'),JSON.stringify({directory:downloads,files:copies,exactWavBytes:true,duplicateNamesSafe:true,noSaveDialog:true},null,2));
+ }
  assert.equal(await p.evaluate(()=>mygrainAccounts.user.username),'cef-fixture');if(state)assert.equal(auth.posts,0,'fresh instance must not submit credentials');
  return p;
 }
