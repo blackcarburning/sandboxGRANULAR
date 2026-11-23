@@ -1,4 +1,4 @@
-# MyGrain CEF 0.1.5 preview
+# MyGrain CEF 0.1.6 preview
 
 Separate VST3 instrument, name **MyGrain CEF**, class ID
 `A44B25E13DE64853A16CC63921C9D4B2`. Never replaces MYGRAIN Bridge 0.8.0 or
@@ -180,3 +180,21 @@ Native dialogs keep their own normal OS keyboard handling. No audio engine,
 transport synchronization, project state, Song rendering or saved schema changes.
 The private display/input IPC is version 3, so replace the WHOLE CEF bundle.
 A hosted app reload alone cannot change this native behavior.
+
+## 0.1.6 Web MIDI permission
+
+CEF Alloy does not display Chrome's permission UI. The helper now explicitly
+accepts CEF 156's MIDI permission prompt for the exact trusted MYGRAIN HTTPS
+origin, alongside the existing loopback permission. Microphone, camera, unrelated
+permissions and other origins are not granted. The app continues to request
+ordinary MIDI (`sysex:false`), not device-reprogramming messages. No global
+Chromium permission bypass or shared browser profile is introduced.
+
+Native Windows/macOS CI must resolve a real `requestMIDIAccess` promise and
+record its permission state and actual enumerated port list. An empty hardware
+list on a hosted runner is not proof of physical interface functionality. Driver
+exclusivity may prevent Windows devices being shared with Cubase. This is Web
+MIDI interface access, not a newly implemented VST3 host MIDI event bus.
+
+Install 0.1.6 by replacing the full bundle with the DAW closed, then rescan. An app
+reload alone cannot update the native helper's permission policy.

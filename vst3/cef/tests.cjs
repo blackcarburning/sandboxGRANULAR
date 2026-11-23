@@ -110,6 +110,17 @@ async function run(state,signedOutOnly=false){
  if(await p.locator('#start-btn').isVisible())await p.locator('#start-btn').click();
  await p.waitForFunction(api=>window[api].connected&&window[api].diagnostics().project.ready&&isAudioGraphReady()&&!engineStarting&&!stateSaveSuspended&&!mygrainCardHistory.busy,api,{timeout:90000});
 
+ // Exercise the embedder's real MIDI permission path; never inject/grant a CDP permission.
+ const midi=await p.evaluate(async()=>{
+  if(typeof navigator.requestMIDIAccess!=='function')return {supported:false};
+  const access=await Promise.race([navigator.requestMIDIAccess({sysex:false}),new Promise((_,reject)=>setTimeout(()=>reject(Error('CEF MIDI permission request did not resolve')),10000))]);
+  const ports=collection=>Array.from(collection.values(),p=>({name:p.name,type:p.type,state:p.state}));
+  const permission=await navigator.permissions.query({name:'midi',sysex:false});
+  return {supported:true,resolved:true,sysexEnabled:access.sysexEnabled,permission:permission.state,inputs:ports(access.inputs),outputs:ports(access.outputs)};
+ });
+ assert.equal(midi.supported,true);assert.equal(midi.resolved,true);assert.equal(midi.sysexEnabled,false);assert.equal(midi.permission,'granted');
+ fs.writeFileSync(path.join(out,'midi-permissions'+(state?'-restored':'')+'.json'),JSON.stringify(midi,null,2));
+ console.log('CEF_MIDI_ACCESS='+JSON.stringify(midi));
  if(!state){
   // Playwright's CDP attachment can install its own deny/allowAndName policy.
   // Restore the embedder default to exercise CefDownloadHandler, not Playwright.

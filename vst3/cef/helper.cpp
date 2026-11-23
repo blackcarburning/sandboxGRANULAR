@@ -169,11 +169,13 @@ void setup(){
  life.api.on_before_close=[](cef_life_span_handler_t*,cef_browser_t*){closed=true;};
  life.api.on_before_popup=[](cef_life_span_handler_t*,cef_browser_t*,cef_frame_t*,int,const cef_string_t*,const cef_string_t*,cef_window_open_disposition_t,int,const cef_popup_features_t*,cef_window_info_t*,cef_client_t**,cef_browser_settings_t*,cef_dictionary_value_t**,int*)->int{return 1;};
  load.api.on_load_end=[](cef_load_handler_t*,cef_browser_t*,cef_frame_t* frame,int http){if(frame->is_main(frame)){mapping.data->status.store(http==200?2:3);if(http==200&&target.find("#fx=")!=std::string::npos)script(fxClockScript);}};
- // Local network permission is required only by the existing authenticated loopback bridge.
+ // The trusted app needs loopback transport and Web MIDI. CEF 156 represents
+ // both ordinary and SysEx MIDI prompts with CEF_PERMISSION_TYPE_MIDI_SYSEX.
+ // Alloy has no browser permission UI: unhandled MIDI prompts are ignored.
  // Do not grant microphone/camera or unrelated origins permissions.
  permissions.api.on_show_permission_prompt=[](cef_permission_handler_t*,cef_browser_t*,uint64_t,const cef_string_t* origin,uint32_t requested,cef_permission_prompt_callback_t* callback)->int{
   const auto value=utf8(origin);if(value!="https://openclaw.blackcarburning.com"&&value!="https://openclaw.blackcarburning.com/")return 0;
-  const uint32_t allowed=CEF_PERMISSION_TYPE_LOOPBACK_NETWORK;
+  const uint32_t allowed=CEF_PERMISSION_TYPE_LOOPBACK_NETWORK|CEF_PERMISSION_TYPE_MIDI_SYSEX;
   if((requested&~allowed)!=0)return 0;callback->cont(callback,CEF_PERMISSION_RESULT_ACCEPT);return 1;
  };
  downloads.api.can_download=[](cef_download_handler_t*,cef_browser_t*,const cef_string_t*,const cef_string_t*)->int{return 1;};
