@@ -1027,7 +1027,10 @@ No automatic migrations, DSP changes or legacy render invalidation.
 
 The entire dialog shell, including snapshots, is the vertical scroll owner.
 Never restore a lane-only scroller beneath fixed-height snapshot/header siblings.
-Keep Close reachable and update all lane jump targets with the scroll owner.
+Keep the title, Close, solo hint and all eight lane/solo buttons together in one
+persistent opaque frame above scrolling content. Measure its responsive height
+for scroll padding and every lane jump, including Roll; verify hit targets while
+scrolled to the final lane, not only at the top.
 All eight lanes have independent optional drumPan state; Roll shares Snare PCM,
 not its pan. Hat Accent horizontal swipes set per-hit pan regardless of accent
 power. Null inherits lane pan; explicit zero centres and overrides it. Yellow

@@ -69,3 +69,16 @@ The generic server-arm worker executes the same updated app; no separate DSP
 implementation or new worker pool is introduced. No native binary reinstall
 is required. Tests: `drum-pan-browser.cjs`, `drum-pan-song.cjs`,
 `drum-pan-state.cjs`, `test_drum_pan.py`, and the existing lane layout suite.
+
+## DPAN.3 — persistent lane navigation
+
+Keep the existing title/Close, solo hint and all eight original lane/solo buttons
+in one opaque sticky frame at the top of the dialog, before the toolbar and
+snapshots. The whole shell still scrolls, so snapshots cannot collapse a separate
+lane-only scroller. The frame is measured with ResizeObserver; scroll padding
+and all lane jumps (including Roll) account for its responsive height. The
+existing double-tap solo handlers and buttons are moved, never cloned. Scroll
+paint deferral follows the shell. Pan/audio/state contracts are unchanged.
+`tests/drum-navigation-browser.cjs` checks buttons at the final lane, every jump,
+trusted double-tap solo/unsolo stopped and solo while playing, snapshots scrolling
+and Close in Chromium/WebKit phone, landscape and desktop contexts.

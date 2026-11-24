@@ -39,7 +39,7 @@
         layout.append(card);
         const nav = doc.querySelector('.drum-machine-jumps'), tab = doc.createElement('button');
         tab.type = 'button'; tab.className = 'performance-btn'; tab.textContent = 'Roll'; tab.dataset.drumJump = 'roll'; tab.setAttribute('aria-controls', card.id);
-        tab.addEventListener('click', () => { const shell = layout.closest('.drum-machine-shell'); shell.scrollTo({top: shell.scrollTop + card.getBoundingClientRect().top - shell.getBoundingClientRect().top - 64, behavior: 'auto'}); nav.querySelectorAll('button').forEach(button => button.setAttribute('aria-current', String(button === tab))); }); nav.append(tab);
+        tab.addEventListener('click', () => { options.jump(card); nav.querySelectorAll('button').forEach(button => button.setAttribute('aria-current', String(button === tab))); }); nav.append(tab);
         const input = doc.getElementById('drumMachineRollLength'), select = doc.getElementById('drumMachineRollPage'), grid = doc.getElementById('drumMachineRollGrid');
         const dip = doc.getElementById('drumMachineRollDip');
         dip.addEventListener('input', () => {
