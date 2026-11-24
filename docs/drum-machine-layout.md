@@ -34,3 +34,38 @@ Chromium and WebKit; it exercises actual controls and saved control reload.
 The existing Copy Sec regression additionally covers all lanes, Undo/Redo,
 ratchets/accents, cancellation and reload. Browser iPhone emulation is not a
 physical-device check.
+
+## DPAN.2 — 2026-11-24
+
+The entire Drum Machine shell is now the sole vertical scroll owner, including
+the toolbar and sequencer snapshots. Previously those siblings could consume
+all available phone height and shrink the lane-only scroller to zero. Close
+remains sticky; lane jumps target the shell, including Snare Roll.
+
+Every lane (Kick, Snare, Hat, Perc, Clap, Crash/Cymbals, ETC and Roll) has an
+independent saved Pan control. Roll still shares Snare's source, not its pan.
+Hat Accent buttons additionally accept horizontal swipes with accent On or Off.
+A vertical yellow line overlays the Accent label at the effective pan position;
+solid green fills toward the left and red toward the right. Taps still toggle
+accent. Double-tap resets that hit to the overall Hat lane pan; Reset hat step
+pans clears all overrides. Arrow keys adjust a focused hit; Home/Delete resets
+it. Vertical gestures remain available for native dialog scrolling.
+
+`drum-pan.js` owns optional `modes.drumPan` (preset root `drumPan`):
+`{version:1,lanes:{hat:0.5,...},hatSteps:[null,-1,0,1]}`. Lane and hit values
+are -1..1. Null/missing hit means inherit; explicit zero overrides a nonzero
+lane with centre. Accent power never gates pan. Neutral untouched patches omit
+the field and bypass the panner node, retaining legacy graph/content identity.
+Panning applies per voice before EQ/bus, so sampled/synth hats, ratchets, Roll,
+Cooking Pot and isolated/native/offline render decks share the same policy.
+Per-hit values persist with presets/device/native projects and Song source ZIPs;
+drum sequencer snapshots and Copy Sec include them. Source PCM is unchanged.
+
+Only enabled drums with nonzero saved pan require `drumPanVersion:1`. Song
+validation strictly checks values, content identity includes the new recipe,
+and render POST/GET reject missing/stale pan capability even if summary metadata
+is absent. Existing no-pan content hashes and old prepared audio stay valid.
+The generic server-arm worker executes the same updated app; no separate DSP
+implementation or new worker pool is introduced. No native binary reinstall
+is required. Tests: `drum-pan-browser.cjs`, `drum-pan-song.cjs`,
+`drum-pan-state.cjs`, `test_drum_pan.py`, and the existing lane layout suite.

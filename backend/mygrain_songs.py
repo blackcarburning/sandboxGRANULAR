@@ -1081,6 +1081,23 @@ def clock_dividers(state):
     return value
 
 
+def drum_pan_version(state):
+    pan = state.get('modes', {}).get('drumPan')
+    if pan is None:
+        return 0
+    lanes = ('kick', 'snare', 'hat', 'perc', 'clap', 'cymbals', 'etc', 'roll')
+    number = lambda x: type(x) in (int, float) and math.isfinite(x) and -1 <= x <= 1
+    if (not isinstance(pan, dict) or type(pan.get('version')) is not int or pan['version'] != 1
+        or set(pan) - {'version', 'lanes', 'hatSteps'}
+        or not isinstance(pan.get('lanes', {}), dict) or set(pan.get('lanes', {})) - set(lanes)
+        or any(not number(v) for v in pan.get('lanes', {}).values())
+        or not isinstance(pan.get('hatSteps', []), list) or len(pan.get('hatSteps', [])) > 64
+        or any(v is not None and not number(v) for v in pan.get('hatSteps', []))):
+        raise ValueError('Invalid drum panning.')
+    active = state.get('modes', {}).get('drumMachineEnabled') is True
+    return int(active and (any(pan.get('lanes', {}).values()) or any(v for v in pan.get('hatSteps', []) if v is not None)))
+
+
 def clock_divider_version(state):
     return int(any(v != 1 for v in clock_dividers(state).values()))
 
@@ -1406,6 +1423,10 @@ def validate_part_zip(body):
             for control in ('performanceDropboxSampleSource', 'dropboxSampleBrowserSourceSelect'):
                 if content['state']['selects'].get(control) == 'samples_public':
                     content['state']['selects'][control] = 'sampledrop'
+        if not drum_pan_version(state):
+            content['state']['modes'].pop('drumPan', None)
+        else:
+            content['drumPanEngineRevision'] = 1
         if not clock_divider_version(state):
             content['state']['modes'].pop('clockDividers', None)
         else:
@@ -1678,7 +1699,7 @@ def validate_part_zip(body):
         content['assets'] = sorted(assets_for_identity, key=lambda asset: asset['key'])
         content['audioHashes'] = audio_hashes
         digest = hashlib.sha256(json.dumps(content, sort_keys=True, separators=(',', ':')).encode('utf-8')).hexdigest()
-        return {**({'robotPreRollSeconds': ROBOT.pre_roll_seconds(robot)} if ROBOT.pre_roll_seconds(robot) > 0 else {}), **({'clockDividerVersion': 1} if clock_divider_version(state) else {}), **({'enemyDroneVersion': enemy_drone_version(state)} if enemy_drone_version(state) else {}), **({'emberVersion': ember_render_version(state)} if ember_render_version(state) else {}), **({'sampleCutVersion': sample_cuts} if sample_cuts else {}), **({'unifiedInputsVersion': unified_inputs_version(state['modes'])} if unified_inputs_version(state['modes']) else {}), 'bpm': bpm, 'patternSteps': steps, 'patternCycleMultiplier': cycle, 'audioAssets': len(assets), 'contentSha256': digest, **({'drumProcessingVersion': 1} if processing else {}), **({'waspSourceVersion': 1} if state.get('modes', {}).get('wasp', {}).get('enabled') and sum(route.get('enabled') is True for route in state['modes']['wasp'].get('routes', [])[:2]) > 1 else {}), **({'mutilatorVersion': 2} if current_mutilator else {}), **({'mutilatorControlsVersion': 1} if mutilator_controls else {}), **({'characterFxVersion': 1} if character_active else {}), **({'acousticFxVersion': acoustic_active} if acoustic_active else {}), **({'cookingPotVersion': cooking_pot_render_version(state)} if cooking_pot else {}), **({'effectOutputVersion': effect_output} if effect_output else {}), **({'kickRoutingVersion': 1} if kick_routing else {}), **({'playgroundVersion': playground_render_version(state.get('modes', {}).get('wasp', {}).get('playground'))} if playground_render_version(state.get('modes', {}).get('wasp', {}).get('playground')) else {}), **({'loopFxVersion': loop_fx_render_version(state.get('modes', {}).get('loopFx'))} if state.get('modes', {}).get('loopFx', {}).get('version') == 1 else {}), **({'loopDVersion': d_loop_render_version(state, assets)} if d_loop_render_version(state, assets) else {}), **({'eqVersion': 4 if ember_eq else 3 if extended_eq else 1} if eq_active else {}), **({'qVersion': q_render_version(state['q'])} if piano_active else {})}
+        return {**({'robotPreRollSeconds': ROBOT.pre_roll_seconds(robot)} if ROBOT.pre_roll_seconds(robot) > 0 else {}), **({'drumPanVersion': 1} if drum_pan_version(state) else {}), **({'clockDividerVersion': 1} if clock_divider_version(state) else {}), **({'enemyDroneVersion': enemy_drone_version(state)} if enemy_drone_version(state) else {}), **({'emberVersion': ember_render_version(state)} if ember_render_version(state) else {}), **({'sampleCutVersion': sample_cuts} if sample_cuts else {}), **({'unifiedInputsVersion': unified_inputs_version(state['modes'])} if unified_inputs_version(state['modes']) else {}), 'bpm': bpm, 'patternSteps': steps, 'patternCycleMultiplier': cycle, 'audioAssets': len(assets), 'contentSha256': digest, **({'drumProcessingVersion': 1} if processing else {}), **({'waspSourceVersion': 1} if state.get('modes', {}).get('wasp', {}).get('enabled') and sum(route.get('enabled') is True for route in state['modes']['wasp'].get('routes', [])[:2]) > 1 else {}), **({'mutilatorVersion': 2} if current_mutilator else {}), **({'mutilatorControlsVersion': 1} if mutilator_controls else {}), **({'characterFxVersion': 1} if character_active else {}), **({'acousticFxVersion': acoustic_active} if acoustic_active else {}), **({'cookingPotVersion': cooking_pot_render_version(state)} if cooking_pot else {}), **({'effectOutputVersion': effect_output} if effect_output else {}), **({'kickRoutingVersion': 1} if kick_routing else {}), **({'playgroundVersion': playground_render_version(state.get('modes', {}).get('wasp', {}).get('playground'))} if playground_render_version(state.get('modes', {}).get('wasp', {}).get('playground')) else {}), **({'loopFxVersion': loop_fx_render_version(state.get('modes', {}).get('loopFx'))} if state.get('modes', {}).get('loopFx', {}).get('version') == 1 else {}), **({'loopDVersion': d_loop_render_version(state, assets)} if d_loop_render_version(state, assets) else {}), **({'eqVersion': 4 if ember_eq else 3 if extended_eq else 1} if eq_active else {}), **({'qVersion': q_render_version(state['q'])} if piano_active else {})}
 
 
 LOOP_LAYERS = ('A', 'B', 'C', 'D', 'V', 'W', 'P', 'O', 'L', 'X', 'Q', 'M', 'M+')
@@ -2120,6 +2141,8 @@ def handle_song_request(handler, method, inner_path):
                         render = part.get('render')
                         if not render or render.get('sourceSha256') != part['sha256']:
                             raise FileNotFoundError('Arm Cache to render this part first.')
+                        if int(render.get('drumPanVersion', 0)) < drum_pan_version(read_part_manifest_record(folder, part)['snapshot']['state']):
+                            raise FileNotFoundError('Arm Cache again for drum panning audio.')
                         if int(render.get('clockDividerVersion', 0)) < clock_divider_version(read_part_manifest_record(folder, part)['snapshot']['state']):
                             raise FileNotFoundError('Arm Cache again for divided clock audio.')
                         if int(render.get('sampleCutVersion', 0)) < sample_cut_version(read_part_manifest_record(folder, part)['snapshot']):
@@ -2170,6 +2193,11 @@ def handle_song_request(handler, method, inner_path):
                         vocal_repeat = (query.get('vocalrepeat') or [''])[0]
                         if vocal_repeat not in ('', '1'):
                             raise ValueError('Unsupported vocal section-repeat render version.')
+                        drum_pan = (query.get('drumpan') or [''])[0]
+                        if drum_pan not in ('', '1'):
+                            raise ValueError('Unsupported drum pan render version.')
+                        if drum_pan_version(read_part_manifest_record(folder, part)['snapshot']['state']) and drum_pan != '1':
+                            raise ValueError('This part requires drum panning rendering.')
                         clock_capability = (query.get('clockdividers') or [''])[0]
                         if clock_capability not in ('', '1'):
                             raise ValueError('Unsupported divided clock render version.')
@@ -2306,6 +2334,8 @@ def handle_song_request(handler, method, inner_path):
                             render['enemyDroneVersion'] = int(enemy)
                         if ember:
                             render['emberVersion'] = int(ember)
+                        if drum_pan:
+                            render['drumPanVersion'] = 1
                         if clock_capability:
                             render['clockDividerVersion'] = 1
                         if loop_d:

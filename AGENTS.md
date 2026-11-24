@@ -1021,3 +1021,18 @@ keep their existing behavior. This narrow fresh-AI policy supersedes older
 Mega/Sparse-only cross-card/mastering shutdown wording for these cards only.
 Do not copy On Demand's separate Ember/profile choices into the full-app AI path.
 No automatic migrations, DSP changes or legacy render invalidation.
+
+
+## Drum Machine pan and scroll ownership (Mark, 2026-11-24)
+
+The entire dialog shell, including snapshots, is the vertical scroll owner.
+Never restore a lane-only scroller beneath fixed-height snapshot/header siblings.
+Keep Close reachable and update all lane jump targets with the scroll owner.
+All eight lanes have independent optional drumPan state; Roll shares Snare PCM,
+not its pan. Hat Accent horizontal swipes set per-hit pan regardless of accent
+power. Null inherits lane pan; explicit zero centres and overrides it. Yellow
+position line overlays Accent, solid green left/red right fill. Taps still toggle
+accent; vertical gestures scroll. Preserve recipes/source PCM and shared history,
+Copy Sec, drum snapshots, all saved formats and native/server/offline playback.
+No-pan legacy content identity stays exact; audible saved pan requires selective
+drumPanVersion 1 on Song render GET/POST. See docs/drum-machine-layout.md.

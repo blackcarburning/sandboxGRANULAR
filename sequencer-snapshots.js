@@ -62,7 +62,7 @@ async function capture(key){
   const x=key==='X';Object.assign(data,{sequence:copy(x?bastardLoopXSequence:bastardLoopLSequence),timingIndex:x?bastardLoopXTimingIndex:bastardLoopLTimingIndex,rootNote:x?bastardLoopXRootNote:bastardLoopLRootNote,sourceMode:x?(isBastardLoopXUsingSynth()?'synth':'sample'):normalizeBastardLoopLSourceMode(bastardLoopLSourceMode),pitch:x?bastardLoopXPitchSemitones:bastardLoopLPitchSemitones,reference:await reference(x?bastardLoopXSampleBuffer:bastardLoopLSampleBuffer,x?bastardLoopXSampleMetadata:bastardLoopLSampleMetadata)});
  }else if(key==='drums'){
   const m=saveState({force:true,snapshotOnly:true}).modes;
-  data.patterns=pick(m,['drumMachineKickPattern','drumMachineSnarePattern','drumMachineHatPattern','drumMachinePercPattern','drumMachineKickRatchetPattern','drumMachineSnareRatchetPattern','drumMachineHatRatchetPattern','drumMachinePercRatchetPattern','drumMachineBaseAccents','drumMachineHatAccentPattern','drumMachineHatTimingMode','drumMachineRoll']);
+  data.patterns=pick(m,['drumMachineKickPattern','drumMachineSnarePattern','drumMachineHatPattern','drumMachinePercPattern','drumMachineKickRatchetPattern','drumMachineSnareRatchetPattern','drumMachineHatRatchetPattern','drumMachinePercRatchetPattern','drumMachineBaseAccents','drumMachineHatAccentPattern','drumMachineHatTimingMode','drumMachineRoll','drumPan']);
   data.extra=Object.fromEntries(Object.entries(captureExtraDrumMachineTracks()).map(([kind,v])=>[kind,pick(v,['pattern','ratchets','accents','accentAmount'])]));
   data.clockDivider=captureClockDividers().clockDividers?.drums??1;
   data.references={};for(const kind of ['kick','snare','hat','perc',...Object.keys(drumMachineExtraTracks)])data.references[kind]=await reference(drumBuffer(kind),getDrumMachineTrackMetadata(kind));
@@ -104,6 +104,7 @@ async function apply(data,ready,check){
   installSound(key,ready.sound);bastardLoopXSequence=data.sequence.map(normalizeBastardLoopXStep);bastardLoopXTimingIndex=clampBastardLoopXTimingIndex(data.timingIndex);bastardLoopXRootNote=data.rootNote;setBastardLoopXSourceMode(data.sourceMode,{silent:true,skipSave:true,skipRestart:true,prepareSynth:false});setBastardLoopXPitchSemitoneOffset(data.pitch,{silent:true,skipSave:true});resetBastardLoopXStepTapMemory();syncBastardLoopXUi();syncBastardLoopXEditorUi();restartBastardLoopXPlaybackIfNeeded();
  }else if(key==='drums'){
   for(const[k,v]of Object.entries(ready.sounds))installSound(k,v);
+  root.MygrainDrumPan.restore(data.patterns.drumPan);
   const p=data.patterns;for(const kind of ['kick','snare','hat','perc'])setDrumMachinePattern(kind,copy(p['drumMachine'+kind[0].toUpperCase()+kind.slice(1)+'Pattern']),{skipSave:true});
   drumMachineKickRatchetPattern=normalizeDrumMachineRatchetPattern(p.drumMachineKickRatchetPattern);drumMachineSnareRatchetPattern=normalizeDrumMachineRatchetPattern(p.drumMachineSnareRatchetPattern);drumMachineHatRatchetPattern=normalizeDrumMachineRatchetPattern(p.drumMachineHatRatchetPattern);drumMachinePercRatchetPattern=normalizeDrumMachineRatchetPattern(p.drumMachinePercRatchetPattern);
   restoreDrumMachineBaseAccents(p.drumMachineBaseAccents);drumMachineHatAccentPattern=normalizeDrumMachinePattern(p.drumMachineHatAccentPattern);drumMachineHatTimingMode=p.drumMachineHatTimingMode;restoreDrumMachineRoll(p.drumMachineRoll);

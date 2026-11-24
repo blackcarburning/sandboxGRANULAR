@@ -68,7 +68,7 @@ PUBLIC_FILES = {
     'channel-eq.js', 'channel-eq-ui.js', 'channel-eq.css',
     'assets/brand/mygrain-rainbow-brain.png', 'assets/brand/mygrain-rainbow-brain.webp',
     'assets/brand/mygrain-icon.png',
-    'background-audio.js', 'audio-debug-storage.js', 'audio-diagnostics.js', 'drum-enhancements.css', 'drum-tone.js', 'drum-roll.js',
+    'background-audio.js', 'audio-debug-storage.js', 'audio-diagnostics.js', 'drum-enhancements.css', 'drum-tone.js', 'drum-roll.js', 'drum-pan.js',
     'drum-pattern-library.js', 'iphone-low-power.js',
     'mygrain-utils.js', 'random-performance-samples.js', 'mygrain-accounts.js', 'mygrain-accounts.css', 'mygrain-load-notes.js',
     'navigation-palette.js', 'navigation-palette.css',

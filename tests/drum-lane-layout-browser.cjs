@@ -25,11 +25,11 @@ async function geometry(page) {
             }
             return {id:card.id,title:rect(title),parts:parts.map(e=>({id:e.id,cls:e.className,...rect(e)})),controls:buttons.length};
         });
-        const layout=document.querySelector('#drumMachineOverlay .drum-machine-layout');
+        const layout=document.querySelector('#drumMachineOverlay .drum-machine-layout'),shell=layout.closest('.drum-machine-shell');
         check(document.documentElement.scrollWidth<=innerWidth+1,'document horizontal overflow');
         check(layout.scrollWidth<=layout.clientWidth+1,'lane scroller horizontal overflow');
-        check(layout.clientHeight>90,'lane scroller not usable');
-        return {errors,lanes,scrollOwner:{height:layout.clientHeight,scrollHeight:layout.scrollHeight,overflow:getComputedStyle(layout).overflowY}};
+        check(shell.clientHeight>90,'dialog scroller not usable');
+        return {errors,lanes,scrollOwner:{height:shell.clientHeight,scrollHeight:shell.scrollHeight,overflow:getComputedStyle(shell).overflowY}};
     });
 }
 (async()=>{
