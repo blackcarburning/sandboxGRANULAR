@@ -1,9 +1,9 @@
 (function(root){
 'use strict';
 if(root.__mygrainSongRenderDeck||root.mygrainPhone||/iPhone|iPad|Android|iPod/i.test(navigator.userAgent))return;
-const version='20261112-cef-preview-1',moduleContexts=new WeakMap();
+const version='20261112-cef-preview-1',workerVersion='20261124-clock-age-1',moduleContexts=new WeakMap();
 let releaseTabLock=null,attachment=null,detachStateListener=null,reportedReady=null,automatic=false,autoStartTimer=null;
-let liveStartPreparation=null,liveStartPrepared=false;
+let liveStartPreparation=null,liveStartPrepared=false,liveReplanEpoch=0;
 let mode='live',prepareController=null,prepared=false,switchingLive=false,switchingRendered=false,uploadId=0,awaitingUpload=0,rendering=false;
 let source=null,destination=null,capture=null,worker=null,connected=false,connecting=false,muted=false,epoch=0,lastDisplay=0,lastClock=null,busy=false,connectionGeneration=0;
 const card=document.createElement('details');card.id='dawBridgeCard';
@@ -13,8 +13,8 @@ card.innerHTML=`<summary>VST3 · Mac + Windows · Bridge + FX + CEF downloads <s
 <div class="daw-bridge-row"><a class="daw-bridge-download" href="mygrain-fx-windows-0.4.0.zip" download>Windows · FX 0.4.0</a><a href="vst3-setup.html#fx" target="_blank" rel="noopener">FX 0.4.0 setup</a></div>
 <div class="daw-bridge-row"><a class="daw-bridge-download" href="mygrain-bridge-macos-0.8.0.zip" download>Mac · Bridge 0.8.0 · Apple Silicon (ARM64) + Intel (x86_64)</a><a class="daw-bridge-download" href="mygrain-fx-macos-0.4.0.zip" download>Mac · FX 0.4.0 · Apple Silicon (ARM64) + Intel (x86_64)</a><a href="vst3-setup.html#mac" target="_blank" rel="noopener">Mac / Bitwig · Bridge 0.8.0 + FX 0.4.0 setup</a></div>
 <p><strong>Embedded Chromium plugins</strong> · the app opens inside the plugin, without a separate Chrome window.</p>
-<div class="daw-bridge-row"><a class="daw-bridge-download" href="mygrain-cef-windows-0.1.3.zip" download>Windows · CEF instrument 0.1.3</a><a class="daw-bridge-download" href="mygrain-cef-macos-0.1.3.zip" download>Mac · CEF instrument 0.1.3 · Apple Silicon + Intel</a><a href="cef-setup.html" target="_blank" rel="noopener">CEF instrument 0.1.3 setup</a></div>
-<div class="daw-bridge-row"><a class="daw-bridge-download" href="mygrain-cef-fx-windows-0.1.0.zip" download>Windows · CEF FX 0.1.0</a><a class="daw-bridge-download" href="mygrain-cef-fx-macos-0.1.0.zip" download>Mac · CEF FX 0.1.0 · Apple Silicon + Intel</a><a href="cef-fx-setup.html" target="_blank" rel="noopener">CEF FX 0.1.0 setup</a></div>
+<div class="daw-bridge-row"><a class="daw-bridge-download" href="mygrain-cef-windows-0.1.5.zip" download>Windows · CEF instrument 0.1.5</a><a class="daw-bridge-download" href="mygrain-cef-macos-0.1.5.zip" download>Mac · CEF instrument 0.1.5 · Apple Silicon + Intel</a><a href="cef-setup.html" target="_blank" rel="noopener">CEF instrument 0.1.5 setup</a></div>
+<div class="daw-bridge-row"><a class="daw-bridge-download" href="mygrain-cef-fx-windows-0.1.1.zip" download>Windows · CEF FX 0.1.1</a><a class="daw-bridge-download" href="mygrain-cef-fx-macos-0.1.1.zip" download>Mac · CEF FX 0.1.1 · Apple Silicon + Intel</a><a href="cef-fx-setup.html" target="_blank" rel="noopener">CEF FX 0.1.1 setup</a></div>
 <p class="daw-bridge-note">Bridge plays MYGRAIN into your DAW as an instrument. FX processes incoming DAW audio using MYGRAIN’s effects; use the separate DAW Input panel to connect it. Each plugin needs its own MYGRAIN browser tab.</p>
 <p><strong>Mac:</strong> extract the ZIP, close Bitwig, open Terminal in the extracted folder and run <code>./"Install MYGRAIN.command"</code> (capital I), then re-scan in Bitwig. See Mac / Bitwig setup above for folder and permission instructions. <strong>Windows:</strong> copy the <strong>whole MYGRAIN Bridge.vst3 folder</strong> into <code>C:\\Program Files\\Common Files\\VST3\\</code>, then re-scan VST3 plugins. Add MYGRAIN Bridge as an instrument and open Chrome from its window.</p>
 <div class="daw-bridge-row"><label for="dawBridgeCode">Connection code</label><input id="dawBridgeCode" type="password" autocomplete="off" spellcheck="false" placeholder="Paste the code from the plugin"><button type="button" id="dawBridgeConnect">Connect</button><button type="button" id="dawBridgeDisconnect" disabled>Disconnect</button></div>
@@ -32,6 +32,7 @@ const project=new root.MygrainProjectSession({kind:'bridge',card,blocked:()=>bus
     changed:()=>controls()});
 const remote=new root.MygrainDawRemote({ready:()=>project.ready&&!project.busy&&!busy&&!rendering&&!!capture&&source?.context.state==='running'&&!engineStarting&&!stateSaveSuspended,rendered:()=>mode==='rendered',renderedReady:()=>prepared,render:async()=>{const previous=uploadId;await prepareLoop();if(uploadId===previous)throw Error(el('dawBridgeStatus').textContent);const end=performance.now()+32000;while(awaitingUpload&&performance.now()<end){if(!connected)throw Error('Plugin disconnected during render.');await new Promise(r=>setTimeout(r,50));}if(awaitingUpload||!prepared)throw Error(el('dawBridgeStatus').textContent);},clock:()=>lastClock,project});
 function controls(){
+    root.mygrainPluginRender?.sync();
     const projectBusy=project.busy||!project.ready;
     el('dawBridgeConnect').disabled=connected||connecting||rendering;el('dawBridgeDisconnect').disabled=!connected&&!connecting;el('dawBridgeCode').disabled=connected||connecting;
     el('dawBridgeMode').value=mode;el('dawBridgeMode').disabled=!connected||busy||projectBusy;
@@ -63,7 +64,12 @@ function selectMode(next){
 
 // A native Arm/Play does not pass through the browser's async arm() handler.
 // Prepare every cold Q voice before starting any layer; never let Q join later.
-function cancelLiveStart(){liveStartPreparation=null;liveStartPrepared=false;}
+function cancelLiveStart(){liveStartPreparation=null;liveStartPrepared=false;liveReplanEpoch=0;}
+function replanLiveStart(info){
+    if(liveReplanEpoch===info.epoch)return;
+    liveReplanEpoch=info.epoch;command('start');
+    status('Preparing a later bar: allowing time for all live layers.');
+}
 function prepareLiveStart(){
     if(liveStartPreparation)return;
     const plan={generation:connectionGeneration};liveStartPreparation=plan;
@@ -150,7 +156,7 @@ async function connect(options={}){
         if(!lease){connecting=false;automatic=false;controls();status('Another MYGRAIN tab already controls this plugin. Use that tab, or disconnect it first.');return;}
         if(attempt!==connectionGeneration){lease();return;}
         releaseTabLock=lease;
-        worker=new Worker(new URL(`daw-bridge-worker.js?v=${version}`,document.baseURI));
+        worker=new Worker(new URL(`daw-bridge-worker.js?v=${workerVersion}`,document.baseURI));
         project.reset(worker);remote.reset(worker);
         worker.onerror=()=>disconnect('The local audio worker failed. Reconnect to try again.');
         worker.onmessage=({data})=>{
@@ -168,9 +174,12 @@ async function connect(options={}){
                 awaitingUpload=0;busy=false;mode='rendered';prepared=true;if(!lastClock?.stickyArm)command('arm');controls();status('Rendered loop ready. Use green Arm if needed, then DAW Play: starts at the DAW position, including timeline zero. Select Live for editing without re-rendering.');
             }
             if(data.type==='loopRejected'&&data.id===awaitingUpload){awaitingUpload=0;busy=false;controls();status('Plugin could not adopt the loop yet. Enable track monitoring, then render again.');}
-            if(data.type==='clock')onClock(data);
+            if(data.type==='clock'){
+                if(!Number.isFinite(data.receivedAt))data.receivedAt=performance.timeOrigin+performance.now();
+                try{onClock(data);}finally{worker?.postMessage({type:'clockAck'});}
+            }
         };
-        worker.postMessage({type:'connect',port:Number(match[1]),token:match[2]});
+        worker.postMessage({type:'connect',port:Number(match[1]),token:match[2],clockAck:true});
         setTimeout(()=>{if(attempt===connectionGeneration&&connecting)disconnect('Connection timed out. Open the plugin, copy a fresh code and allow Chrome local-network access if prompted.');},12000);
     }catch(error){if(attempt===connectionGeneration)disconnect('Connection failed: '+error.message);}
 }
@@ -190,6 +199,9 @@ async function arm(manual){
 }
 function onClock(info){
     if(!Number.isFinite(info.rate)||info.rate<8000||!Number.isFinite(info.clock)||!Number.isInteger(info.epoch))return;
+    // Queued clocks predate synchronous graph preparation. Wait for a fresh
+    // worker observation rather than replaying obsolete native generations.
+    if(performance.timeOrigin+performance.now()-info.receivedAt>150)return;
     const previous=lastClock;lastClock=info;project.observe(info);remote.observe(info);
     if(!project.ready||project.busy||remote.audioBusy){cancelLiveStart();reportReadiness();attachCapture();return;}
     if(previous?.protocol!==info.protocol||previous?.continuousLive!==info.continuousLive)controls();
@@ -210,7 +222,8 @@ function onClock(info){
     if(info.offline){cancelLiveStart();if(epoch){stopCapture();stopPlayback();}status('Offline bounce is not supported. Use real-time recording/export.');return;}
     if(!info.target||!info.armed){cancelLiveStart();if(epoch){stopCapture();stopPlayback();status(info.armed?'Armed. Waiting for DAW playback.':'Stopped and disarmed. Chrome remains connected.');}return;}
     if(info.epoch!==epoch){
-        if(liveStartPreparation)return;
+        if(liveStartPreparation||liveReplanEpoch===info.epoch)return;
+        liveReplanEpoch=0;
         if(info.tempo<1||info.tempo>300||Math.abs(info.tempo-Math.round(info.tempo))>.0001){command(lastClock?.stickyArm?'hold':'stop');status('This preview requires a whole-number DAW tempo between 1 and 300 BPM.');return;}
         const ctx=source.context;
         if(ctx.state!=='running'){command(lastClock?.stickyArm?'hold':'stop');status('Chrome audio is suspended. Resume MYGRAIN, then arm again.');return;}
@@ -220,10 +233,14 @@ function onClock(info){
             prepareLiveStart();return;
         }
         stopCapture(); // Preserve the Q graph prepared above.
-        const wait=(info.target-info.clock)/info.rate-info.leadMs/1000;
-        if(wait<.15){command('start');status('Preparing a later bar: the previous start arrived too late.');return;}
         try{
             applyGlobalBpm(info.tempo,{preserveRates:false});
+            // Include UI queueing, async preparation and synchronous tempo work.
+            // Reusing an old clock as current starts capture after the native
+            // target, making the next start miss its deadline again.
+            const clockAge=Math.max(0,(performance.timeOrigin+performance.now()-info.receivedAt)/1000);
+            const wait=(info.target-info.clock)/info.rate-info.leadMs/1000-clockAge;
+            if(wait<.15){replanLiveStart(info);return;}
             const startFrame=Math.ceil((ctx.currentTime+wait)*ctx.sampleRate),startTime=startFrame/ctx.sampleRate;
             // Match Rendered/WAV: the transport origin precedes audible output
             // by the measured graph delay (compressor/oversampling). Capture the
@@ -233,7 +250,11 @@ function onClock(info){
             withBufferedTransportStart(startTime,()=>restartAllTransport({silent:true,skipSave:true,startTime,keyboardPlay:true}),{reset:true,exactStart:true,origin:startTime});
             liveStartPrepared=false;epoch=info.epoch;worker.postMessage({type:'capture',epoch,startFrame:captureStartFrame});
             status(info.musical?'Scheduled for a future DAW bar. Chrome monitoring is muted.':'Scheduled start: host musical position unavailable; bar alignment cannot be guaranteed.');
-        }catch(error){command(lastClock?.stickyArm?'hold':'stop');stopCapture();stopPlayback();status('Start failed: '+error.message);}
+        }catch(error){
+            stopCapture();stopPlayback();
+            if(/Transport deadline expired/.test(error.message)){liveStartPrepared=false;replanLiveStart(info);}
+            else{command(lastClock?.stickyArm?'hold':'stop');status('Start failed: '+error.message);}
+        }
     }
     if(performance.now()-lastDisplay>250&&info.running){
         lastDisplay=performance.now();status(`Live · ${info.continuousLive?'continuous through DAW loops/seeks · ':''}${Math.round(info.bufferMs)} ms buffer · ${Math.round(info.rate)} Hz DAW · ${Math.round(info.driftPpm)} ppm correction · ${info.underruns} underruns. Real-time recording only.`);
@@ -259,7 +280,7 @@ async function prepareLoop(){
         const pcm=new Float32Array(b.length*2),left=b.getChannelData(0),right=b.getChannelData(Math.min(1,b.numberOfChannels-1));
         for(let i=0;i<b.length;i++){pcm[i*2]=left[i];pcm[i*2+1]=right[i];}
         awaitingUpload=++uploadId;
-        worker.postMessage({type:'prepareLoop',id:awaitingUpload,rate:b.sampleRate,frames:b.length,beats:bars*4,bpm,buffer:pcm.buffer},[pcm.buffer]);
+        worker.postMessage({type:'prepareLoop',id:awaitingUpload,rate:b.sampleRate,frames:b.length,beats:bars*4*(clockDividers?.loop||1),bpm,buffer:pcm.buffer},[pcm.buffer]);
         status('Sending the prepared loop to the plugin…');
         const id=awaitingUpload;setTimeout(()=>{if(attempt===connectionGeneration&&awaitingUpload===id)disconnect('Loop upload timed out. Reconnect and prepare again.');},30000);
     }catch(error){if(attempt===connectionGeneration){awaitingUpload=0;busy=false;status('Could not prepare loop: '+error.message);}}

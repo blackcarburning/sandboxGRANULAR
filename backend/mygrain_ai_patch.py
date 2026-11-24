@@ -356,13 +356,30 @@ def run_model(prompt, current, loops, catalogue_context=None, direction=None, us
         raise RuntimeError('AI provider unavailable. Your patch is unchanged; try again shortly.')
     try:
         envelope = json.loads(stdout)
+        if not isinstance(envelope, dict):
+            raise TypeError('Invalid model response envelope')
         if usage_report is not None:
             usage_report.update(reported_usage(envelope.get('usage')))
-        output = envelope['outputs'][0]['text']
-        if len(output) > 20000:
-            raise ValueError('AI response too large.')
-        return validate_recipe(json.loads(output))
+        return validate_recipe(decode_model_output(envelope))
     except (KeyError, IndexError, TypeError, json.JSONDecodeError) as exc:
+        raise ValueError('AI returned an unreadable proposal. Nothing was changed; try again.') from exc
+
+
+def decode_model_output(envelope):
+    """Accept text-only model chunks and a single JSON fence, never prose/repair eval."""
+    try:
+        chunks=envelope['outputs']
+        if not isinstance(chunks,list):raise TypeError('Invalid output list')
+        output=''.join(part['text'] for part in chunks if isinstance(part,dict) and isinstance(part.get('text'),str))
+        if not output.strip() or len(output)>20000:raise TypeError('Empty or oversized model output')
+        output=output.strip()
+        if output.startswith('```'):
+            import re
+            fenced=re.fullmatch(r'```(?:json)?\s*([\s\S]*?)\s*```',output,flags=re.IGNORECASE)
+            if not fenced:raise TypeError('Invalid JSON fence')
+            output=fenced.group(1)
+        return json.loads(output)
+    except (KeyError,TypeError,json.JSONDecodeError) as exc:
         raise ValueError('AI returned an unreadable proposal. Nothing was changed; try again.') from exc
 
 

@@ -36,22 +36,22 @@ assert.match(base, /^http:\/\/127\.0\.0\.1:\d+\/mygrain\/$/);
                 const recipe = { enabled: true, preset: 'level', settings: { ...MygrainMasterDSP.PRESETS.level, drive: -11, tape: .3 } };
                 const saved = () => JSON.stringify(mygrainMasterBaker.settings());
                 const rows = [];
-                async function check(name, action, undo = true) {
+                async function check(name, action, undo = true, off = false) {
                     stopAllPerformancePlayback({ silent: true });
                     await mygrainMasterBaker.restore(recipe);
                     const before = saved();
                     await action();
                     while (mygrainCardHistory.busy) await new Promise(resolve => setTimeout(resolve, 10));
                     await mygrainMasterBaker.whenReady();
-                    if (mygrainMasterBaker.settings().enabled) throw Error(name + ': Master Baker stayed On');
-                    if (saved() !== JSON.stringify({ ...JSON.parse(before), enabled: false })) throw Error(name + ': recipe changed');
+                    if (mygrainMasterBaker.settings().enabled !== !off) throw Error(name + ': Incorrect Master Baker power');
+                    if (saved() !== JSON.stringify({ ...JSON.parse(before), enabled: !off })) throw Error(name + ': recipe changed');
                     if (undo) {
                         await mygrainCardHistory.undo();
                         if (saved() !== before) throw Error(name + ': Undo did not restore power/recipe');
                         await mygrainCardHistory.redo();
-                        if (mygrainMasterBaker.settings().enabled) throw Error(name + ': Redo did not restore Off');
+                        if (mygrainMasterBaker.settings().enabled !== !off) throw Error(name + ': Redo power mismatch');
                     }
-                    rows.push({ name, off: true, recipePreserved: true, undo });
+                    rows.push({ name, off, recipePreserved: true, undo });
                 }
                 await check('Drum patterns', () => randomizeDrumMachinePatterns());
                 await check('OSC3 random sound', () => randomizeSynthPopupPatch());
@@ -78,8 +78,8 @@ assert.match(base, /^http:\/\/127\.0\.0\.1:\d+\/mygrain\/$/);
                 loadDropboxSampleLayerFromSource = async () => {};
                 loadRandomDrumMachineSamples = async () => {};
                 await check('Ordinary randomise', () => runPatchRandomization());
-                await check('Sparse randomise', () => runMegaRandomization({ sparseMode: true }));
-                await check('Mega randomise', () => runMegaRandomization({ tempoDecision: false }));
+                await check('Sparse randomise', () => runMegaRandomization({ sparseMode: true, tone:'minimal' }), true, true);
+                await check('Mega randomise', () => runMegaRandomization({ tempoDecision: false, tone:'minimal' }), true, true);
                 await mygrainMasterBaker.restore(recipe);
                 const before = saved();
                 mygrainCardHistory.runDraftEdit('Manual control', () => {});

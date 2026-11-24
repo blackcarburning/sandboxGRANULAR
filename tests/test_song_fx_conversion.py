@@ -65,3 +65,15 @@ class SongFxConversionTests(TestCase):
         for value in (-1.1,1.1,True,'0',float('nan')):
             bad=copy.deepcopy(fx);bad['channels']['X']['pan']=value
             with self.assertRaises(ValueError):S.validate_loop_fx(bad)
+
+    def test_insert_requires_v2_only_when_audible_and_preserves_source(self):
+        for enabled, room, version in ((True, 1, 2), (False, 1, 1), (True, 0, 1)):
+            body=B.rewrite_part(with_fx(B.part_zip(),.18),lambda s:s['state']['modes']['loopFx']['channels']['L'].update(reverbInsert=True,reverbEnabled=enabled,room=room))
+            song=self.upload(self.create(),body);part=song['parts'][0]
+            self.assertEqual(part['loopFxVersion'],version)
+            url=f'/api/songs/{song["id"]}/parts/{part["id"]}/render?sha256={part["sha256"]}'
+            if version==2:
+                denied=self.request('POST',url+'&loopfx=1',body=B.render_wav(part));self.assertEqual(denied.status,400)
+            accepted=self.request('POST',url+f'&loopfx={version}',body=B.render_wav(part));self.assertEqual(accepted.status,200,accepted.response)
+            self.assertEqual(accepted.response['song']['parts'][0]['render']['loopFxVersion'],version)
+            self.assertEqual(self.request('GET',f'/api/songs/{song["id"]}/parts/{part["id"]}').wfile.getvalue(),body)

@@ -2,12 +2,16 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path'),{chromium}=require('playwright-core');
 const job=JSON.parse(fs.readFileSync(0,'utf8')),base=new URL(job.baseUrl),dir=job.workdir;
-if(base.protocol!=='http:'||!['127.0.0.1','localhost'].includes(base.hostname)||base.pathname!=='/mygrain/'||!/^\/tmp\/mygrain-daw-[A-Za-z0-9_-]+$/.test(dir))throw Error('Invalid private DAW worker target.');
+const configuredScratch=process.env.MYGRAIN_WORKER_DB&&process.env.MYGRAIN_SCRATCH_ROOT;
+const privateWorkdir=/^\/tmp\/mygrain-daw-[A-Za-z0-9_-]+$/.test(dir)||(configuredScratch&&path.dirname(dir)===path.resolve(configuredScratch)&&/^mygrain-daw-[A-Za-z0-9_-]+$/.test(path.basename(dir))&&fs.realpathSync(dir)===dir);
+if(base.protocol!=='http:'||!['127.0.0.1','localhost'].includes(base.hostname)||base.pathname!=='/mygrain/'||!privateWorkdir)throw Error('Invalid private DAW worker target.');
 const emit=x=>process.stdout.write(JSON.stringify(x)+'\n');
 (async()=>{let browser,total=0;try{
- browser=await chromium.launch({executablePath:'/snap/bin/chromium',args:['--no-sandbox','--disable-dev-shm-usage','--autoplay-policy=no-user-gesture-required','--js-flags=--max-old-space-size=1536']});
- const context=await browser.newContext({viewport:{width:1280,height:900},extraHTTPHeaders:job.cookie?{Cookie:job.cookie}:{}});
+ browser=await chromium.launch({executablePath:process.env.MYGRAIN_CHROMIUM||'/snap/bin/chromium',args:['--no-sandbox','--disable-dev-shm-usage','--autoplay-policy=no-user-gesture-required','--js-flags=--max-old-space-size=1536']});
+ const context=await browser.newContext({viewport:{width:1280,height:900}});
+ if(job.cookie)await context.addCookies(job.cookie.split(';').map(x=>x.trim()).filter(x=>x.includes('=')).map(x=>{const i=x.indexOf('=');return{name:x.slice(0,i),value:x.slice(i+1),url:base.origin,httpOnly:true,sameSite:'Lax'};}));
  await context.addInitScript(()=>{const Native=window.AudioContext;window.AudioContext=function(opts={}){return new Native({...opts,sampleRate:48000})};window.AudioContext.prototype=Native.prototype;window.webkitAudioContext=window.AudioContext;});
+ if(process.env.MYGRAIN_ENGINE_KEY_FILE)await context.addCookies([{name:'demand_engine_key',value:fs.readFileSync(process.env.MYGRAIN_ENGINE_KEY_FILE,'utf8').trim(),url:base.origin,httpOnly:true,sameSite:'Lax'}]);
  const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.route('**/*',r=>{const u=new URL(r.request().url());return u.origin===base.origin&&['GET','HEAD'].includes(r.request().method())?r.continue():r.abort()});
  await page.exposeFunction('dawStage',stage=>emit({stage:String(stage).slice(0,300)}));
@@ -46,10 +50,28 @@ const emit=x=>process.stdout.write(JSON.stringify(x)+'\n');
     const components=mygrainDaw.components(decoded);if(job.reference)components.push({key:'reference',label:'Stereo Reference',reference:true});
     const estimated=components.length*(duration+2)*48000*6;
     if(estimated>768*1048576)throw Error('This pattern’s DAW render would exceed the package budget. Shorten its cycle.');
+    // Shop jobs may render two independent decks together. Native manual DAW
+    // exports retain serial scheduling. Bound decoded PCM before admitting two.
+    const pcmBytes=[...decoded.buffers.values()].reduce((n,b)=>n+(b?b.length*b.numberOfChannels*4:0),0);
+    const concurrency=job.stemConcurrency===2&&pcmBytes<64*1048576&&estimated<128*1048576?2:1;
+    const pendingResults=new Array(components.length),cancel=new AbortController();let next=0,completed=0;
+    const wasOutputRecording=isOutputRecording;isOutputRecording=true;
+    try{
+     await adapter.context().resume();
+     const settled=await Promise.allSettled(Array.from({length:Math.min(concurrency,components.length)},async()=>{
+      while(next<components.length&&!cancel.signal.aborted){
+       const i=next++,comp=components[i],name=`render-${index}-${comp.key}.wav`;
+       await dawStage(`Rendering ${part.name}: ${comp.label} · ${completed}/${components.length} complete`);
+       try{pendingResults[i]=await mygrainDaw.renderComponent(decoded,part,comp,cancel.signal,buffer=>write(name,audioBufferToWav24bit(buffer)));completed++;
+        await dawStage(`Rendering ${part.name} · ${completed}/${components.length} stems complete`);
+       }catch(e){cancel.abort();throw e;}
+      }
+     }));
+     const failed=settled.find(r=>r.status==='rejected');if(failed)throw failed.reason;
+    }finally{isOutputRecording=wasOutputRecording;}
     for(let i=0;i<components.length;i++){
-     const comp=components[i];await dawStage(`Rendering ${part.name}: ${comp.label} (${i+1}/${components.length})`);
-     const name=`render-${index}-${comp.key}.wav`;
-     const result=await mygrainDaw.renderComponent(decoded,part,comp,signal,buffer=>write(name,audioBufferToWav24bit(buffer)));
+     const comp=components[i],result=pendingResults[i],name=`render-${index}-${comp.key}.wav`;
+     if(!result)throw Error('Incomplete stem render');
      manifest.releaseTailSeconds=Math.max(manifest.releaseTailSeconds||2,result.tailSeconds);
      if(result.peak>.000001){output.stems[comp.label]=name;output.midi.push(...result.midi);output.peaks[comp.label]=result.peak;}
     }
@@ -60,6 +82,6 @@ const emit=x=>process.stdout.write(JSON.stringify(x)+'\n');
   }
   if(job.scope==='song'){const check=await c.request('/'+encodeURIComponent(job.songId));if(String(check.song.revision)!==String(job.revision))throw Error('The song changed during export. No package was published. Export the current revision again.');}
   await write('render-manifest.json',JSON.stringify(manifest));return {parts:count};
- },{scope:job.scope,name:job.name,reference:job.reference,songId:job.songId,revision:job.revision});
+ },{scope:job.scope,name:job.name,reference:job.reference,songId:job.songId,revision:job.revision,stemConcurrency:job.stemConcurrency});
  if(errors.length)throw Error(errors[0]);emit({result});
 }catch(e){emit({error:String(e.message||e).slice(0,700)});process.exitCode=1;}finally{await browser?.close();}})();

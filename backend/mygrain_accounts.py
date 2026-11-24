@@ -28,9 +28,23 @@ SEED_HASHES = {
 CURRENT_USER = contextvars.ContextVar('mygrain_account', default=None)
 USERNAME_PATTERN = re.compile(r'[a-z0-9][a-z0-9_-]{0,31}')
 PUBLIC_FILES = {
+    'glasshaus.js', 'glasshaus-dsp.js', 'glasshaus-worklet.js', 'glasshaus.css',
+    'sequencer-snapshots.js', 'step-grid.js', 'robot.js', 'robot-dsp.js', 'robot-worklet.js', 'robot.css',
+    'mygrain-cef-windows-0.1.6.zip', 'mygrain-cef-macos-0.1.6.zip',
+    'mygrain-cef-windows-0.1.5.zip', 'mygrain-cef-macos-0.1.5.zip',
+    'loop-balance.js', 'random-generation.js', 'random-balance-worklet.js',
+    'slider-gesture.js',
+    'enemy-drone-dsp.js', 'enemy-drone-presets.js', 'enemy-drone-harmony.js', 'enemy-drone.js', 'enemy-drone.css', 'enemy-drone-worklet.js',
+    'restructure.js', 'restructure-dsp.js', 'restructure.css', 'restructure-worklet.js', 'restructure-samples.js', 'restructure-sample-worker.js', 'restructure-catalog.json',
+    'ember2-dsp.js', 'ember2.js', 'ember2.css', 'ember2-worklet.js', 'ember2-samples.js', 'ember2-sample-worker.js',
+    'ember-dsp.js', 'ember.js', 'ember.css', 'ember-clock-worklet.js',
+    'dfeeder.js', 'dfeeder.css',
+    'dsp-quality.js', 'effect-lfo.js', 'effect-lfo-host.js', 'effect-lfo-ui.js', 'effect-lfo-transfer.js', 'effect-lfo-worklet.js', 'effect-lfo.css',
+    'mygrain-cef-fx-windows-0.1.1.zip', 'mygrain-cef-fx-macos-0.1.1.zip',
+    'mygrain-cef-windows-0.1.4.zip', 'mygrain-cef-macos-0.1.4.zip',
     'cef-fx-setup.html', 'mygrain-cef-fx-windows-0.1.0.zip', 'mygrain-cef-fx-macos-0.1.0.zip',
     'sample-grid-browser.js', 'sample-grid-browser.css',
-    'parts-bin.js', 'parts-bin.css',
+    'parts-bin.js', 'parts-bin.css', 'audio-telemetry.js', 'plugin-render.js',
     'mygrain-cef-windows-0.1.3.zip', 'mygrain-cef-macos-0.1.3.zip',
     'mygrain-cef-windows-0.1.2.zip', 'mygrain-cef-macos-0.1.2.zip',
     'mygrain-cef-windows-0.1.1.zip', 'mygrain-cef-macos-0.1.1.zip',
@@ -41,7 +55,8 @@ PUBLIC_FILES = {
     'vst3-setup.html', 'mygrain-bridge-windows-0.1.0.zip', 'mygrain-bridge-windows-0.2.0.zip', 'mygrain-bridge-windows-0.3.0.zip', 'mygrain-bridge-windows-0.4.0.zip', 'mygrain-bridge-windows-0.5.0.zip',
     'effect-output.js', 'effect-output.css',
     'cooking-pot-model.js', 'cooking-pot.js', 'cooking-pot-worklet.js', 'cooking-pot.css',
-    'effect-inputs.js', 'acoustic-fx-dsp.js', 'acoustic-fx-presets.js', 'acoustic-fx-worklet.js', 'acoustic-fx-host.js', 'acoustic-fx-ui.js', 'acoustic-fx.css',
+    'heavy-lifter-catalog.js', 'heavy-lifter-dsp.js', 'heavy-lifter-presets.js', 'heavy-lifter-assets.js', 'heavy-lifter-analysis-worker.js', 'heavy-lifter-ui.js', 'heavy-lifter.css',
+    'effect-inputs.js', 'henrys-hose-dsp.js', 'acoustic-fx-dsp.js', 'acoustic-fx-presets.js', 'acoustic-fx-worklet.js', 'acoustic-fx-host.js', 'acoustic-fx-ui.js', 'acoustic-fx.css',
     'resonator-dsp.js', 'resonator-worklet.js', 'resonator-host.js', 'resonator-ui.js', 'resonator.css',
     'turntable-dsp.js', 'turntable-worklet.js', 'turntable.js', 'turntable-ui.js', 'turntable.css',
     'mutilator-dsp.js', 'mutilator-presets.js', 'loop-d.js', 'loop-d.css', 'character-fx.js', 'character-fx.css',
@@ -468,6 +483,18 @@ class Accounts:
         stat = checked_path(path).stat()
         return f'{stat.st_dev}:{stat.st_ino}:{stat.st_size}:{stat.st_mtime_ns}'
 
+    @staticmethod
+    def signatures_match(saved, current):
+        # st_dev is an OS mount identifier, not file content identity. It can
+        # change after a host/container restart while the same files survive.
+        # Keep the stored four-field format and compare inode/size/mtime only.
+        if not isinstance(saved, str) or not isinstance(current, str):
+            return False
+        left, right = saved.split(':'), current.split(':')
+        return (len(left) == len(right) == 4
+                and all(value.isdigit() for value in left + right)
+                and left[1:] == right[1:])
+
     def wav_created(self, filename):
         user_id = current_user()['id']
         signature = self.file_signature(self.path_for('wavs') / filename)
@@ -505,7 +532,7 @@ class Accounts:
         matches = True
         try:
             if provenance:
-                matches = provenance['file_signature'] == self.file_signature(path)
+                matches = self.signatures_match(provenance['file_signature'], self.file_signature(path))
             elif incoming:
                 matches = path.stat().st_size == incoming['size']
                 if matches:
@@ -544,7 +571,7 @@ class Accounts:
         root = self.path_for('wavs')
         for row in provenance:
             try:
-                matches = row['file_signature'] == self.file_signature(root / row['filename'])
+                matches = self.signatures_match(row['file_signature'], self.file_signature(root / row['filename']))
             except FileNotFoundError:
                 matches = False
             result[row['filename']] = {'createdBy': row['creator'] if matches else None, 'sharedBy': None}
@@ -630,7 +657,7 @@ class Accounts:
                 with self.connection() as connection:
                     provenance = connection.execute('SELECT created_by_id, file_signature FROM wav_provenance WHERE user_id=? AND filename=?',
                                                     (owner['id'], filename)).fetchone()
-                    creator_id = provenance['created_by_id'] if provenance and provenance['file_signature'] == self.file_signature(source) else None
+                    creator_id = provenance['created_by_id'] if provenance and self.signatures_match(provenance['file_signature'], self.file_signature(source)) else None
                     connection.execute('''INSERT INTO shares
                         (id, owner_id, recipient_id, filename, recipient_filename, sha256, size, created_at, updated_at, created_by_id)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
@@ -794,7 +821,7 @@ def guest_login_document(editor):
 def public_asset(inner):
     filename = inner.lstrip('/') or 'index.html'
     parts = pathlib.PurePosixPath(filename).parts
-    return filename in PUBLIC_FILES or (len(parts) >= 2 and parts[0] in PUBLIC_ASSET_ROOTS
+    return filename in PUBLIC_FILES or bool(re.fullmatch(r'(?:industry-corpus-v1|restructure-corpus-v1)/[0-9a-f]{20}/[0-9]{1,4}\.pcm', filename)) or (len(parts) >= 2 and parts[0] in PUBLIC_ASSET_ROOTS
                                         and not any(part.startswith('.') for part in parts)
                                         and (pathlib.PurePosixPath(filename).suffix.lower() in PUBLIC_ASSET_SUFFIXES or parts[-1] == 'LICENSE'))
 

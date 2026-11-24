@@ -207,3 +207,15 @@ and current editable patch ZIP round trips, exact curves and band settings,
 unchanged audio asset bytes, and pre-EQ legacy defaults in Chromium and WebKit.
 The shared codec already retains this data; no save-format or DSP change is
 needed. Armed/incomplete Write sessions remain transient, not saved takes.
+
+
+## E · Ember — EMBER.14
+
+E joins the canonical registry (32 channels including D2–D4), using the same
+four bands, popup, explicit bypass and one-pass R/W/Delete automation. Its
+automation clock follows Ember local BPM or Song BPM and the current pattern
+length, gated by the actual Ember graph. The source-owned pre-effects adapter
+adds exactly one insert. Missing E metadata defaults bypassed. Audible active E
+EQ requires capability4; old channels keep their existing version rules.
+The private Ember patch library also stores the E channel's base EQ and completed
+curves. See docs/ember.md and the ember-save-eq fixtures.

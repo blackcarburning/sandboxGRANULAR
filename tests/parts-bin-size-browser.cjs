@@ -1,0 +1,47 @@
+/* Large bins through actual UI, codec worker and fresh-document restore.
+   Native transport is diagnostic, not a physical CEF/DAW-host assertion. */
+'use strict';
+const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict'),{chromium,webkit}=require('playwright-core');
+const out=process.env.MYGRAIN_TEST_OUTPUT,base=process.env.BASE||'http://127.0.0.1:19357/mygrain/';assert(out);
+async function ready(p){p.setDefaultTimeout(120000);await p.goto(base);await p.waitForFunction(()=>document.documentElement.dataset.mygrainStartup==='ready'&&window.mygrainPartsBin&&!mygrainPartsBin.busy);await p.evaluate(()=>mygrainCardHistory.ready);await p.locator('#start-btn').click();await p.waitForFunction(()=>isAudioGraphReady()&&!engineStarting&&!stateSaveSuspended&&!mygrainCardHistory.busy&&!mygrainPartsBin.busy);await p.evaluate(()=>{mygrainDisplay.reveal(document.getElementById('partsBinCard'));document.getElementById('partsBinCard').scrollIntoView({block:'start'});});}
+async function native(p,restore=false){await p.evaluate(async restore=>{
+ const div=document.createElement('div');document.body.append(div);Object.defineProperty(mygrainDawBridge,'needsAudio',{configurable:true,get:()=>true});await audioContext.resume();
+ window.sizeWire={revision:restore?1:0,buffer:restore?await(await fetch('/mygrain/__test-native-project')).arrayBuffer():null,stores:0};
+ const worker={postMessage(data){if(data.type==='storeProject')setTimeout(()=>{
+  const v=new DataView(data.buffer);if(v.getUint32(0,true)===0x3150474d)sizeWire.buffer=data.buffer;else{const out=new Uint8Array(v.getUint32(8,true));let at=16,pos=0;for(let i=0;i<v.getUint32(12,true);i++){const kind=v.getUint32(at,true),off=v.getUint32(at+4,true),n=v.getUint32(at+8,true);at+=12;out.set(kind?new Uint8Array(sizeWire.buffer,off,n):new Uint8Array(data.buffer,at,n),pos);if(!kind)at+=n;pos+=n;}sizeWire.buffer=out.buffer;}
+  sizeWire.stores++;sizeSession.event({type:'projectStored',id:data.id,revision:++sizeWire.revision});
+ },1);else if(data.type==='getProject')setTimeout(()=>sizeSession.event({type:'projectSnapshot',id:data.id,revision:sizeWire.revision,buffer:sizeWire.buffer.slice(0)}),1);}};
+ window.sizeSession=new MygrainProjectSession({kind:'bridge',card:div,blocked:()=>false,settings:()=>({mode:'live',bars:4}),apply(){}});sizeSession.reset(worker);sizeSession.auto.enabled=false;
+ sizeSession.observe({projectTransfer:2,projectState:1,projectBytes:sizeWire.buffer?.byteLength||0,projectRevision:sizeWire.revision});
+ },restore);await p.waitForFunction(()=>sizeSession.ready&&!sizeSession.busy&&!sizeSession.storing&&!mygrainPartsBin.busy);}
+async function hashes(p){return p.evaluate(async()=>{const s=[...mygrainProjectSessions].find(s=>s.worker);const hash=async b=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',b)),n=>n.toString(16).padStart(2,'0')).join('');return Promise.all(s.partsBin.parts.map(async p=>({name:p.name,zip:await hash(p.zip),preview:await hash(p.preview)})));});}
+(async()=>{const results=[];for(const [engine,B]of Object.entries(process.env.MYGRAIN_TEST_ENGINE==='webkit'?{webkit}:process.env.MYGRAIN_TEST_ENGINE==='chromium'?{chromium}:{chromium,webkit})){
+ const browser=await B.launch(engine==='chromium'?{executablePath:'/snap/chromium/current/usr/lib/chromium-browser/chrome',args:['--no-sandbox','--disable-dev-shm-usage','--autoplay-policy=no-user-gesture-required']}:{});
+ try{const c=await browser.newContext({viewport:{width:1440,height:1000},extraHTTPHeaders:{'X-Mygrain-User':'admin'}}),api=c.request;
+ assert.equal((await api.get(base)).headers()['x-mygrain-isolated-test'],'plugin-library');assert.equal((await api.post(base+'api/auth/login',{data:{username:'admin',password:'isolated-vst3-test'}})).status(),200);
+ const savedProject=path.join(out,engine+'-stored-project.bin');
+ const errors=[],p=await c.newPage();p.on('pageerror',e=>errors.push(e.message));await ready(p);
+ const bins=(await(await api.get(base+'api/plugin-library/bins')).json()).bins,find=n=>{const b=bins.find(b=>b.name===n+' MiB size test');assert(b);return b;};
+ const open=async n=>{await p.locator(`[data-bin-id="${find(n).id}"] [data-parts-action="universal-open"]`).click();await p.locator('[data-parts-accept]').click();await p.waitForFunction(()=>!mygrainPartsBin.busy);};
+ await native(p);await open(100);assert.match(await p.locator('#partsBinStatus').textContent(),/stored in plugin/);assert(await p.evaluate(()=>sizeWire.buffer.byteLength>96*1048576&&sizeWire.buffer.byteLength<128*1048576));assert.doesNotMatch(await p.locator('#partsBinSummary').textContent(),/\/ 96/);const original=await hashes(p);console.log(engine,'100 MiB Store and hashes complete');
+ const download=p.waitForEvent('download');await p.evaluate(()=>{const url=URL.createObjectURL(new Blob([sizeWire.buffer],{type:'application/octet-stream'})),a=document.createElement('a');a.href=url;a.download='isolated-native-project.bin';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);});await(await download).saveAs(savedProject);assert(fs.statSync(savedProject).size>96*1048576);console.log(engine,'binary project download complete');
+ // >128 MiB can open, but native admission must retain the completed 100 MiB snapshot.
+ const previous=await p.evaluate(async()=>({revision:sizeWire.revision,stores:sizeWire.stores,bytes:sizeWire.buffer.byteLength,sha:[...new Uint8Array(await crypto.subtle.digest('SHA-256',sizeWire.buffer))].join(',')}));
+ await open(140);console.log(engine,'140 MiB open complete');assert.match(await p.locator('#partsBinStatus').textContent(),/current patch and Parts Bin.*128 MiB.*save the bin universally/);assert(await p.evaluate(()=>mygrainPartsBin.diagnostics().bytes>128*1048576));assert.equal(await p.evaluate(()=>sizeSession.partsBin.version!==sizeSession.partsBin.storedVersion),true);
+ assert.deepEqual(await p.evaluate(async()=>({revision:sizeWire.revision,stores:sizeWire.stores,bytes:sizeWire.buffer.byteLength,sha:[...new Uint8Array(await crypto.subtle.digest('SHA-256',sizeWire.buffer))].join(',')})),previous);
+ // Explicit universal save is still usable despite native failure; cancel it.
+ await p.locator('#partsBinUniversalSave').click();await p.locator('#partsBinDestination').waitFor();await p.keyboard.press('Escape');await p.waitForFunction(()=>!mygrainPartsBin.busy);assert(await p.evaluate(()=>mygrainPartsBin.diagnostics().bytes>128*1048576));
+ // Native-failure upload prompt is separately verified in Chromium; WebKit's
+ // file chooser does not settle in this large synthetic native-wire fixture.
+ if(engine==='chromium'){
+ // Actual upload still offers universal save when native project size is exceeded.
+ console.log(engine,'retention and universal-save cancel complete');const chooser=p.waitForEvent('filechooser');await p.locator('#partsBinUpload').click();await(await chooser).setFiles(path.join(out,'fixtures','patch.zip'));
+ await p.locator('#partsBinDestination').waitFor({timeout:45000}).catch(async e=>{console.error('UPLOAD STATE',await p.evaluate(()=>({status:document.getElementById('partsBinStatus')?.textContent,dialog:document.getElementById('partsBinDialog')?.textContent,bin:mygrainPartsBin.diagnostics(),native:sizeSession.label.textContent})));throw e;});console.log(engine,'upload universal-save prompt reached');assert.match(await p.locator('#partsBinDialogTitle').innerText(),/Save added patches/);await p.getByRole('button',{name:'Not now',exact:true}).click();await p.waitForFunction(()=>!mygrainPartsBin.busy);assert.match(await p.locator('#partsBinStatus').textContent(),/Not stored in plugin/);assert.equal(await p.evaluate(()=>mygrainPartsBin.diagnostics().parts.length),2);assert.equal(await p.evaluate(()=>sizeWire.revision),previous.revision);
+ }
+ // Restore the successful snapshot into a fresh editor document, not reused live state.
+ fs.copyFileSync(savedProject,path.join(out,'fixture-native-project.bin'));await p.close();const q=await c.newPage();q.on('pageerror',e=>errors.push(e.message));await ready(q);console.log(engine,'fresh editor ready');await native(q,true);console.log(engine,'fresh native recall complete');assert.deepEqual(await hashes(q),original);assert.equal(await q.evaluate(()=>sizeSession.partsBin.version===sizeSession.partsBin.storedVersion),true);
+ await q.setViewportSize({width:390,height:844});await q.evaluate(()=>{mygrainDisplay.reveal(document.getElementById('partsBinCard'));document.getElementById('partsBinCard').scrollIntoView({block:'start'});});const box=await q.locator('#partsBinCard').boundingBox();assert(box.x>=-1&&box.x+box.width<=391);await q.screenshot({path:path.join(out,engine+'-large-bin-phone.png')});assert.deepEqual(errors,[]);
+ results.push({engine,over96MiBNativeStore:true,freshDocumentRecallByteExact:true,over128MiBUniversalOpen:true,nativeLimitClear:true,failedNativeRetainsPrevious:true,workingBinRetained:true,universalSaveAvailable:true,uploadAfterNativeFailureOffersUniversalSave:engine==='chromium'?true:'not verified: file-chooser automation stalled in this large diagnostic-wire fixture',phoneLayout:true,snapshotBytes:fs.statSync(savedProject).size,errors});fs.writeFileSync(path.join(out,engine+'-browser-results.json'),JSON.stringify(results.at(-1),null,2));console.log('PASS',engine);await c.close();
+ }finally{await browser.close();}}
+ fs.writeFileSync(path.join(out,'browser-results.json'),JSON.stringify(results,null,2));
+})().catch(e=>{console.error(e);process.exitCode=1;});

@@ -97,7 +97,9 @@
         ...(window.mygrainKMultitrack ? [1, 2, 3, 4].map(index => [window.MygrainKMultitrack.rawKey(index), () => window.mygrainKMultitrack.getBuffer(index), buffer => window.mygrainKMultitrack.setBuffer(index, buffer), window.MygrainKMultitrack.dbKey(index)]) : []),
         ['qSourceSample', () => qSourceSampleBuffer, buffer => { qSourceSampleBuffer = buffer; window.mygrainQSoundSources?.sync(); }, 'qSourceSampleBuffer'],
         ['bastardW', () => bastardLoopWBuffer, buffer => { bastardLoopWBuffer = buffer; }, BASTARD_LOOP_W_AUDIO_BUFFER_KEY],
-        ['bastardD', () => bastardLoopDBuffer, buffer => { bastardLoopDBuffer = buffer; window.mygrainD?.invalidate(); }, BASTARD_LOOP_D_AUDIO_BUFFER_KEY]
+        ['bastardD', () => bastardLoopDBuffer, buffer => { bastardLoopDBuffer = buffer; window.mygrainD?.invalidate(); }, BASTARD_LOOP_D_AUDIO_BUFFER_KEY],
+        ...[2,3,4].map(n=>[`bastardD${n}`,()=>window.mygrainD.lane(n).buffer,b=>window.mygrainD.lane(n).setBuffer(b),`bastardLoopD${n}Buffer`]),
+        ['robotWords',()=>window.mygrainRobot?.buffer||null,b=>window.mygrainRobot?.setBuffer(b),'robotWordsBuffer']
     ];
     const metadataBindings = [
         ['bastardA', () => bastardLoopMetadata, metadata => { bastardLoopMetadata = metadata; }],
@@ -105,6 +107,7 @@
         ['bastardC', () => bastardLoop3Metadata, metadata => { bastardLoop3Metadata = metadata; }],
         ['bastardV', () => bastardLoopVMetadata, metadata => { bastardLoopVMetadata = metadata; }],
         ['bastardD', () => bastardLoopDMetadata, metadata => { bastardLoopDMetadata = metadata; }],
+        ...[2,3,4].map(n=>[`bastardD${n}`,()=>window.mygrainD.lane(n).metadata,m=>window.mygrainD.lane(n).setMetadata(m)]),
         ['bastardW', () => bastardLoopWMetadata, metadata => { bastardLoopWMetadata = metadata; }],
         ['bastardP', () => bastardLoopPMetadata, metadata => { bastardLoopPMetadata = metadata; }],
         ['bastardO', () => bastardLoopOMetadata, metadata => { bastardLoopOMetadata = metadata; }],
@@ -132,7 +135,8 @@
     }
 
     const additiveSongLanes = [
-        { name: 'D loop', slots: ['bastardD'], settings: /^(?:loopD|bastard(?:Loop)?D|performanceBastardLoopD)(?:$|[A-Z])/, references: /^(?:d|bastard(?:loop)?d)$/i },
+        {name:'The Robot',slots:['robotWords'],settings:/^robot$/,references:/^robot$/i},
+        { name: 'D loop', slots: ['bastardD','bastardD2','bastardD3','bastardD4'], settings: /^(?:loopD|bastard(?:Loop)?D|performanceBastardLoopD)(?:$|[A-Z])/, references: /^(?:d|bastard(?:loop)?d)$/i },
         { name:'Q sample', slots:['qSourceSample'], settings:/^qSourceSample/, references:/^qsourcesample$/i, qSample:true },
         { name: 'Keyboard Sample', slots: ['keyboardSample'], settings: /^(?:keyboardSample|performanceKeyboardSample)/, references: /^keyboardsample$/i, keyboardSource: 'sample' },
         { name: 'ETC', slots: ['drumEtc'], settings: /^(?:etc|drumEtc|drumMachineEtc.*)$/i, references: /^etc$/i },
@@ -158,7 +162,8 @@
             const missing = lane.slots.filter(key => !Object.hasOwn(inventory, key));
             if (!missing.length) continue;
             const extra = Object.fromEntries(Object.entries(original.extra).filter(([key]) => key !== 'audioSlots'));
-            const state = { ...original.state };
+            let state = { ...original.state };
+            if(lane.name==='The Robot' && !state.modes?.robot?.phrases?.length && !state.modes?.robot?.enabled){state=cloneJson(state);delete state.modes.robot;}
             for (const [key, empty] of Object.entries(lane.emptyState || {})) if (Object.hasOwn(state, key) && state[key] === empty) delete state[key];
             if (missing.length !== lane.slots.length || lane.slots.some(key => original.assets.some(asset => asset.key === key))
                 || hasSongLaneEvidence(state, lane) || hasSongLaneEvidence(extra, lane)) {
@@ -288,11 +293,17 @@
             const rate = Number(state.q.rate ?? 1);
             if ([.25, .5, 1, 2, 4].includes(rate)) multiplier = Math.max(multiplier, 1 / rate);
         }
+        const drumDivider = modes.clockDividers?.drums || 1;
+        const gcdCycle = (a, b) => b ? gcdCycle(b, a % b) : a;
+        if (modes.drumMachineEnabled === true) multiplier = multiplier / gcdCycle(multiplier, drumDivider) * drumDivider;
         const roll = modes.drumMachineRoll;
         if (modes.drumMachineEnabled === true && roll?.pattern?.some(Boolean)) {
             const gcd = (a, b) => b ? gcd(b, a % b) : a;
-            multiplier = (steps * multiplier / gcd(steps * multiplier, roll.length) * roll.length) / steps;
+            multiplier = (steps * multiplier / gcd(steps * multiplier, roll.length * drumDivider) * roll.length * drumDivider) / steps;
         }
+        if(window.MygrainGlassHaus?.audible(modes.glasshaus)){const chain=16*modes.glasshaus.bars;multiplier=(steps*multiplier/gcdCycle(steps*multiplier,chain)*chain)/steps;}
+        const robot = modes.robot;
+        if(window.MygrainRobot?.audible(robot)){const chain=window.MygrainRobot.cycleSteps(robot,steps)*robot.phrases.filter(p=>p.enabled).length;multiplier=(steps*multiplier/gcdCycle(steps*multiplier,chain)*chain)/steps;}
         return multiplier;
     }
 
@@ -301,7 +312,13 @@
         window.MygrainDrumRoll.validate(roll);
         const cycle = snapshot.extra.patternCycleMultiplier ?? 1;
         const active = snapshot.state.modes.drumMachineEnabled === true && roll?.pattern?.some(Boolean);
-        const valid = [1, 2, 4, 8].map(base => active ? window.MygrainDrumRoll.cycleSteps(Number(snapshot.state.patternLength) * base, roll.length) / Number(snapshot.state.patternLength) : base);
+        const modes = snapshot.state.modes, divisions = modes.clockDividers;
+        if (divisions && (typeof divisions !== 'object' || Object.keys(divisions).some(k => !['loop','drums'].includes(k)) || ['loop','drums'].some(k => ![1,2,3,4,6,8,12,16].includes(divisions[k])))) throw new Error('Invalid saved clock dividers.');
+        const drumDivider = modes.drumMachineEnabled === true ? (divisions?.drums || 1) : 1;
+        const gcd = (a,b) => b ? gcd(b,a%b) : a;
+        const valid = [1, 2, 4, 8].map(base => { let length = Number(snapshot.state.patternLength) * base; const drums = Number(snapshot.state.patternLength) * drumDivider; length = length / gcd(length,drums) * drums; if(active)length = length / gcd(length,roll.length*drumDivider) * roll.length * drumDivider; return length / Number(snapshot.state.patternLength); });
+        if(window.MygrainGlassHaus?.audible(modes.glasshaus)){const chain=16*modes.glasshaus.bars;for(let i=0;i<valid.length;i++){const n=valid[i]*Number(snapshot.state.patternLength);valid[i]=(n/gcd(n,chain)*chain)/Number(snapshot.state.patternLength);}}
+        if(window.MygrainRobot?.audible(modes.robot)){const chain=window.MygrainRobot.cycleSteps(modes.robot,Number(snapshot.state.patternLength))*modes.robot.phrases.filter(p=>p.enabled).length;for(let i=0;i<valid.length;i++){const n=valid[i]*Number(snapshot.state.patternLength);valid[i]=(n/gcd(n,chain)*chain)/Number(snapshot.state.patternLength);}}
         if (!Number.isInteger(cycle) || !valid.includes(cycle)) throw new Error('Invalid saved pattern cycle length.');
     }
 
@@ -428,6 +445,7 @@
     }
 
     function refreshSongAudioUi() {
+        window.mygrainSequencerSnapshots?.adoptRestoredAssets();
         syncLegacyAudioBuffer();
         drawWaveforms();
         updateSourceAvailability();
@@ -505,7 +523,7 @@
                     performanceSourceLayerSolo: cloneJson(performanceSourceLayerSolo),
                     performanceSourceLayerSoloSnapshot: cloneJson(performanceSourceLayerSoloSnapshot),
                     controls: Array.from(document.querySelectorAll('input[type="checkbox"], input[type="number"], input[type="radio"]'))
-                        .filter(input => input.id && !input.closest('#partsBinCard, #partsBinDialog, #dawBridgeCard, #dawInputCard, #songBetaCard, #aiPatchCard, #bastardLoopCutOverlay, #bastardLoop2CutOverlay, #bastardLoop3CutOverlay, #bastardLoopVCutOverlay, #bastardLoopWCutOverlay, #bastardLoopDCutOverlay, #bastardLoopPCutOverlay, #bastardLoopOCutOverlay, #qArpOverlay, #qChordEditorOverlay, #drumMachineLane-roll, #kTrackControlSection, #channelEqDialog, .loop-fx, #waspCard, #filterPlaygroundCard, #turntableCard, #resonatorCard, #bassFaceCard, .acoustic-card, #mutilatorInput, [data-resonator-proxy], [data-mutilator-owned]'))
+                        .filter(input => input.id && !input.closest('.sequencer-snapshots, #partsBinCard, #partsBinDialog, #pluginRenderDialog, #dawBridgeCard, #dawInputCard, #songBetaCard, #aiPatchCard, #bastardLoopCutOverlay, #bastardLoop2CutOverlay, #bastardLoop3CutOverlay, #bastardLoopVCutOverlay, #bastardLoopWCutOverlay, #restructureCutOverlay, #bastardLoopDCutOverlay, #bastardLoopD2CutOverlay, #bastardLoopD3CutOverlay, #bastardLoopD4CutOverlay, #bastardLoopPCutOverlay, #bastardLoopOCutOverlay, #qArpOverlay, #qChordEditorOverlay, #drumMachineLane-roll, #kTrackControlSection, #channelEqDialog, .loop-fx, .robot-alignment, #glasshausCard, #waspCard, #filterPlaygroundCard, #turntableCard, #resonatorCard, #bassFaceCard, .acoustic-card, #mutilatorInput, [data-resonator-proxy], [data-mutilator-owned]'))
                         .map(input => ({ id: input.id, type: input.type, value: input.value, checked: input.checked })),
                     metadata: Object.fromEntries(metadataBindings.map(([key, getMetadata]) => [key, cloneJson(getMetadata())]))
                 },
@@ -542,6 +560,7 @@
                 throw new Error('This is not a supported complete song-part snapshot.');
             }
             const { snapshot, lanes } = normalizeSongAudioInventory(original);
+            window.mygrainSequencerSnapshots?.normalize(snapshot.state.modes.sequencerSnapshots);
             window.MygrainDrumTone?.sampleState(snapshot.state.modes.drumMachineSampleProcessing);
             window.MygrainChannelEq?.normalize(snapshot.state.modes.channelEq);
             window.MygrainResonator?.normalize(snapshot.state.modes.resonatorR);
@@ -556,7 +575,7 @@
             // repair. Arm can use this normalized snapshot and existing renders
             // without copying an entire source ZIP just to add empty audio slots.
             const explicitOnly = lanes.length > 0 && lanes.every(lane => ['D loop', 'K five-track recorder', 'W loop', 'Loop filters / space'].includes(lane));
-            const fxBytes = (window.MygrainAcousticFx?.estimatedBytes(snapshot.state.modes, audioContext.sampleRate) || 0) + (window.MygrainBassFace?.estimatedBytes(snapshot.state.modes.bassFace) || 0) + (snapshot.state.modes.loopD?.mutilator?.enabled && snapshot.state.modes.loopD.mutilator.input && !['D','DAW'].includes(snapshot.state.modes.loopD.mutilator.input) ? 1024*1024 : 0) + (window.MygrainResonator?.audible(snapshot.state.modes.resonatorR) ? window.MygrainResonator.estimatedBytes(audioContext.sampleRate) : 0) + (snapshot.state.modes.turntable?.enabled ? Math.ceil(audioContext.sampleRate * .08) * 2 * 4 * (snapshot.state.modes.turntable.route === 'drums' ? 3 : 1) : 0) + (window.MygrainLoopFx?.estimatedBytes(snapshot.state.modes.loopFx, audioContext.sampleRate) || 0) + (window.MygrainNoise?.estimatedBytes(audioContext.sampleRate) || 0);
+            const fxBytes = (window.MygrainEnemyDrone?.audible(snapshot.state.modes.enemyDrone) ? window.MygrainEnemyDrone.estimatedBytes(audioContext.sampleRate,snapshot.state.modes.enemyDrone) : 0) + (window.MygrainEmberSamples?.estimatedBytes(snapshot.state.modes.ember) || 0) + (window.MygrainRestructureSamples?.estimatedBytes(snapshot.state.modes.restructure) || 0) + (window.MygrainCookingPot?.estimatedBytes(snapshot.state.modes, audioContext.sampleRate) || 0) + (window.MygrainLoopFx?.estimatedBytes(snapshot.state.modes.loopFx, audioContext.sampleRate) || 0) + (window.MygrainNoise?.estimatedBytes(audioContext.sampleRate) || 0);
             return { snapshot, decodedBytes, fxBytes, upgrade: lanes.length ? { lanes, explicitOnly } : null };
         },
 
@@ -567,6 +586,12 @@
 
         async decode(arrayBuffer, cache) {
             const { snapshot } = adapter.inspectPart(arrayBuffer);
+            await window.mygrainEffectLfo?.prepare(audioContext);
+            if(window.MygrainGlassHaus?.audible(snapshot.state.modes.glasshaus))await window.MygrainGlassHaus.prepare(audioContext);
+            if(window.MygrainRobot?.audible(snapshot.state.modes.robot))await window.MygrainRobot.prepare(audioContext);
+            if (window.MygrainEnemyDrone?.audible(snapshot.state.modes.enemyDrone)) await window.MygrainEnemyDrone.prepare(audioContext);
+            if (snapshot.state.modes.ember?.sampleSource && window.MygrainEmber?.audible(snapshot.state.modes.ember)) await window.MygrainEmber.prepare(audioContext, snapshot.state.modes.ember);
+            if(window.MygrainRestructure?.audible(snapshot.state.modes.restructure))await window.MygrainRestructure.prepare(audioContext,snapshot.state.modes.restructure);
             await window.mygrainResonator?.prepare(audioContext, snapshot.state.modes.resonatorR);
             await window.mygrainAcousticFx?.prepare(audioContext, snapshot.state.modes);
             await window.mygrainWasp?.prepare(audioContext, snapshot.state.modes.wasp);
@@ -634,6 +659,7 @@
         async clearCurrentPatchAudio() {
             window.mygrainSampleGridBrowser?.close(false);
             adapter.assertNotRecording();
+            window.mygrainSequencerSnapshots?.clear();
             await persistence;
             sourceMutationSerial += 1;
             lastSourceWriteAt = Date.now();
@@ -743,8 +769,7 @@
             const fxBytes = (editingPreparationDepth
                 ? (window.MygrainLoopFx?.estimatedBytes(null, audioContext.sampleRate) || 0)
                 : (Number(info.fxBytes) || 0) + (window.MygrainLoopFx?.estimatedBytes(window.mygrainLoopFx?.settings(), audioContext.sampleRate) || 0))
-                + (window.MygrainAcousticFx?.estimatedBytes(window.mygrainAcousticFx?.settings(), audioContext.sampleRate, true) || 0)
-                + (window.MygrainBassFace?.estimatedBytes(window.mygrainBassFace?.settings()) || 0) + (window.mygrainD?.settings().mutilator?.enabled && window.mygrainD.settings().mutilator.input && !['D','DAW'].includes(window.mygrainD.settings().mutilator.input) ? 1024*1024 : 0)
+                + (window.MygrainCookingPot?.estimatedBytes({...window.mygrainAcousticFx?.settings(),cookingPot:window.mygrainCookingPot?.settings(),bassFace:window.mygrainBassFace?.settings(),loopD:window.mygrainD?.settings(),resonatorR:window.mygrainResonator?.settings(),turntable:window.mygrainTurntable?.settings(),wasp:window.mygrainWasp?.settings()}, audioContext.sampleRate, true) || 0)
                 + (window.MygrainNoise?.estimatedBytes(audioContext.sampleRate) || 0);
             const bytes = 16 * 1048576 + fxBytes + Math.max(residency.bytes + newBytes + decodeScratch, finalBytes + persistScratch);
             const emptyDecodeScratch = Math.max(0, ...[...groups.values()].map(entry => entry.record.bytes * 2 + (entry.nativePcm16 ? 0 : entry.bytes * 2)));
@@ -838,7 +863,7 @@
                 syncPatternLengthControls(snapshot.state.patternLength, { skipSave: true });
                 for (const control of snapshot.extra.controls || []) {
                     const input = document.getElementById(control.id);
-                    if (!input || input.closest('#partsBinCard, #partsBinDialog, #dawBridgeCard, #dawInputCard, #songBetaCard, #aiPatchCard, #bastardLoopCutOverlay, #bastardLoop2CutOverlay, #bastardLoop3CutOverlay, #bastardLoopVCutOverlay, #bastardLoopWCutOverlay, #bastardLoopDCutOverlay, #bastardLoopPCutOverlay, #bastardLoopOCutOverlay, #qArpOverlay, #qChordEditorOverlay, #drumMachineLane-roll, #kTrackControlSection, #channelEqDialog, .loop-fx, #waspCard, #filterPlaygroundCard, #turntableCard, #resonatorCard, #bassFaceCard, .acoustic-card, #mutilatorInput, [data-resonator-proxy], [data-mutilator-owned]') || input.type !== control.type) continue;
+                    if (!input || input.closest('.sequencer-snapshots, #partsBinCard, #partsBinDialog, #pluginRenderDialog, #dawBridgeCard, #dawInputCard, #songBetaCard, #aiPatchCard, #bastardLoopCutOverlay, #bastardLoop2CutOverlay, #bastardLoop3CutOverlay, #bastardLoopVCutOverlay, #bastardLoopWCutOverlay, #restructureCutOverlay, #bastardLoopDCutOverlay, #bastardLoopD2CutOverlay, #bastardLoopD3CutOverlay, #bastardLoopD4CutOverlay, #bastardLoopPCutOverlay, #bastardLoopOCutOverlay, #qArpOverlay, #qChordEditorOverlay, #drumMachineLane-roll, #kTrackControlSection, #channelEqDialog, .loop-fx, .robot-alignment, #glasshausCard, #waspCard, #filterPlaygroundCard, #turntableCard, #resonatorCard, #bassFaceCard, .acoustic-card, #mutilatorInput, [data-resonator-proxy], [data-mutilator-owned]') || input.type !== control.type) continue;
                     if (input.type === 'checkbox' || input.type === 'radio') input.checked = Boolean(control.checked);
                     else input.value = control.value;
                     input.dispatchEvent(new Event('change', { bubbles: true }));
@@ -925,7 +950,7 @@
             const result = await MygrainSongExport.wav(parts, renders, audioContext.sampleRate, signal);
             if (signal.aborted) throw new DOMException('Cancelled', 'AbortError');
             const uploaded = await uploadWavToRepository(result.blob, filename, { signal, ...pattern });
-            return { ...uploaded, peak: result.peak };
+            return { ...uploaded, peak: result.peak, ...(result.robotPreRollFrames?{robotPreRollSeconds:result.robotPreRollFrames/result.sampleRate}:{}) };
         },
         scheduleSong(parts, renders, onEnded, destination = audioContext.destination) {
             const context = audioContext;
@@ -1080,18 +1105,17 @@
             function finish(commit = true, generated = true) {
                 try {
                     if (!commit || epoch !== generation) return;
+                    // Cooking Pot Stir changes effects only; preserve Robot power and playback.
+                    if (generated && label === 'Mega / Sparse patch' && window.mygrainRobot?.randomiseOff()) saveState();
                     if (!aiPatch && generated) {
                         if (label === 'Mega / Sparse patch') {
                             applyGeneratedLXEnvelope();
                             saveState({ force: true });
                         }
                     }
-                    // Include direct card history actions (Q patterns, D gaps and vocal
-                    // cuts), not only the globally wrapped generation functions.
-                    // A source-load failure can leave a newly randomised partial patch.
-                    // Its final muted cards must also have all effect switches Off.
-                    if (!aiPatch && (label === 'Mega / Sparse patch' || /random|generat|re-cut|^Loop [A-Z] (pattern|notes|cut|sound)$|^drum (patterns|sounds)|^OSC3 sound$|^(Clap|Cymbals|Etc|Roll) pattern$/i.test(label))
-                        && [window.mygrainLoopFx?.finishRandomization(), window.mygrainBassFace?.finishRandomization()].some(Boolean)) saveState();
+                    // Mega/Sparse alone reset standard card FX power; local edits retain it.
+                    if (!aiPatch && label === 'Mega / Sparse patch' && window.mygrainLoopFx?.finishRandomization()) saveState();
+                    if (!aiPatch && label === 'Mega / Sparse patch' && window.mygrainBassFace?.finishRandomization()) saveState();
                     const entry = delta(before, capture(), label);
                     if (entry.json.length || entry.buffers.length || entry.piano) {
                         undo.push(entry); if (undo.length > historyLimit) undo.shift(); redo.length = 0;
@@ -1100,11 +1124,12 @@
                 } finally { busy = false; update(); }
             }
             try {
-                // Mastering is opt-in after every randomisation. Keep this inside
-                // the accepted history edit so Undo restores power and recall is untouched.
-                if (!aiPatch && /random|generat|re-cut|^Loop [A-Z] (pattern|notes|cut)$|^drum (patterns|sounds|sample)|^OSC3 sound$|^(Clap|Cymbals|Etc|Roll) pattern$|^(Mutilator|Bass Face) strain$/i.test(label)) window.mygrainMasterBaker?.randomiseOff();
-                // Reset inside the history transaction, never on a rejected UI click.
-                if (!aiPatch && /random|re-cut|^Loop [QOX] (pattern|cut)$|^(Clap|Cymbals|Etc|Roll) pattern$/i.test(label)) { window.mygrainTurntable?.off(); window.mygrainChannelEq?.resetForGeneration(); }
+                // Cross-card reset policy belongs only to accepted Mega/Sparse edits.
+                if (!aiPatch && label === 'Mega / Sparse patch') {
+                    window.mygrainMasterBaker?.randomiseOff();
+                    window.mygrainTurntable?.off();
+                    window.mygrainChannelEq?.resetForGeneration();
+                }
                 const result = action();
                 if (result?.then) return Promise.resolve(result).then(value => { finish(); return value; }, error => { finish(!aiPatch, false); throw error; });
                 finish(); return result;
@@ -1283,19 +1308,14 @@
         for (const [name, label] of Object.entries(actions)) {
             const original = window[name];
             if (typeof original !== 'function') continue;
-            const execute = function (...args) { return run(label, () => {
-                if (/random|generat/i.test(name)) window.mygrainMasterBaker?.randomiseOff();
-                if (/random|generat|^loadBastardLoop[LX]SampleFromSource$|^loadDropboxSampleLayerFromSource$/i.test(name)) { window.mygrainTurntable?.off(); window.mygrainChannelEq?.resetForGeneration(); }
-                return original.apply(this, args);
-            }, false, false, draftActions.has(name)); };
+            const execute = function (...args) { return run(label, () => original.apply(this, args), false, false, draftActions.has(name)); };
             // Consent precedes history capture and generation resets: Cancel changes nothing.
             window[name] = name === 'runMegaRandomization' ? async function (...args) {
-                const options = args[0] || {};
-                const pluginMode=!!(window.mygrainDawBridge?.connected||window.mygrainDawBridge?.diagnostics().connecting||window.mygrainDawFx?.connected||window.mygrainDawFx?.connecting);
-                if (!options.sparseMode && !pluginMode && typeof options.tempoDecision !== 'boolean') {
-                    const decision = await promptMegaTempo();
-                    if (decision === null) { setStatus('Mega Randomise cancelled.'); return; }
-                    args[0] = {...options, tempoDecision: decision};
+                // Tone/tempo consent must precede history and all generation resets.
+                if (window.mygrainRandomGeneration) {
+                    const options = await window.mygrainRandomGeneration.resolve(args[0] || {});
+                    if (!options) { setStatus('Randomise cancelled.'); return; }
+                    args[0] = options;
                 }
                 return execute.apply(this, args);
             } : execute;

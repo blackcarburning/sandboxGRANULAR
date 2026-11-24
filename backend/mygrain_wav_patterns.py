@@ -26,6 +26,15 @@ def signature(path):
     return [stat.st_dev, stat.st_ino, stat.st_size, stat.st_mtime_ns]
 
 
+def signatures_match(saved, current):
+    # Legacy sidecars store [device, inode, size, mtime_ns]. Device IDs are
+    # transient across remounts; the other fields still detect actual replacement.
+    return (isinstance(saved, list) and isinstance(current, list)
+            and len(saved) == len(current) == 4
+            and all(type(value) is int and value >= 0 for value in saved + current)
+            and saved[1:] == current[1:])
+
+
 def paths(root, filename):
     if not isinstance(filename, str) or pathlib.PurePosixPath(filename).name != filename or '\\' in filename or not filename.lower().endswith('.wav') or filename.startswith('.'):
         raise ValueError('Choose a rendered WAV filename.')
@@ -43,7 +52,7 @@ def info(root, filename):
         if metadata.is_symlink() or metadata.stat().st_size > 4096:
             return None
         saved = json.loads(metadata.read_text())
-        if saved.get('wavSignature') != signature(wav) or saved.get('patternSignature') != signature(archive):
+        if not signatures_match(saved.get('wavSignature'), signature(wav)) or not signatures_match(saved.get('patternSignature'), signature(archive)):
             return None
         if not isinstance(saved.get('sha256'), str) or len(saved['sha256']) != 64:
             return None
@@ -61,9 +70,9 @@ def rebind_after_replace(root, filename, previous_signature):
         return
     try:
         saved = json.loads(metadata.read_text())
-        if not isinstance(saved, dict) or saved.get('wavSignature') != previous_signature:
+        if not isinstance(saved, dict) or not signatures_match(saved.get('wavSignature'), previous_signature):
             return
-        if saved.get('patternSignature') != signature(archive):
+        if not signatures_match(saved.get('patternSignature'), signature(archive)):
             return
         with archive.open('rb') as source:
             if hashlib.file_digest(source, 'sha256').hexdigest() != saved.get('sha256'):

@@ -13,3 +13,9 @@
 # Isolated optional CUDA runtime (reproducible requirements in backend).
 /.venv-gpu/
 /.gpu-phase.lock
+
+# Runtime PCM corpora and built installers are backed up as GitHub release assets.
+# See docs/github-source-backup.md for exact restore locations and checksums.
+/industry-corpus-v1/
+/restructure-corpus-v1/
+/mygrain-*.zip

@@ -1,6 +1,6 @@
 const test = require('node:test'), assert = require('node:assert/strict'), vm = require('node:vm');
 const { create, clockSource } = require('../background-audio.js');
-function fixture({ supported = true, fail = false } = {}) {
+function fixture({ supported = true, fail = false, clockModule } = {}) {
     const events = new EventTarget(), document = new EventTarget(); document.hidden = false;
     const ports = [], nodes = [], revoked = [], writes = [];
     let now = 1000, capture = false, playing = true, ticks = 0, callback, type = 'auto';
@@ -13,7 +13,7 @@ function fixture({ supported = true, fail = false } = {}) {
         AudioWorkletNode: class { constructor() { this.port = { postMessage(value) { ports.push(value); }, close() { ports.push('closed'); } }; nodes.push(this); } connect(node) { this.target = node; } disconnect() { this.target = null; } }
     };
     const context = { state: 'running', destination: {}, audioWorklet: { async addModule() { if (fail) throw new Error('unavailable'); } } };
-    const controller = create(host, { playing: () => playing, microphoneActive: () => capture, tick: () => ticks++ });
+    const controller = create(host, { clockModule, playing: () => playing, microphoneActive: () => capture, tick: () => ticks++ });
     const hidden = value => { document.hidden = value; document.dispatchEvent(new Event('visibilitychange')); };
     return { host, context, controller, nodes, ports, revoked, writes, hidden, events, advance(ms) { now += ms; }, setCapture(value) { capture = value; }, setPlaying(value) { playing = value; }, get ticks() { return ticks; }, get callback() { return callback; } };
 }
@@ -162,4 +162,27 @@ test('simple foreground native playback adds no scheduler pulses, while hidden p
     scheduling=true;controller.sync();assert.equal(f.ports.at(-1),true);
     scheduling=false;controller.sync();assert.equal(f.ports.at(-1),false);
     f.hidden(true);assert.equal(f.ports.at(-1),true);controller.dispose();
+});
+
+test('static worklet option loads without Blob support and releases its clock normally', async () => {
+    const f = fixture({clockModule:'/background-audio.js?v=static-test'});
+    f.host.Blob = null; f.host.URL = null; let moduleUrl;
+    f.context.audioWorklet.addModule = async url => { moduleUrl = url; };
+    await f.controller.attach(f.context); f.hidden(true);
+    assert.equal(moduleUrl, '/background-audio.js?v=static-test');
+    assert(f.controller.diagnostics.clockReady && f.controller.diagnostics.clockEnabled);
+    assert.deepEqual(f.revoked, []); f.controller.dispose();
+    assert.equal(f.nodes[0].target, null);
+});
+test('static entrypoint registers the exact same silent clock as the native Blob fallback', () => {
+    const fs = require('node:fs');
+    function registered(code) { let Processor;
+        vm.runInNewContext(code, {sampleRate:48000, AudioWorkletProcessor:class {constructor(){this.port={postMessage(){}}}},
+            registerProcessor:(name,type)=>{assert.equal(name,'mygrain-background-clock-v1');Processor=type;}});
+        return Processor;
+    }
+    const Static=registered(fs.readFileSync(require.resolve('../background-audio.js'),'utf8')),Fallback=registered(clockSource);
+    assert.equal(Static.prototype.process.toString(),Fallback.prototype.process.toString());
+    const clock=new Static(); assert.equal(clock.enabled,false);
+    assert.equal(clock.process(),true); assert.equal(clock.frames,0);
 });

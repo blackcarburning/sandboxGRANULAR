@@ -31,10 +31,10 @@ def replace_eq(body, settings):
 
 
 class EqCodecTests(unittest.TestCase):
-    def test_legacy_defaults_and_canonical_javascript_agree_for_all_28_channels(self):
+    def test_legacy_defaults_and_canonical_javascript_agree_for_all_32_channels(self):
         result = subprocess.run(['node', '-e', "process.stdout.write(JSON.stringify(require('./channel-eq.js').normalize()))"], cwd=pathlib.Path(__file__).resolve().parents[1], capture_output=True, text=True, check=True)
         self.assertEqual(EQ.normalize(), json.loads(result.stdout))
-        self.assertEqual(len(EQ.KEYS), 28)
+        self.assertEqual(len(EQ.KEYS), 32)
         self.assertTrue(all(not c['enabled'] for c in EQ.normalize()['channels'].values()))
 
     def test_bypass_metadata_and_bypassed_edits_retain_legacy_audio_fingerprint(self):
@@ -69,7 +69,7 @@ class EqCodecTests(unittest.TestCase):
                 result = SONGS.paste_loop_archive(target, source, [layer])
                 saved, audio = unpack(result)
                 expected = copy.deepcopy(target_eq)
-                chosen = SONGS.DRUM_LANES if layer == 'drums' else [layer]
+                chosen = SONGS.DRUM_LANES if layer == 'drums' else ['D','D2','D3','D4'] if layer == 'D' else [layer]
                 for key in chosen:
                     expected['channels'][key] = source_eq['channels'][key]
                 self.assertEqual(saved['state']['modes']['channelEq'], expected)

@@ -29,6 +29,13 @@
 using namespace Steinberg;using namespace Steinberg::Vst;
 #include "project_state_checks.h"
 static uint64_t fullPaints=0,meterPaints=0,buttonPaints=0,labelWrites=0;
+#ifdef MYGRAIN_CEF_HOST
+static uint64_t hostSpaceDown=0,hostSpaceUp=0;
+static LRESULT CALLBACK hostKeys(HWND w,UINT message,WPARAM wp,LPARAM lp){
+ if(wp==VK_SPACE){if(message==WM_KEYDOWN)++hostSpaceDown;if(message==WM_KEYUP)++hostSpaceUp;}
+ return CallWindowProcW((WNDPROC)GetPropW(w,L"host-keys-original"),w,message,wp,lp);
+}
+#endif
 static LRESULT CALLBACK auditEditor(HWND w,UINT message,WPARAM wp,LPARAM lp){
  if(message==WM_PAINT){RECT rect{};GetUpdateRect(w,&rect,FALSE);if((rect.right-rect.left)*(rect.bottom-rect.top)>10000)fullPaints++;else meterPaints++;}
  if(message==WM_DRAWITEM)buttonPaints++;
@@ -61,6 +68,9 @@ int main(int argc,char**argv){
  std::set<std::filesystem::path> priorDisplays;for(const auto& item:std::filesystem::directory_iterator(std::filesystem::temp_directory_path()))priorDisplays.insert(item.path());
 #endif
  HWND parent=CreateWindowExW(0,L"STATIC",L"MYGRAIN Windows DLL test host",WS_OVERLAPPEDWINDOW|WS_VISIBLE,0,0,1270,815,nullptr,nullptr,GetModuleHandle(nullptr),nullptr);
+#ifdef MYGRAIN_CEF_HOST
+ SetPropW(parent,L"host-keys-original",(HANDLE)SetWindowLongPtrW(parent,GWLP_WNDPROC,(LONG_PTR)hostKeys));
+#endif
  IPlugView* view=controller->createView(ViewType::kEditor);if(!view||view->attached(parent,kPlatformTypeHWND)!=kResultOk)return 10;
  HWND child=FindWindowExW(parent,nullptr,
 #ifdef MYGRAIN_CEF_HOST
@@ -176,7 +186,8 @@ if(pos!=std::string::npos){std::cout<<url.substr(pos+(url.compare(pos,4,"#fx=")=
   if(cmd=="cef-size-small"||cmd=="cef-size-normal"){ViewRect size(0,0,cmd=="cef-size-small"?800:1240,860);view->onSize(&size);RECT last{},client{};GetWindowRect(GetDlgItem(child,222),&last);MapWindowPoints(nullptr,child,(POINT*)&last,2);GetClientRect(child,&client);if(last.right>client.right||last.left<0)return 25;std::cout<<"CEF_SIZE="<<client.right<<std::endl;}
   if(cmd.rfind("cef-host-focus ",0)==0){const bool focus=cmd.back()=='1';if(view->onFocus(focus)!=kResultTrue)return 24;std::cout<<"CEF_FOCUS="<<focus<<std::endl;}
   if(cmd.rfind("cef-host-key ",0)==0){std::istringstream keys(cmd.substr(13));int ch=0,code=0,mod=0;if(keys>>ch>>code>>mod){auto a=view->onKeyDown(char16(ch),code,mod),b=view->onKeyUp(char16(ch),code,mod);std::cout<<"CEF_KEY="<<ch<<":"<<a<<":"<<b<<std::endl;}}
-  if(cmd.rfind("cef-native-key ",0)==0){std::istringstream keys(cmd.substr(15));int ch=0,vk=0;if(keys>>ch>>vk){SendMessageW(child,WM_KEYDOWN,vk,0);if(ch)SendMessageW(child,WM_CHAR,ch,0);SendMessageW(child,WM_KEYUP,vk,0);}}
+  if(cmd.rfind("cef-native-key ",0)==0){std::istringstream keys(cmd.substr(15));int ch=0,vk=0;if(keys>>ch>>vk){SendMessageW(child,WM_KEYDOWN,vk,0);if(ch)SendMessageW(child,WM_CHAR,ch,0);SendMessageW(child,WM_KEYUP,vk,0);std::cout<<"CEF_NATIVE_KEY="<<ch<<std::endl;}}
+  if(cmd=="cef-space-state"&&commandDisplay.data)std::cout<<"CEF_SPACE_STATE="<<commandDisplay.data->textEditing.load()<<":"<<hostSpaceDown<<":"<<hostSpaceUp<<std::endl;
 
   if(cmd.rfind("cef-click ",0)==0){std::istringstream point(cmd.substr(10));int x=0,y=0;if(point>>x>>y){SetFocus(child);SendMessageW(child,WM_LBUTTONDOWN,MK_LBUTTON,MAKELPARAM(x,y+mygrain::cef::toolbarHeight));SendMessageW(child,WM_LBUTTONUP,0,MAKELPARAM(x,y+mygrain::cef::toolbarHeight));}}
 #endif

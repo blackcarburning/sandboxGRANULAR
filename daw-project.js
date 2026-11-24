@@ -58,7 +58,7 @@ class Session {
   this.busy=true;this.ready=false;const id=++this.id;this.pending={type:'restore',id,revision:this.last.projectRevision};this.revision=this.last.projectRevision;
   this.text('Restoring the project’s saved patch and sounds… Press Start MYGRAIN once if Chrome needs an audio gesture.');this.update();this.timeout('Project restore timed out. Press Restore project snapshot to retry.');this.worker.postMessage({type:'getProject',id,revision:this.revision});
  }
- codecWorker(){if(this.codec)return this.codec;const generation=this.generation;const worker=this.codec=new Worker(new URL('daw-project-codec.js?v=20261112-parts-bin-1',document.baseURI));worker.onmessage=({data})=>{
+ codecWorker(){if(this.codec)return this.codec;const generation=this.generation;const worker=this.codec=new Worker(new URL('daw-project-codec.js?v=20261124-bin-cap-1',document.baseURI));worker.onmessage=({data})=>{
   if(generation!==this.generation||this.pending?.type!=='store'||data.id!==this.pending.id)return;
   if(data.type==='error'){this.assets=new WeakMap();this.knownAssets.clear();return this.fail('Could not prepare snapshot: '+data.message);}
   if(data.type!=='prepared')return;
@@ -103,7 +103,16 @@ class Session {
    try{
     const {settings,zip}=decode(data.buffer,this.options.kind),context=await this.engine(generation),account=root.mygrainAccounts.user?.username;
     if(this.pending!==pending||this.last?.projectRevision!==pending.revision)throw Error('Project changed during restore.');
-    const adapter=root.mygrainSongBetaAdapter;adapter.assertNotRecording();const bin=await root.mygrainPartsBin.unpackProject(zip),part=await adapter.decode(bin.zip,{buffers:new Map(),bytes:0,limitBytes:256*1048576});this.guard(generation);
+    const adapter=root.mygrainSongBetaAdapter;adapter.assertNotRecording();const bin=await root.mygrainPartsBin.unpackProject(zip);
+    // Recover only the known native Store/reload resampled-Q frame-map bug.
+    // Rebuild transient settings, never the plugin snapshot, bin parts or WAVs.
+    const entries=parseStoredZipEntries(bin.zip),snapshot=JSON.parse(new TextDecoder().decode(entries.get('song-part.json')));
+    const bank=root.MygrainQTheory.bankForAsset(snapshot.state?.q,snapshot.assets?.find(asset=>asset.key==='bastardQ'));
+    if(bank!==snapshot.state?.q?.bank){
+     snapshot.state.q.bank=bank;
+     bin.zip=await (await createStoredZip([...entries].map(([path,data])=>({path,data:path==='song-part.json'?JSON.stringify(snapshot):data})))).arrayBuffer();
+    }
+    const part=await adapter.decode(bin.zip,{buffers:new Map(),bytes:0,limitBytes:256*1048576});this.guard(generation);
     if(this.pending!==pending||this.last?.projectRevision!==pending.revision||context!==audioContext||account!==root.mygrainAccounts.user?.username||root.mygrainSongBeta?.busy||root.mygrainAiPatch?.busy||root.mygrainCardHistory?.busy)throw Error('Audio, account or editor operation changed during restore.');
     adapter.recall(part,{start:false,persist:false});this.guard(generation);this.options.apply(settings,this.last);this.partsBin={parts:bin.parts,version:0,storedVersion:0};this.codec?.terminate();this.codec=null;this.knownParts.clear();this.knownAssets.clear();this.assets=new WeakMap();this.fingerprint='';if(settings.autoStore)this.configure(settings.autoStore);this.stats.snapshotBytes=data.buffer.byteLength;
     this.worker.postMessage({type:'projectRestored',revision:data.revision});clearTimeout(this.timer);this.timer=null;this.pending=null;this.busy=false;this.ready=true;this.nextAt=Date.now()+this.auto.interval*1000;

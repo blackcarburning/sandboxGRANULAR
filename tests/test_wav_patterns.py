@@ -63,6 +63,17 @@ class WavPatternTests(unittest.TestCase):
         self.assertEqual(details['filename'], 'paired.zip')
         self.assertEqual(headers['Content-Disposition'], "attachment; filename*=UTF-8''paired.zip")
 
+    def test_robot_acoustic_input_saves_wav_and_exact_editable_patch(self):
+        from test_song_backend import rewrite_part
+        for key in SERVER._song_module.ACOUSTIC_FX.KEYS:
+            for enabled in (False, True):
+                with self.subTest(effect=key, enabled=enabled):
+                    patch_bytes = rewrite_part(PATTERN_BYTES, lambda p: p['state']['modes'].update({key: {'enabled': enabled, 'source': 'Robot'}}))
+                    saved = self.save(name=f'{key}-{enabled}.wav', body=bundle(pattern=patch_bytes))
+                    self.assertEqual(self.success(self.admin, 'GET', saved['url']), wav_bytes())
+                    self.assertEqual(self.success(self.admin, 'GET', saved['patternExport']['url']), patch_bytes)
+                    self.assertEqual(saved['patternExport']['sha256'], hashlib.sha256(patch_bytes).hexdigest())
+
     def test_download_releases_storage_lock_before_network_io(self):
         saved = self.save()
         acquired = threading.Event()
@@ -198,6 +209,27 @@ class WavPatternTests(unittest.TestCase):
         self.assertEqual(list((root / '.pattern-exports').iterdir()), [])
 
 
+    def test_remounted_device_id_keeps_exact_saved_patch_without_rewriting_sidecars(self):
+        self.save(name='remounted-patch.wav')
+        root = self.account_root()
+        wav, archive, metadata = PATTERNS.paths(root, 'remounted-patch.wav')
+        saved = json.loads(metadata.read_text())
+        saved['wavSignature'][0] += 999
+        saved['patternSignature'][0] += 999
+        metadata.write_text(json.dumps(saved))
+        before = metadata.read_bytes()
+        rows = {entry['name']: entry for entry in self.listing()}
+        details = rows['remounted-patch.wav']['patternExport']
+        self.assertEqual(self.success(self.admin, 'GET', details['url']), PATTERN_BYTES)
+        self.assertEqual(metadata.read_bytes(), before)
+        # A real replacement still hides the old pair; device tolerance is narrow.
+        replacement = archive.with_suffix('.replacement')
+        replacement.write_bytes(archive.read_bytes())
+        replacement.replace(archive)
+        rows = {entry['name']: entry for entry in self.listing()}
+        self.assertNotIn('patternExport', rows['remounted-patch.wav'])
+
+
 class PatternTransferTests(unittest.TestCase):
     def handler(self, writer):
         statuses = []
@@ -251,6 +283,8 @@ class PatternTransferTests(unittest.TestCase):
         handler, statuses = self.handler(writer)
         PATTERNS.send_pattern(handler, 'HEAD', 'large.wav', b'zip')
         self.assertEqual(statuses, [200])
+
+
 
 
 if __name__ == '__main__':

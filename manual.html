@@ -329,7 +329,7 @@
         <section class="summary-grid" aria-label="Manual overview">
             <div class="summary-card"><b>Start Sound Fast</b><span>Tap Start, set BPM, generate or load a source, then use the keyboard, loops, drums, or Bastardloops.</span></div>
             <div class="summary-card"><b>One Clock</b><span>BPM drives the arpeggiator, sequencers, Bastardloops, drums, LFOs, delay divisions, and exports.</span></div>
-            <div class="summary-card"><b>Layered Mixer</b><span>Granular, oscillator, generated loop, Dropbox sample, drums, and Bastardloops can all run together.</span></div>
+            <div class="summary-card"><b>Layered Mixer</b><span>Granular, oscillator, generated loop, Restructure, drums, and Bastardloops can all run together.</span></div>
             <div class="summary-card"><b>Three Kinds of Save</b><span>Vocal versions keep raw takes globally; song parts keep complete editable patterns; patch ZIPs provide portable restore points.</span></div>
         </section>
 
@@ -337,9 +337,9 @@
         <ol>
             <li>Tap <strong>START MYGRAIN</strong>. Browser audio is locked until this gesture; microphone permission is only requested when you use <strong>Record Mic</strong>.</li>
             <li>Set <strong>BPM</strong> and <strong>Pattern Length</strong>. BPM controls musical timing across the app; Pattern Length controls sequencer-style grids.</li>
-            <li>Create or load sound with <strong>Generate Source</strong>, <strong>Low Noise Source</strong>, <strong>Record Mic</strong>, <strong>Load Demo</strong>, <strong>Load Audio</strong>, grain sample browsers, Bastardloops, Dropbox Sample Layer, or the Drum Machine.</li>
+            <li>Create or load sound with <strong>Generate Source</strong>, <strong>Low Noise Source</strong>, <strong>Record Mic</strong>, <strong>Load Demo</strong>, <strong>Load Audio</strong>, grain sample browsers, Bastardloops, Restructure, or the Drum Machine.</li>
             <li>Play from <strong>Keys</strong>. Use <strong>Hold</strong> for drones, <strong>Arp</strong> for clocked held-note playback, and <strong>Octave</strong> to move the keyboard range.</li>
-            <li>Build rhythm or texture with <strong>Generate Loop</strong>, <strong>Start Bastardloops</strong>, <strong>Start Drums</strong>, or <strong>Dropbox Sample Layer</strong>.</li>
+            <li>Build rhythm or texture with <strong>Generate Loop</strong>, <strong>Start Bastardloops</strong>, <strong>Start Drums</strong>, or <strong>Restructure</strong>.</li>
             <li>Balance layers in <strong>Layer Switches</strong> and <strong>Mixer</strong>. If a layer is silent, check both its switch and its level.</li>
             <li>Use <strong>Export WAV</strong>, <strong>Export Final Mix to Repo</strong>, <strong>Export Stems</strong>, or <strong>Export Patch ZIP</strong> when the patch is worth keeping.</li>
             <li>For vocals, record into <strong>M</strong>, save versions in the <strong>Vocal Take Browser</strong>, and use <strong>M+</strong> for an independent backing take. For an arrangement, save <strong>New Parts</strong> in <strong>Song</strong>, then <strong>Arm Cache</strong> and <strong>Play Song</strong>.</li>
@@ -362,7 +362,7 @@
             <li><a href="#m-loop">M and M+: Recording and the Global Vocal Library</a></li>
             <li><a href="#vocal-workflows">Vocal Recording Examples</a></li>
             <li><a href="#song-mode">Song Mode: Arrangement, Recall and Cache</a></li>
-            <li><a href="#dropbox">Dropbox Sample Layer</a></li>
+            <li><a href="#dropbox">Restructure</a></li>
             <li><a href="#drums">Drum Machine</a></li>
             <li><a href="#mixer">Layer Switches and Mixer</a></li>
             <li><a href="#filters">Filters, LFO, and Motion</a></li>
@@ -375,7 +375,7 @@
         </ol>
 
         <h2 id="model">What MYGRAIN Is</h2>
-        <p>MYGRAIN is best understood as a performance mixer wrapped around several sound makers. The playable center is a three-layer granular instrument plus oscillator. Around that are generated loops, one-shot sample sequencers, Dropbox sample playback, a drum machine, filters, shared effects, recording, and repository export tools.</p>
+        <p>MYGRAIN is best understood as a performance mixer wrapped around several sound makers. The playable center is a three-layer granular instrument plus oscillator. Around that are generated loops, one-shot sample sequencers, Restructure playback, a drum machine, filters, shared effects, recording, and repository export tools.</p>
 
         <div class="flow-grid">
             <article class="diagram-card">
@@ -391,7 +391,7 @@
                     <text class="small-label" x="226" y="60">keyboard / arp / hold</text>
                     <rect class="node gold" x="24" y="108" width="138" height="44" rx="8"></rect>
                     <text class="label" x="40" y="133">Loop Layers</text>
-                    <text class="small-label" x="40" y="146">dry / Dropbox / L/X</text>
+                    <text class="small-label" x="40" y="146">dry / Restructure / L/X</text>
                     <rect class="node gold" x="210" y="108" width="138" height="44" rx="8"></rect>
                     <text class="label" x="226" y="133">Bastardloops</text>
                     <text class="small-label" x="226" y="146">A B C V P O M M+</text>
@@ -443,7 +443,7 @@
             <tr><th>Area</th><th>What it contains</th><th>When to use it</th></tr>
             <tr><td>Performance header</td><td>BPM, Pattern Length, build marker, Manual link, and top-level context.</td><td>Use first when setting tempo or checking the loaded build.</td></tr>
             <tr><td>Jump drawer</td><td>Shortcuts to Keys, Synth, Start All, Loop A through X, Drums, Sample, Layer Switch, Mixer, Quick Grain, Actions, Export, WAV Browser, Stem Export, Grain, Mix, LFO, FX, Sources, Waveforms, and Pan Lab.</td><td>Use on iPhone or any narrow screen.</td></tr>
-            <tr><td>Performance cards</td><td>Most live controls: loops, drums, Dropbox sample, switches, mixer, grain quick controls, filters, actions, export, keys, mix, and LFO.</td><td>Use while building and performing.</td></tr>
+            <tr><td>Performance cards</td><td>Most live controls: loops, drums, Restructure, switches, mixer, grain quick controls, filters, actions, export, keys, mix, and LFO.</td><td>Use while building and performing.</td></tr>
             <tr><td>Waveform/source editors</td><td>Generated Loop, Main Grain Sample, Mic Recording, Grain A/B mic or sample, and Output Source editors.</td><td>Use when trimming or auditioning source material.</td></tr>
             <tr><td>Debug Console</td><td>Recent status/errors and copy button.</td><td>Use when a bug needs reporting.</td></tr>
         </table>
@@ -520,7 +520,7 @@
         </ul>
 
         <h2 id="bastardloops">Bastardloops A/B/C/V/P/O/L/X/M/M+</h2>
-        <p>Bastardloops are sample-backed loop layers that can run beside the keyboard, generated loop, Dropbox sample, and drums. All Bastardloop layers use the shared Bastardloop transport unless a layer has its own card-specific start button.</p>
+        <p>Bastardloops are sample-backed loop layers that can run beside the keyboard, generated loop, Restructure, and drums. All Bastardloop layers use the shared Bastardloop transport unless a layer has its own card-specific start button.</p>
         <h3>A/B/C/V/P/O Generated Layers</h3>
         <table>
             <tr><th>Layer</th><th>Source family</th><th>Main controls</th></tr>
@@ -652,16 +652,16 @@
         </ul>
         <div class="note warning"><strong>Live versus Song:</strong> changing live effects while a frozen song plays does not remix its saved WAV. Recall and amend the part, then re-arm. For complete vocal phrases, make the saved pattern long enough; for freely evolving improvisation, use live Bastardloops/Audition rather than expecting frozen song repeats to vary.</div>
 
-        <h2 id="dropbox">Dropbox Sample Layer</h2>
-        <p>The Dropbox Sample Layer loads one sample from <code>SAMPLEDROP</code>, <code>SAMPLEDROP_2</code>, or <code>SPLICE_CLAW</code> and plays it as its own loop layer.</p>
+        <h2 id="dropbox">Restructure</h2>
+        <p>The Restructure loads one sample from <code>SAMPLEDROP</code>, <code>SAMPLEDROP_2</code>, or <code>SPLICE_CLAW</code> and plays it as its own loop layer.</p>
         <ul>
             <li><strong>Browse Samples</strong> opens the browser for manual choice.</li>
             <li><strong>Load Random Sample</strong> picks a random sample from the selected source family.</li>
             <li><strong>Stretch To Loop</strong> stretches the sample to fit the Bastardloop bar. Off means the sample is dropped at the start of each bar.</li>
-            <li><strong>Dropbox Semitone</strong> and <strong>Dropbox Fine Tune</strong> tune playback.</li>
+            <li><strong>Restructure Semitone</strong> and <strong>Restructure Fine Tune</strong> tune playback.</li>
             <li><strong>Preserve Duration</strong> keeps length stable while tuning. Turn it off for classic sampler speed/pitch behavior.</li>
-            <li><strong>Solo Off/On</strong> isolates the Dropbox sample layer for checking.</li>
-            <li><strong>Dropbox Sample On/Off</strong> in Layer Switches mutes or enables this layer without changing its settings.</li>
+            <li><strong>Solo Off/On</strong> isolates the Restructure layer for checking.</li>
+            <li><strong>Restructure On/Off</strong> in Layer Switches mutes or enables this layer without changing its settings.</li>
         </ul>
 
         <h2 id="drums">Drum Machine</h2>
@@ -687,8 +687,8 @@
         <p>Open <strong>Manage favourites</strong> to create, rename or remove a collection, or refresh hearts saved on another device. <strong>Rename favourite</strong> changes its searchable display label only: source filenames, audio, MIDI and song parts remain unchanged. Removing a heart or collection never deletes the source file. Favourites are shared server-side, separately from patches and songs; only your selected collection/filter is remembered locally. The same filename in a different source folder is a different favourite.</p>
         <p><strong>Layer Switches</strong> are quick mutes. <strong>Module Mixer</strong> is level balance. Use both: a layer can be on but turned down, or loud but muted by a switch.</p>
         <div class="card-grid">
-            <div class="card"><b>Quick mutes</b><span>Osc, Granular, Sample/Drums, Loop, Bastardloop A/B/C/V/P/O/L/X, Dropbox Sample, and Drum Machine.</span></div>
-            <div class="card"><b>Module levels</b><span>Osc, Sample, Loop, Noise, Dropbox Sample, Drum Machine, every Bastardloop, Main Grain, Grain A, Grain B, and Grain Amp.</span></div>
+            <div class="card"><b>Quick mutes</b><span>Osc, Granular, Sample/Drums, Loop, Bastardloop A/B/C/V/P/O/L/X, Restructure, and Drum Machine.</span></div>
+            <div class="card"><b>Module levels</b><span>Osc, Sample, Loop, Noise, Restructure, Drum Machine, every Bastardloop, Main Grain, Grain A, Grain B, and Grain Amp.</span></div>
             <div class="card"><b>Output VU</b><span>Use the meter to catch silent patches and hot output before exporting.</span></div>
         </div>
         <p>For troubleshooting silence, check in this order: Start MYGRAIN, Panic, Layer Switches, Module Mixer, source buffer, then filter/FX mute.</p>
@@ -770,7 +770,7 @@
             <div class="recipe"><b>Fast playable patch</b><span>Start MYGRAIN, Generate Source, open Keys, adjust Main Grain tune/size, set Hold or Arp, then balance with Mixer.</span></div>
             <div class="recipe"><b>Loop bed plus keyboard</b><span>Generate Loop, Loop Play, add Bastardloop A or B, then keep the keyboard on top with Layer Switches and Master Trim.</span></div>
             <div class="recipe"><b>Lead and bass sequence</b><span>Choose Lead Sample for L, Choose Bass Sample for X, Edit Sequence on each, double tap steps for ratchets, then Start Bastardloops.</span></div>
-            <div class="recipe"><b>Sample loop layer</b><span>Open Dropbox Sample Layer, choose source family, Load Random Sample or Browse Samples, choose Stretch To Loop, tune, then balance Dropbox Sample level.</span></div>
+            <div class="recipe"><b>Sample loop layer</b><span>Open Restructure, choose source family, Load Random Sample or Browse Samples, choose Stretch To Loop, tune, then balance Restructure level.</span></div>
             <div class="recipe"><b>Resample MYGRAIN into itself</b><span>Record Output Source, jump to Waveforms, trim Output Source, then select it as a grain source for further processing.</span></div>
             <div class="recipe"><b>DAW handoff</b><span>Set Export Bars, export a final WAV, then Export Stems with notes. Export Patch ZIP as a restore point.</span></div>
         </div>
@@ -778,7 +778,7 @@
         <h2 id="bastardloop-q">Bastardloop Q — piano / string ensemble chords</h2>
         <p><strong>Sample Length / Sample Decay:</strong> both sliders are on Q's main card and in the editor's Chord playback settings. Length trims each triggered sample's sounding window; lower Decay fades it earlier, useful for busy chord or arp patterns. Both range from 5–100%. At 100% the original envelope is retained, including for older patches and parts without these controls. They affect Piano, Strings, grid playback, ratchets and auditions without changing the notes, BPM or transport origin. Reverb and delay tails remain governed by their own mixes. Settings are saved in patches and Song parts; shortened samples require a length/decay-aware Song freeze. Recall, amend and re-arm older parts if you want them to use new shorter settings.</p>
         <p><strong>Copy Arp → X / L:</strong> choose ARP playback in Q and press <strong>Copy Arp</strong> on its card or in Chord playback. This copies the entire active Q pattern from step 1 to its end, not just the chord at the editing cursor. A 64-step Q pattern includes all 64 source cells, every chord change, the current order, voicing, transpose, once/repeat behavior, gaps and accents. Empty patterns copy silence rather than the builder chord. The status shows the source length and total copied arp pulses; faster/slower arp divisions can produce more/fewer pulses than source cells. Copy is disabled in block chord mode. In X or L, select a destination step and press <strong>Paste from Arp</strong> on the card or in the sequencer. Each pulse occupies one destination step, using that loop's existing rate, sound and effects. To paste a full 64-pulse copy into a 64-step destination, start at step 1. Only those cells are replaced; paste stops at the pattern end without wrapping and reports any omitted pulses. The copied pattern can be reused in both loops and is not changed by later edits in Q. Copy again to refresh it. The clipboard is temporary, but pasted notes, rests and accents are ordinary X/L sequence data and are embedded by Song New Part / Save Amendment, so recall on a new device does not require the clipboard.</p>
-        <p>Choose <strong>Q sound → Piano or Strings</strong> on the scarlet Q card, or in the editor's collapsed Key &amp; chord roots settings. Piano is the original Salamander grand from <code>SAMPLES_Q</code>, with 30 sampled pitches across A0–C8 and four velocity layers. Strings uses recorded VSCO 2 CE cello, viola and violin sections from <code>SAMPLES_Q_STRINGS</code>, mapped across 17 roots with two dynamic layers and crossfaded sustain loops. The native string recordings cover C2–D6; notes outside that range are pitch-shifted. Both instruments load only the notes needed and use local files, not Dropbox or an external audio CDN.</p>
+        <p>Choose <strong>Q sound → Piano or Strings</strong> on the scarlet Q card, or in the editor's collapsed Key &amp; chord roots settings. Piano is the original Salamander grand from <code>SAMPLES_Q</code>, with 30 sampled pitches across A0–C8 and four velocity layers. Strings uses recorded VSCO 2 CE cello, viola and violin sections from <code>SAMPLES_Q_STRINGS</code>, mapped across 17 roots with two dynamic layers and crossfaded sustain loops. The native string recordings cover C2–D6; notes outside that range are pitch-shifted. Both instruments load only the notes needed and use local files, not Restructure or an external audio CDN.</p>
         <p>Changing sound keeps the sequence and effect settings, stops the old instrument's voices and clears its sample bank. If Q is running it resumes on the existing clock once the new samples are ready; other layers do not restart. Strings sustain for the programmed gate, including held/tied chords. The instrument selector stays inside the existing collapsed editor settings and adds no row to the compact grid toolbar.</p>
         <ol>
             <li>Open <strong>Edit Sequence</strong>. The playable chord palette sits directly above the compact grid; Practice, Step/Live Record, Rest, Delete, Left 1/Right 1, Chord −/+, green All Play and red All Stop remain in one compact top row. On narrow phones, Practice and Chord −/+ use the short labels Prac and Ch −/+ without changing their functions. Expand <strong>Key &amp; chord roots</strong> to choose the scale tonic, one of 85 named scales/modes, octave, inversion and voicing together. <strong>Custom</strong> lets you select any twelve-tone pitch set; the tonic stays included. These are twelve-tone equal-tempered scales, not microtonal tunings.</li>
@@ -809,7 +809,7 @@
             <tr><th>Problem</th><th>Try this</th></tr>
             <tr><td>No sound at all</td><td>Tap Start MYGRAIN, press Panic, check Master Trim and Output VU, then Reset Engine.</td></tr>
             <tr><td>One layer is missing</td><td>Check Layer Switches, Module Mixer, that layer's own level, and whether the source/sample is loaded.</td></tr>
-            <tr><td>Dropbox sample will not mute</td><td>Use Layer Switches and confirm the button reads Dropbox Sample Off. If it flips back on, report it with Debug Console output.</td></tr>
+            <tr><td>Restructure will not mute</td><td>Use Layer Switches and confirm the button reads Restructure Off. If it flips back on, report it with Debug Console output.</td></tr>
             <tr><td>Loop L or X is silent</td><td>Choose the Lead/Bass sample, check the sequence has notes not only rests, verify Bastardloop L/X On in Layer Switches, then check Mixer level.</td></tr>
             <tr><td>Step ratchet will not arm</td><td>Open Edit Sequence and double tap the same step. The status should report ratchet edit for that step.</td></tr>
             <tr><td>Drums are too quiet after randomization</td><td>Check Drum Machine level, Drum Machine On, Direct Out, delay/reverb sends, and Master Trim.</td></tr>

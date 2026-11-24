@@ -1,7 +1,7 @@
 (function (root) {
     'use strict';
 
-    const historyLimit = 2;
+    const historyLimit = 4;
 
     class MemoryBudget {
         constructor(limitBytes = 192 * 1024 * 1024, strict = false) {
@@ -238,7 +238,7 @@
                 || [...journal.undo, ...journal.redo].some(entry => entry.owner !== this.owner || typeof entry.label !== 'string' || !Array.isArray(entry.json) || !entry.json.every(validPath) || !Array.isArray(entry.buffers) || entry.buffers.some(change => !Number.isInteger(change.index) || change.index < 0 || change.index > 100))) throw new Error('Saved history is damaged; current-session Undo/Redo remains available.');
             this.revision = journal.revision;
             this.references = new Set(journal.references);
-            // Accept the former ten-level journal, keep the nearest two states,
+            // Accept the former ten-level journal, keep the nearest four states,
             // and atomically collect abandoned PCM without eager hydration.
             const undo = journal.undo.slice(-historyLimit);
             const remaining = historyLimit - undo.length;
@@ -268,7 +268,7 @@
         async save(undo, redo) {
             if (this.closed) throw new Error('History storage closed.');
             if (this.readOnly) throw this.conflict();
-            if (undo.length + redo.length > historyLimit) throw new Error('Undo/Redo is limited to two levels.');
+            if (undo.length + redo.length > historyLimit) throw new Error('Undo/Redo is limited to four levels.');
             const references = new Set(), additions = new Map();
             const audio = buffer => {
                 if (!buffer) return null;

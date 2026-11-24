@@ -1,4 +1,4 @@
-MyGrain CEF FX 0.1.0 preview
+MyGrain CEF FX 0.1.1 preview
 
 INSTALL THE WHOLE BUNDLE, with the DAW closed.
 Windows x64: copy MyGrain CEF FX.vst3 into C:\Program Files\Common Files\VST3\.
@@ -6,6 +6,9 @@ macOS 13+: run bash "Install MyGrain CEF FX.command" from the extracted folder.
 The installer verifies checksums/signatures, backs up this plugin and installs
 only it in your user VST3 folder. Mac is ad-hoc signed, not notarized.
 Rescan VST3 plugins. Existing Bridge, FX and CEF instrument stay installed.
+Space controls the DAW while the embedded app or its buttons have focus. It
+does not toggle the app loop. Text/password fields still accept normal spaces.
+This native keyboard update needs the whole bundle replaced, not app reload.
 
 Add MyGrain CEF FX as a STEREO INSERT EFFECT, not an instrument.
 Open its embedded app and sign in; Start MYGRAIN once if requested. No external

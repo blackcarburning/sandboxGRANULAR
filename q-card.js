@@ -1237,7 +1237,12 @@
             if (root.mygrainCardHistory) root.mygrainCardHistory.run(`Q candidate ${field}`, edit); else edit();
             this.status(field === 'tonic' ? `Scale tonic ${theory.notes[next.tonic]}. Recorded chords and custom originals unchanged.` : `Candidates: transpose ${next.paletteTranspose > 0 ? '+' : ''}${next.paletteTranspose || 0} semitones · octave ${next.octave}. Recorded chords and custom originals unchanged.`);
         }
-        getState() { return { ...theory.copy(this.state), bank: this.externalSound() ? null : theory.copy(this.piano.bank) }; }
+        getState() {
+            const state = { ...theory.copy(this.state), bank: this.externalSound() ? null : theory.copy(this.piano.bank) };
+            const buffer = this.externalSound() ? null : this.piano.atlas;
+            if (buffer) state.bank = theory.bankForAsset(state, { sampleRate: buffer.sampleRate, frames: buffer.length, channels: buffer.numberOfChannels });
+            return state;
+        }
         getAudioBuffer() { return this.externalSound() ? null : this.piano.atlas; }
         setAudioBuffer(buffer) { this.piano.restored(buffer, this.state.bank); }
         hasSequence() { return this.state.sequence.slice(0, this.length()).some(step => step?.notes?.length && !step.rest); }
@@ -2774,7 +2779,7 @@
     if (root.document?.getElementById('bastardLoopQCard')) {
         const host = {
             context: () => audioContext, destination: () => preFilterGainNode || masterGain || audioContext.destination,
-            bpm: () => Number(document.getElementById('globalBpmSlider')?.value || 120), length: () => getPatternLengthSteps(),
+            bpm: () => getTransportClockBpm(), length: () => getPatternLengthSteps(),
             ready: () => ensureAudioReadyForKeyInteraction(), save: () => saveState(),
             bassNotes: () => bastardLoopXSequence.slice(0, getBastardLoopXPatternLength()).filter(step => step && !step.rest && parseNoteName(step.note)).map(step => noteNameToMidi(step.note)),
             activity: () => { updateFinalMixEffects(); syncPerformanceControlState(); },

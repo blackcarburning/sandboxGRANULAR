@@ -195,7 +195,7 @@ class SongBackendTests(unittest.TestCase):
         self.assertEqual(result.response['song']['parts'][0]['render']['loopDVersion'], 1)
         self.assertEqual(result.response['song']['parts'][0]['sha256'], part['sha256'])
         self.assertEqual(result.response['song']['revision'], song['revision'])
-        self.assertEqual(self.request('POST', f'{path}&loopd=3', body=render_wav(part)).status, 400)
+        self.assertEqual(self.request('POST', f'{path}&loopd=5', body=render_wav(part)).status, 400)
 
     def test_d_maximiser_identity_and_stale_render_admission(self):
         legacy = rewrite_part(part_zip(), lambda m: m['state']['modes'].update({'loopD': {'enabled': True}}))
@@ -274,7 +274,7 @@ class SongBackendTests(unittest.TestCase):
         self.assertEqual(response.status, 201)
         song = response.response['song']; part = song['parts'][0]
         self.assertEqual(part['unifiedInputsVersion'], 2)
-        path = f'/api/songs/{song["id"]}/parts/{part["id"]}/render?sha256={part["sha256"]}&mutilator=2&characterfx=1&effectoutput=1&loopfx=1'
+        path = f'/api/songs/{song["id"]}/parts/{part["id"]}/render?sha256={part["sha256"]}&mutilator=2&characterfx=1&effectoutput=1&loopfx=1&cookingpot=4'
         self.assertEqual(self.request('POST', path + '&unifiedinputs=1', body=render_wav(part)).status, 400)
         response = self.request('POST', path + '&unifiedinputs=2', body=render_wav(part))
         self.assertEqual(response.status, 200)
@@ -298,7 +298,7 @@ class SongBackendTests(unittest.TestCase):
         self.assertEqual(response.status, 201)
         song = response.response['song']; part = song['parts'][0]
         self.assertEqual(part['unifiedInputsVersion'], 3)
-        path = f'/api/songs/{song["id"]}/parts/{part["id"]}/render?sha256={part["sha256"]}&channeleq=3&characterfx=1&effectoutput=1&loopfx=1'
+        path = f'/api/songs/{song["id"]}/parts/{part["id"]}/render?sha256={part["sha256"]}&channeleq=3&characterfx=1&effectoutput=1&loopfx=1&cookingpot=4'
         self.assertEqual(self.request('POST', path + '&unifiedinputs=2', body=render_wav(part)).status, 400)
         response = self.request('POST', path + '&unifiedinputs=3', body=render_wav(part))
         self.assertEqual(response.status, 200)

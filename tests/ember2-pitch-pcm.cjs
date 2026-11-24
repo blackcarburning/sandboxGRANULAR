@@ -1,0 +1,20 @@
+const fs=require('node:fs'),assert=require('node:assert/strict'),{chromium,webkit}=require('playwright-core'),base=process.env.BASE,task=process.env.TASK;
+(async()=>{for(const [engine,type]of Object.entries({chromium,webkit})){
+ const browser=await type.launch(engine==='chromium'?{executablePath:'/snap/bin/chromium',args:['--no-sandbox','--disable-dev-shm-usage']}:{});
+ try{const context=await browser.newContext(),page=await context.newPage();page.setDefaultTimeout(90000);await page.route('**/*',route=>new URL(route.request().url()).origin===new URL(base).origin?route.continue():route.abort());
+ const tone=new Int16Array(24000);for(let frame=0;frame<tone.length;frame++)tone[frame]=Math.round(16000*Math.sin(2*Math.PI*440*frame/24000));await page.route('**/industry-corpus-v1/pitch-tone/0.pcm',route=>route.fulfill({status:200,contentType:'application/octet-stream',body:Buffer.from(tone.buffer)}));
+ assert((await context.request.post(base+'api/auth/login',{data:{username:'admin',password:'isolated-vst3-test'}})).ok());await page.goto(base);await page.waitForFunction(()=>window.MygrainEmber?.pitchActive&&window.MygrainEmberSamples);
+ const rows=await page.evaluate(async bytes=>{
+  const raw=Uint8Array.from(bytes),hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',raw)),value=>value.toString(16).padStart(2,'0')).join(''),worker=new Worker(new URL('ember2-sample-worker.js?v=20261118-ember2-pitch-1',document.baseURI));let serial=0;
+  const prepare=pitch=>new Promise((resolve,reject)=>{worker.onmessage=({data})=>data.error?reject(Error(data.error)):resolve(data.bank);worker.onerror=event=>reject(Error(event.message));worker.postMessage({id:++serial,preparationVersion:1,picks:Array.from({length:4},()=>({id:'pitch-tone',chunk:0,chunkFrames:24000,start:0,frames:24000,sha256:hash})),pitch,base:document.baseURI});}),results=[];
+  try{for(const rate of [44100,48000])for(const mode of ['keep','speed'])for(const semitones of [-24,-12,0,12,24]){
+   const pitch={semitones,mode},bank=await prepare(pitch),sound={...MygrainEmber.defaults(),enabled:true,level:.4,tempo:120,pitch};sound.sampleSource={version:1,seed:13091,frames:24000};sound.crossDepth=0;sound.matrix=sound.matrix.map(row=>row.map(()=>0));sound.voices.forEach((voice,index)=>{Object.assign(voice,{on:index===0,ratio:32,detune:0,body:1,pan:0,glitch:0,chance:1,gate:.98,pattern:Array(16).fill(1)});Object.assign(voice.filter,{cutoff:14000,highpass:15,morph:0,notch:0,resonance:0});voice.reverb.mix=0;for(const key of ['widthDepth','filterDepth','reverbDepth','panDepth'])voice.lfo[key]=0;});
+   const audio=new OfflineAudioContext(2,Math.round(rate*.12),rate),samples=MygrainEmberSamples,oldPrepared=samples.prepared;await MygrainEmber.prepare(audio);samples.prepared=()=>bank;
+   let output;try{const graph=MygrainEmber.createGraph(audio,audio.destination,sound,{time:0,origin:0,bpm:120});output=await audio.startRendering();graph.dispose();}finally{samples.prepared=oldPrepared;}
+   const pcm=output.getChannelData(0),crossings=[];let energy=0;for(let frame=0;frame<pcm.length;frame++){if(!Number.isFinite(pcm[frame]))throw Error('Nonfinite PCM');energy+=pcm[frame]**2;if(frame>rate*.025&&frame<rate*.105&&pcm[frame-1]<=0&&pcm[frame]>0)crossings.push(frame-1-pcm[frame-1]/(pcm[frame]-pcm[frame-1]));}
+   const actual=(crossings.length-1)*rate/(crossings.at(-1)-crossings[0]),expected=440*2**(semitones/12);results.push({rate,mode,semitones,actual,expected,energy,frames:bank.pcms[0].length,sourceFrames:bank.sourceFrames?.[0]||24000});
+  }}finally{worker.terminate();}return results;
+ },Array.from(new Uint8Array(tone.buffer)));
+ for(const row of rows){assert(row.energy>1e-4);assert(Math.abs(row.actual/row.expected-1)<.02,JSON.stringify(row));assert.equal(row.frames,row.mode==='keep'?24000:Math.round(24000/2**(row.semitones/12)));assert.equal(row.sourceFrames,24000);}fs.writeFileSync(task+'/evidence/'+engine+'-pitch-pcm.json',JSON.stringify(rows,null,2));console.log('PASS',engine,'20 actual Worker/native worklet pitch and duration cases at both rates');
+ }finally{await browser.close();}
+}})().catch(error=>{console.error(error);process.exitCode=1;});

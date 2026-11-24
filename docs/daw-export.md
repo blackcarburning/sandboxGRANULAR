@@ -152,3 +152,23 @@ The same clock is used by DAW pattern/song exports and server Song preparation;
 no engine DSP or successful render content changed, so existing Song audio caches
 remain valid. `tests/daw-deadline-browser.cjs` injects a 900 ms startup stall and
 checks recovery, exact frames, audible PCM, no page errors and zero retained decks.
+
+## DAW.5: autonomous stems and shop checkout adapter (2026-11-20)
+
+Component discovery includes enabled Ember and Enemy Drone. Their native
+pre-insert stereo graphs are attached after scheduled transport creation and
+captured alone; continuous sources fade over the last 3 ms of the musical window.
+Other isolated components explicitly disable Ember/Drone so they cannot leak
+into drum/loop WAVs. Song/default render identities are unchanged: these are
+DAW-export-only component branches. The server worker uses real cookies (including
+the private host gate when configured), `MYGRAIN_CHROMIUM` when supplied, and a
+scoped recording-busy guard around each stem so legitimate long renders cannot
+be suspended by the stopped editor's idle policy.
+
+The separate shop reuses this worker and the existing Python assembler. Explicit
+shop generations optionally retain a canonical source ZIP in `.sources` at
+publish; default full-app native generation does not retain new archives. The
+shop adapter handles account-isolated lifecycle/downloads/purge without FTP
+publication or user-editor writes. See `../mygrain_public/README.md` (relative to
+workspace root: `mygrain_public/README.md`) for that boundary. No old batch can
+reconstruct missing separate source audio from its stereo mix.

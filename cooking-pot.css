@@ -74,3 +74,17 @@
  #cookingPotCard .pot-inputs{flex:none;width:100%;max-width:none}
  #cookingPotCard .pot-input select{font-size:16px}
 }
+
+/* BIG STIR amount only: immediately below its button, not other Pot actions. */
+#cookingPotCard .pot-actions{align-items:flex-start}
+#cookingPotCard .pot-big-stir-controls{display:grid;grid-template-columns:minmax(0,1fr);gap:6px;flex:0 0 100%;width:100%;min-width:0;max-width:100%;box-sizing:border-box}
+#cookingPotCard .pot-big-stir-controls>[data-pot-big-stir]{width:100%;min-width:0;box-sizing:border-box}
+#cookingPotCard .pot-big-stir-controls>.pot-stir-hint{margin:0;font-size:.72rem;line-height:1.4}
+#cookingPotCard .pot-stir-amount{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:5px 8px;margin:0;color:#f7dfba;font-size:.75rem;letter-spacing:0;line-height:1.3;text-transform:none}
+#cookingPotCard .pot-stir-amount output{color:var(--pot);font-weight:800}
+#cookingPotCard .pot-stir-amount input{grid-column:1/-1;width:100%;min-width:0;max-width:100%;margin:0;box-sizing:border-box;accent-color:var(--pot)}
+
+/* A touch beginning on an FX fader belongs to that fader, not page panning.
+   Set this before pointer-down; changing it mid-gesture is too late.
+   Scroll and pinch gestures that start outside a slider remain native. */
+:is(#cookingPotCard,#loopDMutilator,#bassFaceCard,#turntableCard,#resonatorCard,#wireWorldCard,#sonicCrystalCard,#bubbleChamberCard,#waspCard,#filterPlaygroundCard,#henrysHoseCard,#heavyLifterCard,#masterBakerCard,.mastering-live) input[type="range"]{touch-action:none!important}

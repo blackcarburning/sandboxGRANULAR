@@ -1,4 +1,4 @@
-# MyGrain CEF 0.1.3 preview
+# MyGrain CEF 0.1.6 preview
 
 Separate VST3 instrument, name **MyGrain CEF**, class ID
 `A44B25E13DE64853A16CC63921C9D4B2`. Never replaces MYGRAIN Bridge 0.8.0 or
@@ -165,3 +165,137 @@ For the embedded stereo effect counterpart to MYGRAIN FX 0.4.0, build
 `MyGrainCEFFX`. See [FX.md](FX.md), the separate `mygrain-cef-fx.yml` workflow and
 [CEF FX setup](https://openclaw.blackcarburning.com/mygrain/cef-fx-setup.html).
 Both CEF variants use the full private Chromium runtime, not an installed browser.
+
+## 0.1.4 focused Space passthrough
+
+Space belongs to the host transport even while the embedded app has focus.
+IPlugView returns kResultFalse for both down/up without sending them to CEF.
+Native Windows fallback forwards the original down/up to the host parent only
+when the host has not selected the VST3 keyboard route; AppKit returns them via
+the normal responder chain. Duplicate native delivery and WM_CHAR are suppressed.
+Chromium reports actual editable-node focus from its renderer through private IPC;
+text inputs, textareas and contenteditable retain spaces and consume the key.
+The route is fixed for a held key's repeat/down/up pair and resets on blur.
+Native dialogs keep their own normal OS keyboard handling. No audio engine,
+transport synchronization, project state, Song rendering or saved schema changes.
+The private display/input IPC is version 3, so replace the WHOLE CEF bundle.
+A hosted app reload alone cannot change this native behavior.
+
+
+## Shared bins, opt-in telemetry and Cubase rendering — 2026-11-15
+
+Hosted build `v2026.11.15.PLUGIN-LIBRARY.1` adds account-private universal Parts
+Bin snapshots, including creation/upload from FX sessions. See docs/parts-bin.md.
+No native installer update is required; Store + reload app after storing edits.
+
+Top → **Telemetry: Off** is off on every load. Selecting it collects numeric
+pipeline metrics once/second and uploads an initial sample followed by batches
+of five. It includes acknowledged plugin Arm/active/offline state, native epoch,
+queue occupancy/drift/underrun/late/missing/input-drop counters, browser audio vs
+wall-clock advance, UI timer delays/long tasks, scheduling misses, rate/latency,
+heap size, error counts and completed project-transfer timing. These are timing
+indicators, not hardware CPU readings or proof that a click occurred. No source
+PCM, recording, patch, filenames, free-text logs, passwords or capability is sent.
+Deselecting aborts pending uploads, drops the unsent bounded tail (up to five
+seconds normally), removes observers/listeners and stops collection immediately.
+A new selection is a new capture ID. Account lock/change and page exit stop it;
+no opt-in or capture ID is saved in browser, patch, Song or DAW state. Failed
+uploads are shown and three failures stop capture. No offline/background replay.
+Server admission uses numeric/boolean/enumerated fields only, a 32 KiB request
+cap, 10-sample maximum, per-account rate limit, idempotent batch identities and
+at most 4000 batches; data older than seven days is pruned on next submission.
+Storage is private per-account `plugin-library/telemetry.sqlite3`, not HTTP-readable.
+
+Top → **DAW rendering** now explains the actual native boundary:
+- CEF instrument / Bridge **Live** needs a real-time host clock; accelerated
+  offline rendering has no browser packets and intentionally produces silence.
+- **Rendered** holds a completed loop in native memory/state and reads it at the
+  DAW's musical position, including offline callbacks. The new preparation action
+  uses the existing renderer/upload, waits for a new acknowledged revision, Arms,
+  and waits for completed project Store. Save the DAW project normally. The loop
+  repeats; refresh after sound changes. This is a patch snapshot, not arrangement
+  rendering or a recording of external track input.
+- **CEF FX** remains real-time-only. Offline callbacks output one-second aligned
+  dry, not the Chromium effect return. Do not remove its offline guard or block
+  the real-time callback to disguise this architectural boundary. There is no
+  accelerated offline FX engine in this build. In Cubase use File → Export →
+  Audio Mixdown → Real-Time Export and reimport the WAV, or record the processed
+  output to another audio track in real time. Include the intended effect tail.
+
+Steinberg's Real-Time Export control:
+https://www.steinberg.help/r/cubase-pro/15.0/en/cubase_nuendo/topics/export_audio_mixdown/export_audio_mixdown_options_r.html
+No native audio/DSP, PDC, preview, state envelope, factory CID or installer bytes
+are changed by this hosted UI/storage feature. Server Song synthesis/rendering
+and source compatibility remain unchanged; the new dialog is excluded from
+ordinary capture/control journals.
+
+## 0.1.5 Downloads
+
+All CEF file downloads use the operating system Downloads directory directly,
+without an external browser or Save dialog. Native completion/error notices show
+the destination; duplicate names receive (1), (2), etc. Existing files are never
+overwritten. WAV Browser, private FTP and Parts Bin WAV download use this path.
+Install the full 0.1.5 bundle; reloading the hosted app cannot update an older helper.
+Native Windows/macOS run 44924998221 verified exact WAV bytes and duplicate safety.
+
+### Hosted MIDI dialogues (2026-11-23)
+
+MIDI export naming (L/X/drums), MIDI Browser download naming and Rename now use
+the in-app WAV-style dialog, not a native JavaScript prompt. MIDI downloads use
+the same blob-download path and existing 0.1.5 Downloads handler as WAVs. Reload
+the hosted app after saving work; this does not require replacing 0.1.5 binaries.
+
+## 0.1.6 Web MIDI permission
+
+CEF Alloy does not display Chrome's permission UI. The helper now explicitly
+accepts CEF 156's MIDI permission prompt for the exact trusted MYGRAIN HTTPS
+origin, alongside the existing loopback permission. Microphone, camera, unrelated
+permissions and other origins are not granted. The app continues to request
+ordinary MIDI (`sysex:false`), not device-reprogramming messages. No global
+Chromium permission bypass or shared browser profile is introduced.
+
+Native Windows/macOS CI must resolve a real `requestMIDIAccess` promise and
+record its permission state and actual enumerated port list. An empty hardware
+list on a hosted runner is not proof of physical interface functionality. Driver
+exclusivity may prevent Windows devices being shared with Cubase. This is Web
+MIDI interface access, not a newly implemented VST3 host MIDI event bus.
+
+Install 0.1.6 by replacing the full bundle with the DAW closed, then rescan. An app
+reload alone cannot update the native helper's permission policy.
+
+## Hosted live-clock preparation repair (2026-11-24)
+
+Live startup must age a native clock observation across UI queueing and graph
+preparation. The socket worker stamps clocks using
+`performance.timeOrigin + performance.now()`. The main thread subtracts elapsed
+receipt age after synchronous tempo work, ignores obsolete queued observations,
+and negotiates/acknowledges each clock. Unchanged older main scripts retain
+unacknowledged delivery during an in-place update. The new worker retains only
+the latest waiting clock for an opted-in main script;
+PCM, project transfers and non-clock events do not wait for this acknowledgement.
+Missed transport preparation deadlines request another bar rather than leaving
+sticky Arm held indefinitely. Explicit Stop/disconnect invalidates preparation.
+
+This is a hosted `daw-bridge.js` / `daw-bridge-worker.js` repair, also used by the
+CEF instrument. It changes no native wire format, binaries, source patch bytes,
+DSP quality, Song rendering or render identity. Only the bridge script and its
+worker cache keys change; the unchanged capture worklet retains its old key.
+Existing CEF instances require a successful **Store + reload app**, not just
+closing/reopening the editor. No plugin reinstall is required for this repair.
+
+Regression checks:
+
+- `node tests/daw-bridge-clock-queue.cjs`: receipt age, bounded latest-clock queue,
+  independent PCM and immediate non-clock/Stop commands.
+- Compile `vst3/tests/live_clock_fixture.cpp` with `vst3/src/server.cpp`,
+  `-std=c++17 -pthread -I vst3/src -lcrypto` on Linux. Set
+  `MYGRAIN_CLOCK_FIXTURE` to that binary, `MYGRAIN_TEST_URL` to an **isolated**
+  localhost test server, `MYGRAIN_TEST_PASSWORD` to its temporary admin password,
+  and `MYGRAIN_CLOCK_OUTPUT` to an existing private evidence directory. Run
+  `node tests/daw-bridge-slow-clock.cjs` (optionally `MYGRAIN_TEST_RATE=44100`).
+  It deliberately blocks prewarming for 400 ms, checks sustained native callback
+  PCM and host timeline wraps without cycle metadata, then verifies Stop/restart.
+
+Chromium plus the native Bridge core is not Windows/macOS CEF in a physical DAW.
+A heavy-patch real-time shortfall must remain a separate result; a successful
+startup or synthetic fixture is not proof that the full patch sustains playback.

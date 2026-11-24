@@ -574,9 +574,10 @@ changing audio, saved settings or output routing.
 
 ## BAKER.3 — floating master meters and comparison controls
 
-**Float master VU & meters** in the console opens one modeless, draggable window
-with both stereo VUs and all six digital meters. Close (or Escape while focused
-inside it) hides only the floating copy; the permanent in-card meters remain.
+**Move / float meters** in the main-app console opens one modeless, draggable
+window with all six digital meters always visible, without needle VUs (2026-11-22).
+Dock (or Escape while focused inside it) hides only the floating copy; the
+permanent in-card stereo needle VUs and digital meters remain unchanged.
 The title supports pointer dragging and arrow-key movement. The window is clamped
 on open, drag and rotation; short landscape windows scroll internally with Close
 kept reachable. It is portalled outside the visibility-parked card, so changing
@@ -629,3 +630,10 @@ version changes. `tests/master-baker-browser.cjs` verifies canonical ZIP recall
 and real final-stage PCM on desktop Chromium and phone WebKit.
 `tests/master-baker-song-browser.cjs` verifies enabled and bypassed saved state
 through actual isolated server renders, legacy identity and warm-cache reuse.
+
+### Master Baker randomisation scope (2026-11-23)
+
+Superseding the historical policy above: only Mega/Sparse randomisation turns
+Master Baker Off. Per-card samples, sounds/patterns/patches, ordinary patch
+randomisation and both Stir actions retain its exact power and recipe. This
+policy is editor generation only, not DSP, saved-state migration or Song rendering.

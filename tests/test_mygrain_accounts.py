@@ -852,6 +852,77 @@ class AccountHTTPTests(unittest.TestCase):
                 self.assertIn('no longer archived', error['error'])
             self.assertNotEqual(generated[0], generated[1])
 
+    def test_shared_instrument_corpus_is_readable_without_admin_rights(self):
+        shared = self.root / 'shared-samples'
+        payload = wav_bytes(value=654)
+        with patch.object(SERVER.subprocess, 'run', side_effect=AssertionError('No remote account fallback')):
+            for source in SERVER.MYGRAIN_SHARED_INSTRUMENT_SOURCES:
+                directory = SERVER.MYGRAIN_BASTARDLOOP_SOURCE_CONFIG[source]['local_dir']
+                folder = shared / directory / 'Nested'
+                folder.mkdir(parents=True)
+                (folder / 'factory.wav').write_bytes(payload)
+                listing = self.success(self.dan, 'GET', '/mygrain-bastardloops/api/source-files?source=' + source)
+                self.assertIn('Nested/factory.wav', json.dumps(listing))
+                self.assertEqual(self.success(self.dan, 'GET', '/mygrain-bastardloops/api/source-sample?source=' + source + '&path=Nested/factory.wav'), payload)
+                self.assertEqual(self.dan.request('POST', '/mygrain-bastardloops/api/source-sample', data={'source': source})[0], 200)
+            status, audio, headers = self.dan.request('POST', '/mygrain-bastardloops/api/bastardloop', data={'source': 'sampledrop', 'patternLength': 8, 'responseFormat': 'audio', 'seed': 'shared-factory'})
+            self.assertEqual(status, 201)
+            self.assertEqual(audio[:4], b'RIFF')
+            self.assertGreater(len(audio), 44)
+        # The authentication and account-pinning boundaries are unchanged.
+        path = '/mygrain-bastardloops/api/source-files?source=sampledrop'
+        self.assertEqual(self.anonymous.request('GET', path)[0], 401)
+        self.assertEqual(self.dan.request('GET', path, headers={'X-Mygrain-User': 'admin'})[0], 401)
+        self.assertEqual(self.dan.request('GET', '/mygrain-wavs/admin-private.wav')[0], 404)
+
+    def test_shared_corpus_preserves_private_sources_and_rejects_escapes(self):
+        shared = self.root / 'shared-samples'
+        shared.mkdir()
+        for source in ('samples_radiolab', 'samples_videolab'):
+            directory = SERVER.MYGRAIN_BASTARDLOOP_SOURCE_CONFIG[source]['local_dir']
+            folder = shared / directory
+            folder.mkdir()
+            (folder / 'private-capture.wav').write_bytes(wav_bytes())
+            listing = self.success(self.dan, 'GET', '/mygrain-bastardloops/api/source-files?source=' + source)
+            self.assertNotIn('private-capture', json.dumps(listing))
+            self.assertEqual(self.dan.request('GET', '/mygrain-bastardloops/api/source-sample?source=' + source + '&path=private-capture.wav')[0], 400)
+        source = 'samples_clap'
+        folder = shared / 'SAMPLES_CLAP'
+        folder.mkdir()
+        (folder / 'factory.wav').write_bytes(wav_bytes(value=123))
+        private = self.accounts.path_for('source_mirrors', self.accounts.lookup_user('dan')) / 'SAMPLES_CLAP'
+        private.mkdir(parents=True)
+        (private / 'own.wav').write_bytes(wav_bytes(value=456))
+        listing = self.success(self.dan, 'GET', '/mygrain-bastardloops/api/source-files?source=' + source)
+        self.assertIn('own.wav', json.dumps(listing))
+        self.assertNotIn('factory.wav', json.dumps(listing))
+        self.assertEqual(self.dan.request('GET', '/mygrain-bastardloops/api/source-sample?source=' + source + '&path=factory.wav')[0], 400)
+        for path in ('../SAMPLES_CLAP/factory.wav', 'Nested/../../outside.wav'):
+            self.assertEqual(self.dan.request('GET', '/mygrain-bastardloops/api/source-sample?' + urlencode({'source': 'sampledrop', 'path': path}))[0], 400)
+        outside = self.root / 'outside'
+        outside.mkdir()
+        (outside / 'secret.wav').write_bytes(wav_bytes())
+        (shared / 'SAMPLEDROP').symlink_to(outside, target_is_directory=True)
+        self.assertEqual(self.dan.request('GET', '/mygrain-bastardloops/api/source-files?source=sampledrop')[0], 400)
+        self.assertEqual(self.dan.request('GET', '/mygrain-bastardloops/api/source-sample?source=sampledrop&path=secret.wav')[0], 400)
+        leaf = shared / 'SAMPLEDROP2'
+        leaf.mkdir()
+        (leaf / 'factory.wav').write_bytes(wav_bytes())
+        (leaf / 'secret.wav').symlink_to(outside / 'secret.wav')
+        self.assertNotIn('secret.wav', json.dumps(self.success(self.dan, 'GET', '/mygrain-bastardloops/api/source-files?source=sampledrop2')))
+        self.assertEqual(self.dan.request('GET', '/mygrain-bastardloops/api/source-sample?source=sampledrop2&path=secret.wav')[0], 400)
+        # Sharing is opt-in; disabling it retains the original private behavior.
+        kicks = shared / 'SAMPLES_KICKS'
+        kicks.mkdir()
+        (kicks / 'factory.wav').write_bytes(wav_bytes())
+        self.assertIn('factory.wav', json.dumps(self.success(self.dan, 'GET', '/mygrain-bastardloops/api/source-files?source=samples_kicks')))
+        with patch.object(SERVER, 'MYGRAIN_SHARED_SAMPLE_SOURCE_ROOT', None):
+            # Configuration changes require restart/configure_mygrain_accounts,
+            # which also clears source catalogues.
+            SERVER.MYGRAIN_BASTARDLOOP_SAMPLE_CACHE.clear()
+            with patch.object(SERVER.subprocess, 'run', side_effect=AssertionError('No remote account fallback')):
+                self.assertEqual(self.dan.request('GET', '/mygrain-bastardloops/api/source-files?source=samples_kicks')[0], 400)
+
     def test_real_concurrent_requests_do_not_mix_context_or_collide(self):
         def operation(index):
             client = self.admin if index % 2 == 0 else self.dan
@@ -889,6 +960,33 @@ class AccountHTTPTests(unittest.TestCase):
                 self.assertEqual(response.status, 400)
             finally:
                 connection.close()
+
+
+
+    def test_device_id_change_preserves_comments_reactions_creator_and_shares(self):
+        filename = self.upload(self.admin, 'remounted.wav')
+        self.success(self.admin, 'POST', '/mygrain-wavs/api/file-feedback', data={
+            'filename': filename, 'comment': 'Survives remount', 'reaction': 'love'})
+        owner = self.accounts.lookup_user('admin')
+        note_path = self.accounts.path_for('repository_feedback', owner)
+        before = note_path.read_bytes()
+        with self.accounts.connection() as connection:
+            row = connection.execute('SELECT file_signature FROM wav_provenance WHERE user_id=? AND filename=?',
+                                     (owner['id'], filename)).fetchone()
+            fields = row['file_signature'].split(':')
+            fields[0] = str(int(fields[0]) + 999)
+            connection.execute('UPDATE wav_provenance SET file_signature=? WHERE user_id=? AND filename=?',
+                               (':'.join(fields), owner['id'], filename))
+        for paginated in (False, True):
+            entry = self.wav_entry(self.admin, filename, paginated)
+            self.assertEqual(entry['feedback']['comment'], 'Survives remount')
+            self.assertEqual(entry['feedback']['reaction'], 'love')
+            self.assertEqual(entry['createdBy'], 'admin')
+        self.assertEqual(note_path.read_bytes(), before)
+        shared = self.success(self.admin, 'POST', '/mygrain-wavs/api/share',
+                              data={'filename': filename, 'username': 'dan'})['share']
+        self.assertEqual(shared['createdBy'], 'admin')
+        self.assertEqual(note_path.read_bytes(), before)
 
 
 if __name__ == '__main__':

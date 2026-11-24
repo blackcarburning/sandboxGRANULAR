@@ -1,390 +1,176 @@
-# The cooking pot · v2026.11.13.POT-POWER.1
+# The cooking pot · source-owned inserts · 2026-11-14
 
-Optional source-aware serial rack for Mutilator, Bass Face, Turntable, Olaf’s Resonator,
-WireWorld, Sonic Crystal, Bubble Chamber, The Wasp and Filter Playground. Drag a
-handle or use its arrow keys / Move buttons. A committed move or Stir enables the
-pot. Cancel, Escape, a stationary tap and pointer cancellation do not write state.
-Old patches without serial routing retain their original routing and effect powers. The separate card is
-next to Layers, with pot-icon drawer and mixer shortcuts.
+Eleven reorderable stages: Mutilator, Bass Face, Turntable, Olaf’s Resonator,
+WireWorld, Sonic Crystal, Bubble Chamber, The Wasp, Filter Playground,
+Henry’s Hose and Heavy Lifter. Master Baker remains pinned after the final sum.
 
-## One state owner
+## Signal ownership
 
-`modes.cookingPot = {version:1, enabled:boolean, order:[nine unique semantic keys]}`.
-Optional `power:{enabled:boolean, remembered:{[effectKey]:boolean}}` records the
-user's group switch and ten remembered powers (the nine stages plus Master Baker).
-It is not another audible power owner: the canonical card flags are actually set
-Off/On, and the nine rack proxies still invoke existing Layers actions. Card
-setters remain canonical, retain settings and synchronize all views. No transient row/drag/proxy state is serialized.
-The ordinary history/account/Song guards apply. JSON presets, editable ZIPs, local
-restart snapshots and Undo/Redo retain pot enable/order plus existing powers.
-Mega uses Fisher–Yates to shuffle all nine slots and enables the pot before the
-existing independent effect choices. Sparse bypasses the pot, retains its order
-and switches effects Off. Ordinary/per-card/AI generation adds no pot override.
+Every powered stage owns its selected sources, even if its wet level is zero.
+A named source’s physical dry gate closes before its original normal destination.
+Its post-EQ/local-card-FX signal enters exactly one complete ordered path. The
+last stage alone is audible; intermediate outputs feed the next stage only.
+Off removes the stage, retires DSP/LFO/delay storage and restores unity bypass.
+No compensating subtraction, parallel raw copies or new audio delay is used.
 
-## Real routing
+Each stage computes `(1 - mix) * incoming + mix * processed(incoming)`.
+Dry is left; 100% Wet is right. The incoming signal at stage two is stage one’s
+output, including stage one’s balance. Existing Mutilator/Bass mix, Wasp blend
+and Playground mix remain their canonical controls, including existing LFOs.
+The seven formerly wet-return effects use sparse `cookingPot.mixes` values,
+defaulting to 1. Card output level controls still scale their wet processing.
+At full wet a powered zero-level effect intentionally silences its source.
 
-One context-owned graph receives the post-global-FX/compressor mix before the old
-master insert block. Active effect stages connect in the stored order; disabled
-stages are removed and bypassed. Mutilator/Bass Face use their shared native graph
-builders. Other stages use existing versioned worklets. Reordering rewires only
-owned edges, preserving active processor objects and tails. The legacy saved
-`enabled` flag selects serial versus native routing. Restoring it never migrates
-saved effect powers. The visible Cooking pot On/Off button now controls the
-remembered group selection instead and does not change this routing flag.
+An On stage set fully Dry stays in its chain and uses that chain’s output-volume
+policy; it does not reconnect the source’s old global-FX/main-volume path. Off
+restores that original path unchanged. The final stage’s Through main output
+switch decides whether the chain follows Master Vol/mute; otherwise its output
+is independent. Unrouted sources retain their original main path and fader.
 
-Serial routing retains each card's selected input and Turntable's mix/drum route. Each
-stage receives that selected original excitation plus preceding wet audio. Base
-worklets apply earlier global dry coefficients; selected-source dry corrections
-preserve the main dry mix without feeding unrelated loops into independent wet
-returns. The carrier removes the base dry component before passing wet audio to
-the next stage. Wasp's per-source cross-modulation remains its original pre-chain
-sidechain, and Playground detector taps are pre-effect source copies, not returns.
-Native duplicate wet processing is bypassed while the rack owns it. D's raw card
-level/envelope taps survive scheduled voice handoffs and retire with their voices.
-Mutilator power is independent of D power, but a selected input must actually be
-playing to excite it, just as with native routing.
+Sources share DSP only when their entire ordered paths match, including Resonator
+slot and Wasp destination route identity. Whole mix → A-only therefore duplicates
+the earlier nonlinear body for A and for the other sources, rather than attempting
+to unmix a combined return. Pre-chain copies drive Wasp/Playground detectors only.
+Unregistered raw/grain audio enters via the residual main bus after all named dry
+gates. Whole mix owns that residual too. Context-owned groups survive voice
+handoffs; maximum topology is bounded by the canonical source registry.
 
-The sum worklet decomposes `Y[n] = d[n]Y[n−1] + wet[n]` into the original dry input
-and each card’s wet contribution after all downstream dry coefficients. At unity
-these reconstruct the serial chain. The fourth optional Wasp-master output carries
-the *sample-accurate* smoothed dry coefficient; existing one/three-output PCM is
-unchanged. Per-card `Through main output` gates and the dry Master Vol fader remain
-at the final sum, never before excitation. Thus Master Vol zero retains independent
-wet returns; following returns still obey Master Vol. Turntable is fully wet and
-therefore replaces preceding dry contributions, as in its original mix insert.
+## State, power and generation
 
-## Rendering and compatibility
+`modes.cookingPot = {version:1, enabled:boolean, order:[11 keys], mixes?:{key:0..1}}`.
+The old `enabled` routing flag is retained as metadata, not a second audio mode.
+Optional `power:{enabled,remembered}` retains the group switch’s exact card flags,
+including Master Baker. Card powers remain canonical. Stir shuffles order and
+switches a random five to all eligible effects On (up to eleven); BIG STIR
+additionally changes recipes. Bubble Chamber is included and Master Baker stays Off after either Stir. Liquidizer
+changes LFOs only. All these policies are retained. Mixes survive generation.
+JSON, source ZIP, local restart, Undo and native snapshots retain the same state.
+New balance inputs have no IDs and are excluded from generic saved controls.
 
-The same graph is used by live audio, WAV/DAW capture and isolated current-engine
-Song/server decks. Deck and adapter readiness await worklets and effective wiring
-before scheduling capture. Worklet queues, source taps and edges are owned by the
-context and disposed on power-off, account lock, replacement and pagehide.
+## Render compatibility
 
-The backend strictly validates the nine-key permutation. Disabled/all-effects-Off
-pot state is excluded from render identity, preserving legacy hashes. Active pot
-state and formerly source-pruned parameters (including D-Off Mutilator) enter a
-selective `cookingPotEngineRevision:2` identity. Old original ZIPs, SHA hashes and
-Song revisions are untouched. Active saved parts require explicit producer
-`cookingpot=2`, recorded as `cookingPotVersion:2`; an undeclared upload is rejected,
-not certified by the receiving server version. Frontend compatibility and server
-Arm both rebuild stale affected freezes while retaining current neighbours.
+Live, WAV and isolated server Song rendering use the same graph. Prepare modules
+before capture; source arrivals wire synchronously. All-Off/DAW-only snapshots
+retain their previous content identities. Powered saved effects require explicit
+producer `cookingpot=4` and a selective v4 content signature, regardless of old
+Pot routing enable. Stale GETs and uploads are rejected using the actual saved
+snapshot, not just possibly old part metadata. Arm refreshes affected freezes,
+leaves current neighbours and original ZIP/SHA/revisions unchanged, then reuses
+warm PCM on phones. Memory admission counts complete-path processor instances.
 
 ## Verification
 
-- `node --test tests/cooking-pot.test.cjs`: normalization/permutations, 1,024 serial
-  decomposition combinations, exact legacy master PCM with/without fourth port.
-- `MYGRAIN_BASELINE_BACKEND=/isolated/before/backend/mygrain_songs.py python3 tests/test_cooking_pot.py`:
-  old/bypassed identity, strict rejects, order-sensitive hashes, D-Off/DAW controls.
-- `BASE=http://127.0.0.1:19347/mygrain/ OUT=/isolated/evidence node tests/cooking-pot-browser.cjs`:
-  runtime desktop/phone Chromium/WebKit, native Chromium touch drag, pointer/keyboard
-  drag/cancellation, nine linked powers, final-output PCM, audible reversed order,
-  main-zero routing, Mega/Sparse, history, ZIP/JSON/restart and responsive containment.
-- `BASE=... OUT=... STORE=/tmp/mygrain-cooking-pot-store node tests/cooking-pot-song-browser.cjs`:
-  actual server jobs, legacy/bypassed dry, both orders, nine effects, independent and
-  following main-zero paths, real WAV, producer rejection, selective stale rebuild,
-  warm reuse, bounded phone PCM playback, unchanged source hashes/revisions.
+See `tests/insert-routing.test.cjs`, `tests/test_insert_routing.py`,
+`tests/insert-routing-pcm.cjs`, `tests/insert-routing-controls.cjs` and
+`tests/insert-routing-song.cjs`. Evidence includes Chromium and iPhone-style
+WebKit PCM, full source registry, two-source/nonlinear isolation, EQ retention,
+power-down/LFO release, balanced endpoints, saved controls and server freezes.
+Source Solo retains powered insert ownership even at a dry endpoint or with a
+zero wet-return level; manual effect Solo remains available for transparent stages.
+`tests/insert-routing-solo-song.cjs` verifies these saved source-Solo cases.
+The legacy sum/coefficient worklets remain for older diagnostic tests only and
+are not loaded by the insert engine.
 
-Use isolated loopback accounts/stores only. Physical iPhone and DAW hardware are not
-covered by emulation. Backup/evidence: `output/mygrain-cooking-pot-20261111T104509Z/`.
+## Mega / Sparse completion
 
-### Verified release receipts
+Both patch randomizers finish with real group power Off so only normal output
+is heard. Mega keeps generated recipes and its random selected powers in the
+group's remembered state, restored only by an explicit Cooking Pot On. Sparse
+keeps its all-Off selection. Cleanup is inside the existing history transaction
+and precedes save. Stir, BIG STIR, Liquidizer and saved-audio recall are unchanged;
+there is no DSP or render-identity revision for this generation-only policy.
 
-- Four runtime browser cases and four final visual/layout cases passed in desktop/
-  phone Chromium/WebKit. Native Chromium touch drag, keyboard/cancel, concurrent
-  handoff edits, all nine powers, live parameter changes, JSON/ZIP/restart, Mega/
-  Sparse and Undo/Redo passed. Latest visual checks match actual hydrated card
-  icons (not lazy placeholders), check readable contrast and 320–1440px containment.
-- Four focused unit tests cover 1,024 decomposition combinations, exact legacy
-  master PCM and teardown without context regrowth. All 171 existing DSP tests,
-  58 existing Song backend tests and five cooking-pot backend tests passed.
-- Seven real server fixtures plus one selective stale rebuild passed, including
-  opposite orders with different captured audio, all nine stages, legacy and
-  bypassed dry, main-zero follow/independence, WAV, undeclared-producer rejection,
-  warm reuse and bounded phone-style PCM playback. Original ZIP hashes and Song
-  revision stayed unchanged. An early weak-signal fixture produced too little
-  spectral difference for its proposed assertion; the final deterministic source
-  is bounded below full scale and exercises the nonlinear order audibly.
-- The existing independent-output browser regression is also run against Pot Off
-  on Chromium/WebKit desktop, with its original assertions unchanged; only its
-  phone loop is filtered in the isolated evidence copy. See original-routing.log.
+Patch randomizers (ordinary, Mega and Sparse) also unmute the canonical main
+output, retaining its volume and Through Main routing. This is inside the
+accepted generation/history edit, not a saved-patch migration.
 
 
-## Reciprocal navigation · v2026.11.11.POT.2
+## Source Solo isolation (2026-11-15)
 
-Every effect-name block in the pot is a labelled Jump button. Each of the nine
-real effect cards has an accessible pot-icon return button in its own navigation
-row, installed when the card's actual header hydrates (never in a lazy placeholder).
-Layers contains one pot-icon Jump entry, with no power, Solo, volume or saved state.
-All paths use `mygrainJumpToButton` for detail opening, visibility reveal, lazy
-loading and the existing desktop transition. The existing mutation owner adds
-missing return buttons after hydration without duplicates; repeated mount is inert.
-No audio graph, DSP, power action, patch serialization or Song render identity is
-changed. New asset cache keys are limited to cooking-pot.js and cooking-pot.css.
+A layer Solo means the selected layer plus its processing, not every contributor
+to the same effect. Source-derived effect selection and explicit manual effect
+Solo have different ownership. Cooking Pot filters each branch's source inputs
+before their sum using `effectOutput.allowsSource`; manual effect additions
+apply only in live monitoring. The branch identity includes its semantic source
+membership so excluded sources cannot survive in a shared DSP history. Voice
+identity is excluded so normal voice arrivals do not recreate the graph.
 
-Before a rack-to-effect jump, the rack awaits the existing Turntable/Wasp/Playground
-lazy UI jobs. These neighbouring cards can otherwise expand after navigation and
-push Resonator out of view. This is user-triggered UI hydration, not startup DSP
-or a new audio loader. A newer navigation click cancels an obsolete pending jump.
-UI synchronization retains rows already in the correct position, preserving focus
-and avoiding gratuitous DOM moves while neighbouring cards hydrate.
+The normal layer gates still own unaffected dry paths; effect output selection
+and Through Main remain final-output policies, not substitutes for source
+isolation. No canonical recipe, route, power, level or LFO is edited by Solo.
+A deliberately manual-soloed effect can add its input contributors while a
+source Solo is active; removing that manual selection immediately returns to
+the source-only mask. Offline renderers ignore these transient manual Solos.
 
-Verification: Chromium/WebKit desktop and touch/phone-sized contexts passed all
-nine effect/return round trips, keyboard Enter, single jump-only Layers entry,
-unchanged effect/pot state and keyboard reorder/Undo. Four final visual cases
-retain all source icons, readable colours and 320–1440px containment. Physical
-phone hardware is untested. Exact audio/state ownership code and all 95 inline
-script blocks are retained, apart from the two scoped cache URL changes.
+Affected saved source-Solo/matching-insert parts require effect-output capability
+7. Small original manifests are checked before trusting older v2-v6 freezes,
+including records with stale/downgraded part markers. Backend render GET and
+POST independently enforce the same rule from the original snapshot. Refresh
+replaces only affected derived PCM; source ZIP hashes and Song revisions stay
+unchanged. No-Solo/off/unrelated/DAW-only identities remain compatible.
 
+Regressions: `source-solo-isolation-browser.cjs` measures native offline PCM
+(including nonlinear and grouped inputs); `source-solo-live.cjs` measures
+repeated live spectral isolation, additive/manual ownership, stable graph counts
+and normal A/B loop controls; `source-solo-song.cjs` exercises real isolated
+server preparation, stale GET/POST rejection, selective refresh and phone reuse;
+`test_source_solo_isolation.py` checks JS/Python capability parity, legacy
+identities and immutable portable sources. Use an isolated test store, never a
+production Song, for fixtures.
 
-## Stir and BIG STIR · v2026.11.11.POT.3
+### Playground activation / disposable-editor LFO controls (2026-11-20)
 
-The spoon **Stir the pot** shuffles the nine-stage order, enables the pot and
-chooses exactly two distinct eligible effects On, retaining every effect's settings.
-Bubble Chamber is excluded from selection and always left Off by both Stir actions;
-its manual settings and its ninth slot in the order are retained.
-If Mutilator has zero Mix/Amount, Stir chooses two other effects instead of
-changing its controls or asking its canonical setter to arm an inaudible stage.
-The ladle **BIG STIR** also generates settings for **all eight eligible** effects,
-including the six eligible effects it leaves Off. Bubble Chamber stays Off and its
-settings are not randomised. Power, parameter and ordering changes use canonical
-card setters in one draft-history action; the rack, cards and Layers share power.
-The pot power button retains its pot icon through every On/Off update.
+Playground’s omitted optional `mix` means 1, matching its own DSP and UI,
+not the .5 Mutilator/Bass Face default. Only enabled non-DAW Playground
+with omitted mix needs Cooking Pot capability/content revision 5; explicit
+mix, bypassed/external-only states and unrelated effects retain prior hashes.
+The current producer declares 5. Original ZIPs/revisions remain immutable;
+GET and POST verify original snapshots even with stale part metadata.
 
-BIG STIR uses the 100-patch Mutilator/Bass Face banks, the WireWorld/Sonic Crystal
-recipe banks, bounded Turntable/Resonator recipes and Wasp/Playground random controls.
-Source selectors, Turntable routing, tempo, source audio, L/X levels and main/
-return routing remain untouched. Wasp's internal modulation choices are part of
-its generated sound. Presets/ZIPs/restart already store these existing settings;
-no schema, DSP, worker, render identity or legacy freeze revision changes.
+Card LFO edits must use optional `root.mygrainCardHistory` / `root.mygrainSongBeta`
+checks: the disposable shop deck intentionally has neither. Bare optional
+chaining on an undeclared identifier throws before storing any LFO edit. Keep
+full-app transaction/undo and Song guards when those owners exist. No synthesis
+or explicit recipe PCM changes are needed for this UI-only repair.
 
-A failed setter is awaited alongside the other setters and the prior effect and
-pot snapshots are restored. Busy/Song/account/audio guards apply. The separate
-`mygrainCookingPot.randomise` helper also forces Bubble Chamber Off. Mega still
-uses independent coin flips for the other eight effects; Sparse still bypasses
-the pot and switches all effects Off. The button-only `stir({big,random})` exact
-two-effect policy must not leak into either batch generator.
+Regressions: `tests/test_playground_activation.py`, `tests/cooking-pot.test.cjs`,
+`tests/playground-activation-song.cjs`, `tests/playground-mutilator-browser.cjs`.
 
-Focused verification: `tests/cooking-pot-stir-browser.cjs` exercises real buttons,
-eight-effect generation, manual Bubble Chamber retention, exact two-power policy, one-step
-Undo/Redo, injected setter rollback, Song guards, preserved inputs/tempo/volumes,
-Mega/Sparse, portable ZIP/JSON/restart and three icons at 320–1440px. The matching
-`tests/cooking-pot-stir-song-browser.cjs` extends the real server fixture suite
-with generated two-effect and all-nine recipe parts, WAV and warm phone playback.
-Run only against a dedicated loopback server/account store. Physical phones are
-not covered by browser emulation.
+### Touch slider ownership (2026-11-20)
 
-Release checks passed: Chromium/WebKit desktop and phone-sized touch (four cases),
-48 responsive button measurements, ZIP/JSON/restart, all nine canonical powers,
-Undo/Redo and injected rollback. Four existing pot/DSP unit regressions passed.
-Nine real server fixtures plus one selective stale rebuild passed, retaining
-source ZIP hashes/revision, warm reuse and bounded phone-style playback. The
-feature regression rejects the pre-task assets because BIG STIR is absent.
-No production account/Song writes or application-service restart are required.
+All effect cards, Cooking Pot and Master Baker/standalone mastering ranges
+use predeclared `touch-action:none`, scoped in the critical Cooking Pot CSS
+(inline in index too). The shop deck must not reintroduce pan-x/pan-y. Native
+range events retain control; scroll/pinch gestures beginning elsewhere remain
+native. Do not use a global body scroll lock or alter audio/recipe state.
+Verification includes compositor-dispatched diagonal touch drags, value/input
+events, unchanged ancestor scroll positions and absence of pointer cancellation,
+plus a real outside-slider swipe. WebKit tap checks and all214 current slider
+computed styles are checked separately; these are browser emulation, not a
+physical iPhone confirmation.
 
-## Clock and output correction · v2026.11.11.POT.4
+### Movable Master Baker VU header (2026-11-20)
 
-The prior rack overrode source selectors with whole-mix excitation. Those wet
-returns intentionally bypass Master Vol, so unrelated loops reappeared inside
-them at zero. The fix preserves selection and final return ownership instead of
-putting independent effects under a new master gate. Input/route selectors now
-also contribute to active-pot render identity. Old active-pot freezes must be
-rebuilt; bypassed/legacy content identities and original ZIPs/revisions stay intact.
+The inline Stereo VU header now opens the existing floating meter window and
+can begin its drag. Both grips use pointer capture and 44px targets; the floating
+window retains arrow-key movement and resize/visual-viewport clamping. Its six
+digital meters are in an expandable Levels & loudness section, leaving the
+VU window small enough to move on a phone. Canonical mastering settings,
+comparison state and export DSP are unchanged.
 
-A new Playground stage received `{origin,bpm,time}` although its clock requires
-`at`, so it ignored that initial epoch until a later transport event. Every new
-worklet now receives the shared queued epochs, including future tempo handoffs.
-Mutilator/Bass Face edits read the current shared origin/BPM/deadline; native
-context aliases are resolved when rebuilding card LFOs and delays. Free Hz and
-fixed-BPM Playground lanes retain their own clock modes. No main-loop stop or
-restart is used to repair phase. Diagnostics expose native modulation epochs.
+### Source protection during Stir (2026-11-22)
 
-Regression entry points: `tests/pot-clock-routing-browser.cjs` (six selected and
-unselected inputs, Master/follow levels, live Mutilator/Bass Face preset changes,
-Playground clock messages and native card LFO rebuilds), the native Mutilator clock
-suite, and twelve real server fixtures in `tests/cooking-pot-song-browser.cjs`.
-The latter includes unrelated-source and drum-only silent freezes, global returns, explicit v2 producer
-capability, v1 freeze refresh, warm reuse and bounded phone-style playback.
-Evidence/backup: `output/mygrain-pot-clock-routing-20261111T114010Z/`.
-Physical iPhone and external DAW hardware remain untested.
+Stir and BIG STIR are effect-only history actions. Neither switches Robot off,
+restarts its source node, changes its grid/markers/audio, nor changes shared
+transport phase. Robot initially Off stays Off. Full patch generation keeps its
+separate Robot shutdown policy. Regression: `tests/robot-stir-browser.cjs`.
 
-Final phase tests also change a filter preset while a future tempo handoff is
-pending (`CLOCK_ONLY=1` runs the fast clock subset). Stage wiring is rebuilt only
-when node/source/order/coefficient ownership changes, not for a tone-only edit.
-Broader DSP checks recorded 258/259 passing; the one older phone startup expectation
-also fails against the untouched before-copy (no affected DSP/worklet was changed).
-All 58 legacy Song backend tests plus six routing/backend tests pass.
+### Randomisation isolation (2026-11-23)
 
-## Bubble Chamber manual-only · v2026.11.11.RANDOM.1
-
-Bubble Chamber remains an orderable/manual ninth stage, but no longer participates
-in patch randomisation or either Stir action. Mega generates the other eligible
-effects independently; BIG STIR generates eight recipes and selects two eligible
-effects On. Both Stir actions leave Bubble Chamber Off and preserve its recipe.
-Manual power, preset browsing, portable/restart recall and server rendering of
-existing On patches remain unchanged. No DSP/render identity change is needed.
-
-Focused checks: `bubble-randomisation.test.cjs`, the adapted acoustic Mega browser
-regression and `cooking-pot-stir-browser.cjs`. These retain the prior manual-On
-round trips and add deterministic exclusion, linked powers, history, two-effect
-selection and generated recipe retention. `acoustic-song-browser.cjs` exercises
-manual-On and pre-feature source ZIPs through real server workers and warm reuse.
-
-## Cooking Pot main output controls (2026-11-11)
-
-The Pot has a **Main output volume · linked Master Vol** slider and **Mute main
-output / Unmute main output** button. The slider mirrors the existing `volume`
-control, not an extra Pot gain. Mute is a separate saved post-excitation switch
-in `modes.effectOutput.mainMuted`. It preserves fader level, all Master Vol LFO
-assignments and source/effect settings. Unmute reopens the main gate at the
-existing (possibly modulated) level. Changing a fader does not clear the mute.
-
-Independent wet returns remain audible; returns explicitly set to **Through
-main output** also mute. Native whole-mix Turntable is itself a fully wet return
-and retains its independent/following policy. Source excitation and routing are
-untouched in Pot On and Off modes. There is no force-to-independent override.
-
-`effect-output.js` mounts and synchronises the ID-less
-`data-effect-master-proxy="cookingPot"`; generic saved-control inventories exclude
-this proxy. `cooking-pot.js` supplies the shared history-wrapped mute edit. JSON,
-local, ZIP and Song/native/WAV use the canonical volume plus optional true mute.
-Absent/false mute normalises away, retaining old hashes and PCM for all unchanged
-patches. True mute alone requires `effectOutputVersion:3`, including dry-only
-patches, and is retained in content hashes. Backend validation, render admission
-and current client/server rendering use this capability. No global invalidation
-or stored-source rewrite; legacy versions 0/1/2 keep their existing meaning.
-
-## Compact source menus · v2026.11.11.POTINPUTS.1
-
-Every Pot effect row mirrors its canonical card Input using the same populated
-33-source registry. Menus sit beside the effect name on desktop (>960px), and
-under it on phone/narrow layouts. Resonator objects and Wasp modulation channels
-keep separate numbered 1/2 menus: neither is collapsed into a false single input.
-Wasp menus select modulation drivers, not destinations; accessible names and
-hover titles identify each lane and its destination/Off state.
-
-`data-effect-input-proxy` menus have no IDs and are explicitly excluded from
-`saveState().selects`. Input edits capture the selected value before asynchronous
-history preparation, then read current settings and use the existing canonical
-setters. They retain power, recipes, other lanes, Pot order and main-output policy.
-Canonical setters/subscriptions already refresh Pot mirrors on card edits,
-Undo/Redo, JSON/portable ZIP recall and local restart. No timer, new saved field,
-DSP, native binary, server producer capability or render revision is added.
-
-Verification entry point: `tests/cooking-pot-inputs-browser.cjs` (isolated
-`BASE` and evidence `OUT` environment variables).
-It exercises all eleven menus, the full inventory, both sync directions, canonical
-power/order retention, history, JSON/ZIP/restart and 320/390/844/1440px containment
-in desktop/phone-sized Chromium and WebKit. Physical iPhone remains untested.
-
-
-## Source-isolated serial branches · FXSOURCES.1
-
-The previous source taps were correct individually, but the next effect also
-received the entire preceding carrier. An effect selecting A therefore received
-B (and even the whole mix) from an earlier wet return. A global suffix also
-applied unrelated later insert attenuation to earlier returns.
-
-The rack now forwards each stage's pure wet output separately, retaining its
-source scope. A later stage receives a contribution only if its selector covers
-the contribution's complete scope. Exact-track, K/K1–K5 and drum-group containment
-use the same rule. Each enabled Resonator slot has its own admission check.
-Same-source and Whole-mix chains remain ordered; disjoint branches bypass each
-other. A combined Whole-mix return cannot be separated after nonlinear DSP, so it
-bypasses later narrower selections instead of contaminating them. Select Whole
-mix at that later stage when the combined return should be processed.
-
-Intermediate and final dry coefficients apply only to covered wet branches.
-Wasp/Playground coefficients stay sample-accurate; extra owned scaling nodes
-retire on source/order/power/context changes. Existing main/return gates, mute,
-source controls, power, saved settings and independent outputs are unchanged.
-Wasp Input remains a modulation driver; Destination selects its affected tracks.
-
-Current-engine WAV, plugin audio and isolated server Song decks use this graph.
-Only source-conflicting active chains require cookingPotVersion 3 and content
-revision 3. Compatible chains retain revision 2; Pot Off/dry/legacy identities
-and original archives/hashes/revisions remain unchanged. Metadata-only Arm checks
-old v2 freezes before reuse. Render admission derives the required capability
-from the stored archive, not just old part metadata or a producer claim.
-
-Regression: effect-source-isolation-browser.cjs reproduces the pre-fix fault at
-final output and verifies eight source-selecting stages, Whole-mix upstream,
-unrelated 100%-wet insert bypass and all 33 retained source choices. The updated
-cooking-pot-song-browser.cjs runs real conflicting/same-source/independent-return
-fixtures, WAV, old-producer rejection, selective refresh and warm phone-style
-playback. cooking-pot.test.cjs covers all 1,089 selector/provenance combinations;
-test_cooking_pot.py compares client/server version decisions and old hashes.
-The old cooking-pot-browser.cjs raw-master fixture specified nonexistent X/D/drum
-taps and failed unchanged against the pre-task copy; that output/order fixture
-now explicitly selects Whole mix while the dedicated source tests register real
-named taps.
-
-## Bulk main-output routing · v2026.11.12.POTOUTPUTS.1
-
-The Cooking pot main-output panel has two independent buttons:
-
-- **All effects through main output: On/Off/Mixed** mirrors the nine canonical
-  `modes.effectOutput.throughMain` flags. On switches all nine On, including
-  inactive effects; Off switches them all Off. Mixed means individual card
-  settings differ, and clicking Mixed switches all On. Clicking On switches all
-  Off. Changes are one guarded history edit, not a separate saved override.
-- **Mute main output / Unmute main output** retains the existing saved
-  `modes.effectOutput.mainMuted` post-excitation gate. It preserves Master Vol
-  and its LFOs; independent returns remain audible while main-following returns
-  and remaining dry audio are muted.
-
-For effects-only listening set the bulk control Off and mute main output.
-Effect inputs, power, recipes, order and Solo are not changed by either button.
-These are app-wide routing controls even with the Pot Off, and individual effect
-buttons remain authoritative and immediately update the bulk Mixed display.
-Existing JSON/ZIP/local restoration, isolated server renders and cache identities
-reuse existing routing/mute fields without a new schema or DSP revision.
-
-## BIG STIR active-card sources (2026-11-12)
-BIG STIR snapshots the existing Character FX active-input inventory (enabled, playable, positive-level, solo-eligible cards/lanes). All generated input selectors choose individual members of that pool, never Whole mix or an inactive fallback. Both resonator slots and Wasp modulation menus are included. Turntable resets to individual-track routing; Playground disables its extra kick route. Wasp destinations stay within its supported active carriers; D/host-only patches leave Wasp ineligible rather than substituting X. Empty pools reject before applying recipes. Bubble Chamber remains manual-only, Off with its recipe and source retained. Ordinary Stir, Mega/Sparse, manual recall and normalization are unchanged. Canonical source settings already persist through JSON/ZIP/history and server rendering; no DSP/schema/render-version change is needed, and legacy freezes remain valid.
-
-## Critical layout delivery — v2026.11.13.POTLAYOUT.1
-
-The screenshot-reported oversized effect logos and native unstyled input selects
-were reproduced by failing only the separate cooking-pot.css request. Normal
-browser styling was already compact: 29px row icons (23px on narrow phones).
-The exact existing stylesheet is now embedded in index.html under
-`#mygrain-cooking-pot-style` at the former stylesheet loading position.
-It no longer depends on a separate preload/download in CEF or the browser.
-Keep that embedded block byte-identical (ignoring surrounding newlines) to
-cooking-pot.css when changing the rack styling. The standalone CSS remains its
-authoring source and public compatibility asset.
-
-No layout redesign, DSP/state/native-plugin changes or cache revisions. Routing,
-input selectors, canonical power, reorder and pinned Master Baker are retained.
-Verification includes blocked external CSS, current CEF query mode, desktop/phone
-Chromium/WebKit, fully hydrated effect icons, responsive icon/control bounds and
-unchanged saved snapshots. Physical Windows/macOS CEF needs a device check.
-
-## Remembered group power (Mark, 2026-11-13)
-
-Cooking pot **Off** snapshots the current ten On/Off switches and switches every
-one Off through its canonical setter. **On** reinstates only that snapshot,
-including Master Baker and a manually enabled Bubble Chamber. The rack buttons,
-original cards and Layers visibly agree. It preserves recipes, inputs, routing,
-order, source controls, main mute/return routing and running transport. Individual
-manual effects remain usable while the group is Off; the next Off captures the
-then-current selection. Normal/BIG Stir and patch generation replace stale group
-memory; they retain their existing manual-only Bubble and Master Baker Off rules.
-
-One group toggle is one Undo/Redo edit. `power` survives local restart, JSON/ZIP,
-DAW/project and Song amendment recall, but never activates effects during recall
-or rendering: saved canonical flags alone own audio. Backend validation bounds
-memory to exactly ten booleans and excludes it from audible content identity, so
-identical original/restored On and legacy/group Off states share renders. No DSP
-or compatibility revision change and no rewriting old archives is required.
-Native action 6 uses the same group setter; its enabled field reports group power,
-while the existing nine-bit mask and effect order protocol remain unchanged.
-
-Regression: `tests/cooking-pot-power-browser.cjs` covers mixed/all-ten selections,
-visible linked switches, repeats, native commands, Undo/Redo, ZIP recall, real
-playing PCM, native/serial preservation, saved-part amendment stopped/running,
-actual legacy/Off/restored Song render jobs, source immutability and warm reuse in
-an isolated store. `tests/test_cooking_pot_power.py` checks strict metadata and
-unchanged audible identities; `tests/cooking-pot.test.cjs` checks normalization.
-Earlier sections describing the old Pot power/routing toggle are historical;
-this group-switch contract supersedes them.
+Only Mega/Sparse enforce group Off and cross-card resets. Local sample, pattern
+and sound randomisers and ordinary patch randomisation retain complete Pot state,
+all unrelated effect recipes/powers, EQ and source powers. Stir/BIG STIR preserve
+already-powered effects and Master Baker; their new random selection may add
+effects, not silently remove existing powered ones. Historical all-randomisers
+Master Baker Off policies are superseded. Saved recall and server rendering do not
+apply generation policy or need new render identities.

@@ -74,13 +74,14 @@ power Off/zero return level disconnects and disposes it. Source changes clear
 old tails. Per-card Silence tails only clears that effect. Effect Solo belongs to the transient additive global mask and is never serialized;
 isolated render decks ignore it. No animation/polling loop is added.
 
-Mega selects factory recipes for WireWorld and Sonic Crystal, independently
-switches them in/out and chooses All/an eligible active source. Bubble Chamber
-is manual-only: all patch/effect randomisation and both Pot Stir actions leave
-it Off without replacing its settings. Its card has no Randomise button; manual
-controls, 100 presets and saved On patches remain supported. Sparse and ordinary
-randomisation leave all three Off. Preset changes retain power and source. Clear
-Patch clears all three, and its existing Undo restores them.
+Effect randomisation includes Bubble Chamber alongside WireWorld, Sonic Crystal,
+Henry’s Hose and Heavy Lifter. Per-card Randomise retains input, power and LFOs.
+Stir enables five to all eligible effects (up to eleven), retaining recipes;
+BIG STIR also randomises recipes and selects active loaded inputs. Both retain
+LFOs and leave Master Baker Off. Mega/ordinary patch generation finishes with
+Cooking Pot Off, remembering its new selection for explicit On; Sparse keeps
+recipes and switches all effects Off. Saved/manual recall is never overridden.
+Preset changes retain power and source. Clear Patch retains its existing Undo.
 
 ## Canonical persistence and rendering
 

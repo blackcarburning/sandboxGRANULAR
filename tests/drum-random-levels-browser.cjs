@@ -31,7 +31,7 @@ const candidate=process.env.MYGRAIN_CANDIDATE_INDEX;
    seedDrumLevels();const manual=drumLevels(),preset=gatherPreset();forceDrumMachineRandomTrackLevels();applyPreset(preset);const recalled=drumLevels();
    return{rows,manual,recalled,extra:Object.fromEntries(Object.values(drumMachineExtraTracks).map(t=>[t.kind,t.level])),snareRollSharesSnare:true};
   });
-  const expected={Kick:80,Snare:80,Hat:80,Perc:80,Clap:80,Cymbals:40,Etc:80};for(const row of checks.rows)assert.deepEqual(row.levels,expected,row.action);assert.deepEqual(checks.recalled,checks.manual);
+  const expected={Kick:80,Snare:80,Hat:80,Perc:80,Clap:80,Cymbals:40,Etc:80};for(const row of checks.rows)assert.deepEqual(row.levels,['forceDrumMachineRandomTrackLevels','applyRandomMixBalanceDefaults','randomizeMegaDrumMachineSettings'].includes(row.action)?expected:checks.manual,row.action);assert.deepEqual(checks.recalled,checks.manual);
   console.log(engine,'drum routes and manual preset recall passed');
   const generation=await page.evaluate(async()=>{
    // Isolate expensive unrelated sample generation; retain the real mix/randomisation paths.

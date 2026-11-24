@@ -1,0 +1,136 @@
+{
+  "patches": {
+    "hearth": [
+      [
+        "osc1",
+        "lowL"
+      ],
+      [
+        "osc2",
+        "lowR"
+      ],
+      [
+        "ring23",
+        "warmL"
+      ],
+      [
+        "ring23",
+        "warmR"
+      ],
+      [
+        "pulse4",
+        "mod1"
+      ],
+      [
+        "pulse6",
+        "mod2"
+      ]
+    ],
+    "bells": [
+      [
+        "ring12",
+        "brightL"
+      ],
+      [
+        "ring34",
+        "brightR"
+      ],
+      [
+        "osc5",
+        "delayInL"
+      ],
+      [
+        "delayL",
+        "delayInR"
+      ],
+      [
+        "pulse3",
+        "mod3"
+      ],
+      [
+        "osc2",
+        "mod1"
+      ]
+    ],
+    "binary": [
+      [
+        "pulse1",
+        "lowL"
+      ],
+      [
+        "pulse2",
+        "lowR"
+      ],
+      [
+        "and1",
+        "warmL"
+      ],
+      [
+        "and2",
+        "brightR"
+      ],
+      [
+        "osc3",
+        "mod1"
+      ],
+      [
+        "ring23",
+        "delayInL"
+      ]
+    ],
+    "empty": []
+  },
+  "defaults": {
+    "version": 1,
+    "enabled": false,
+    "level": 0.55,
+    "tempo": null,
+    "frequencies": [
+      110,
+      165,
+      220,
+      330,
+      440
+    ],
+    "wave": "triangle",
+    "pitch": 0,
+    "tone": 0.58,
+    "modDepth": 0.35,
+    "pulseRate": 1,
+    "delayTime": 0.32,
+    "feedback": 0.3,
+    "bizarre": 0.15,
+    "cables": [
+      {
+        "from": "osc1",
+        "to": "lowL",
+        "amount": 0.55
+      },
+      {
+        "from": "osc2",
+        "to": "lowR",
+        "amount": 0.55
+      },
+      {
+        "from": "ring23",
+        "to": "warmL",
+        "amount": 0.55
+      },
+      {
+        "from": "ring23",
+        "to": "warmR",
+        "amount": 0.55
+      },
+      {
+        "from": "pulse4",
+        "to": "mod1",
+        "amount": 0.55
+      },
+      {
+        "from": "pulse6",
+        "to": "mod2",
+        "amount": 0.55
+      }
+    ]
+  }
+}

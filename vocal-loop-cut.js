@@ -394,7 +394,7 @@
     class Editor {
         constructor(adapter) {
             this.adapter = adapter;
-            this.label=({bastardLoopCut:'A',bastardLoop2Cut:'B',bastardLoop3Cut:'C',bastardLoopWCut:'W',bastardLoopDCut:'D',bastardLoopPCut:'P',bastardLoopOCut:'O'})[adapter.prefix]||'V';
+            this.label=({bastardLoopCut:'A',bastardLoop2Cut:'B',bastardLoop3Cut:'C',bastardLoopWCut:'W',restructureCut:'Restructure',bastardLoopDCut:'D',bastardLoopD2Cut:'D',bastardLoopD3Cut:'D',bastardLoopD4Cut:'D',bastardLoopPCut:'P',bastardLoopOCut:'O'})[adapter.prefix]||'V';
             this.document = root.document;
             this.overlay = this.element('bastardLoopVCutOverlay');
             if(this.document.body && this.overlay.parentElement!==this.document.body)this.document.body.append(this.overlay);

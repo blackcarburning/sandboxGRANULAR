@@ -1,6 +1,12 @@
 'use strict';
 importScripts('daw-project-worker.js?v=20261111-auto-1');
-let socket=null,port=null,upload=null,uploadTimer=null;
+let socket=null,port=null,upload=null,uploadTimer=null,latestClock=null,clockPending=false,boundedClocks=false;
+// Keep at most one unacknowledged clock on the UI queue. Graph preparation can
+// block that queue; intermediate native generations are no longer actionable.
+function sendClock(){
+    if(clockPending||!latestClock)return;
+    const clock=latestClock;latestClock=null;clockPending=boundedClocks;postMessage(clock);
+}
 function cancelUpload(){if(uploadTimer)clearTimeout(uploadTimer);uploadTimer=null;upload=null;}
 function sendLoopChunk(){
     uploadTimer=null;if(!upload||socket?.readyState!==WebSocket.OPEN)return;
@@ -12,6 +18,7 @@ function sendLoopChunk(){
 }
 function fail(message){cancelUpload();port?.postMessage({type:'stop'});socket?.close();postMessage({type:'failure',message});}
 onmessage=({data})=>{
+    if(data.type==='clockAck'){clockPending=false;sendClock();return;}
     if(projectWire.outgoing(data,socket))return;
     if(data.type==='companionStatus'){if(socket?.readyState===WebSocket.OPEN&&typeof data.command==='string'&&/^companion-state:[0-9:]+:[0-9a-f]*$/.test(data.command)&&data.command.length<2300)socket.send(data.command);return;}
     if(data.type==='remoteStatus'){if(socket?.readyState===WebSocket.OPEN&&typeof data.command==='string'&&/^remote-state:[0-9:]+:[0-9a-f]*$/.test(data.command)&&data.command.length<1100)socket.send(data.command);return;}
@@ -29,11 +36,12 @@ onmessage=({data})=>{
         port.start();
     }
     if(data.type==='connect'){
+        boundedClocks=data.clockAck===true;latestClock=null;clockPending=false;
         if(!Number.isInteger(data.port)||data.port<18731||data.port>18762||!/^[a-f0-9]{32}$/.test(data.token))return fail('Invalid connection code.');
         socket=new WebSocket(`ws://127.0.0.1:${data.port}/stream?token=${data.token}`);
         socket.binaryType='arraybuffer';
         socket.onopen=()=>postMessage({type:'connected'});
-        socket.onmessage=({data:body})=>{if(projectWire.incoming(body))return;try{const event=JSON.parse(body);if(['clock','loopStored','loopRejected','remoteCommand'].includes(event.type))postMessage(event);}catch{fail('Invalid bridge response.');}};
+        socket.onmessage=({data:body})=>{if(projectWire.incoming(body))return;try{const event=JSON.parse(body);if(event.type==='clock'){event.receivedAt=performance.timeOrigin+performance.now();latestClock=event;sendClock();}else if(['loopStored','loopRejected','remoteCommand'].includes(event.type))postMessage(event);}catch{fail('Invalid bridge response.');}};
         socket.onerror=()=>fail('Could not connect. Keep the plugin open and allow Chrome local-network access if prompted. Another browser may already control this plugin; disconnect it first.');
         socket.onclose=()=>{projectWire.reset();cancelUpload();port?.postMessage({type:'stop'});postMessage({type:'closed'});};
     }

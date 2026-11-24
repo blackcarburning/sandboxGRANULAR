@@ -2,6 +2,16 @@
 #include "ipc.h"
 #include "pluginterfaces/base/keycodes.h"
 namespace mygrain::cef {
+// Space belongs to the DAW unless Chromium is editing text. Keep the down/up
+// pair (and native WM_CHAR) on one route, even if focus changes while held.
+struct SpaceKey {
+ bool held=false,toBrowser=false;
+ bool toHost(const Mapping& ipc,int vk,bool up){
+  if(vk!=32)return false;
+  if(!held)toBrowser=ipc.data&&ipc.data->textEditing.load(std::memory_order_acquire);
+  held=!up;return !toBrowser;
+ }
+};
 // VST3 key codes/modifiers are NOT Windows virtual-key/CEF flag values.
 inline int virtualKey(char16_t character,int code){
  using namespace Steinberg;

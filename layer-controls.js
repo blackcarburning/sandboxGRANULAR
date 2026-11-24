@@ -62,7 +62,7 @@ function create(win,host){
   for(const s of states){
    const {min,max}=range(s),value=numeric(s),enabled=active(s),soloMuted=s.button.getAttribute('aria-pressed')==='true'&&!enabled;
    s.button.classList.toggle('layer-volume-active',enabled);s.button.classList.toggle('layer-solo-muted',soloMuted);s.button.classList.toggle('layer-level-zero',enabled&&value===0);
-   const fill=Math.round((value-min)/(max-min)*100),display=Math.round(value)+'%';
+   const fill=Math.round((value-min)/(max-min)*100),display=Math.round(value*(s.config.displayScale||1))+'%';
    if(s.button.dataset.layerLevel!==display){s.button.dataset.layerLevel=display;s.button.style.setProperty('--layer-volume',fill+'%')}
    const help=enabled?`Volume ${display}. Swipe or drag left/right to adjust; arrow keys adjust, Shift for larger steps. Tap to mute.`:soloMuted?'Muted by Solo. Clear Solo to adjust volume.':'Layer off. Tap to enable.';
    if(s.button.getAttribute('aria-description')!==help)s.button.setAttribute('aria-description',help);

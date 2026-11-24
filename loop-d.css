@@ -48,4 +48,60 @@
 @media(max-width:480px){#loopDMutilator .d-mutilator-preset-row{grid-template-columns:repeat(2,minmax(0,1fr))}#loopDMutilator .d-mutilator-preset-row select{grid-column:1/-1;grid-row:1}#loopDMutilator #mutilatorPrev{grid-column:1;grid-row:2}#loopDMutilator #mutilatorNext{grid-column:2;grid-row:2}}
 
 #bastardLoopDCard .d-source-library label{display:grid;gap:8px;min-width:0}
-#bastardLoopDCard [data-loop-d-repository]{display:block;width:100%;min-width:0;max-width:100%;min-height:44px;font-size:16px;background:#07346b;color:#e7f6ff;border:1px solid #168bff;border-radius:7px}
+#bastardLoopDCard .d-source-library select{display:block;width:100%;min-width:0;max-width:100%;min-height:44px;font-size:16px;background:#07346b;color:#e7f6ff;border:1px solid #168bff;border-radius:7px}
+
+/* Four-lane D, mixer before the shared effects; no global layout overrides. */
+#bastardLoopDCard .d-mini-mixer{margin:14px 0;padding:12px;border:1px solid #39b3ff88;border-radius:12px;background:#031b36;min-width:0}
+#bastardLoopDCard .d-mini-mixer header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px}
+#bastardLoopDCard h4{margin:8px 0 12px;color:#a5dfff}
+#bastardLoopDCard .d-mini-mixer header label{display:flex;align-items:center;gap:8px;min-height:44px}
+#bastardLoopDCard .d-mixer-channels{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+#bastardLoopDCard .d-mixer-strip{display:grid;gap:8px;min-width:0;padding:8px;background:#083667;border:1px solid #357db4;border-radius:9px}
+#bastardLoopDCard .d-mixer-strip label{display:grid;grid-template-columns:1fr auto;gap:5px;font-size:12px;min-width:0}
+#bastardLoopDCard .d-mixer-strip input[type=range]{width:100%;min-width:0;grid-column:1/-1;margin:0;min-height:36px}
+#bastardLoopDCard .d-mixer-strip .performance-btn{padding:8px 4px;min-height:44px;min-width:0}
+#bastardLoopDCard .d-mixer-strip [aria-pressed=true]{background:#1776b7}
+#bastardLoopDCard .d-mixer-strip meter{width:100%;height:12px}
+#bastardLoopDCard .d-sample-lanes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;min-width:0}
+#bastardLoopDCard .d-sample-lane{padding:12px;border:1px solid #168bff88;border-radius:12px;min-width:0;background:#062853}
+#bastardLoopDCard .d-lane-field{display:grid;gap:7px;margin:14px 0;min-width:0;color:#d6eeff;font-size:13px}
+#bastardLoopDCard .d-sample-lane select{width:100%;min-width:0;max-width:100%;min-height:44px;font-size:16px;background:#07346b;color:#e7f6ff}
+#bastardLoopDCard [data-d-meta],#bastardLoopDCard [data-d-status]{overflow-wrap:anywhere}
+#bastardLoopDCard [data-d-status][data-state=error]{color:#ffb5aa}
+#bastardLoopDCard .d-sample-lane .channel-eq-entry{display:flex;flex-wrap:wrap;gap:8px;width:100%;margin:12px 0}
+#bastardLoopDCard .d-shared-heading{margin-top:22px}
+@media(max-width:1000px){#bastardLoopDCard .d-sample-lanes{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:430px){#bastardLoopDCard .d-mixer-channels{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Every sample lane uses the same control groups and order. */
+#bastardLoopDCard .d-sample-lane{display:flex;flex-direction:column;gap:12px}
+#bastardLoopDCard .d-sample-lane>h4,#bastardLoopDCard .d-sample-lane>.performance-sound-card,#bastardLoopDCard .d-sample-lane>.performance-actions{margin:0}
+#bastardLoopDCard .d-sample-lane>.performance-sound-card{display:grid;gap:8px;width:100%;box-sizing:border-box;min-width:0}
+#bastardLoopDCard .d-sample-lane input[type=range]{width:100%;min-width:0;min-height:44px;margin:0}
+#bastardLoopDCard .d-sample-lane .performance-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+#bastardLoopDCard .d-sample-lane .performance-actions>*{min-width:0;max-width:100%;margin:0}
+#bastardLoopDCard .d-sample-lane .performance-btn{min-height:44px;white-space:normal;overflow-wrap:normal;padding:10px 6px;display:flex;align-items:center;justify-content:center;text-align:center}
+#bastardLoopDCard .d-sample-lane .d-lane-transform{grid-template-columns:minmax(0,1fr) minmax(0,2fr)}
+#bastardLoopDCard .d-lane-shift{display:grid;grid-template-columns:44px minmax(0,1fr) 44px;align-items:center;gap:6px;text-align:center}
+#bastardLoopDCard .d-sample-lane>.performance-feature-meta{margin:0;overflow-wrap:anywhere}
+#bastardLoopDCard .d-sample-lane>[data-d-eq-slot]{min-width:0}
+#bastardLoopDCard .d-sample-lane .channel-eq-entry{margin:0}
+[id^=bastardLoopD][id$=CutOverlay] .weird-cut-shell{border-color:#168bff}
+@media(max-width:480px){#bastardLoopDCard .d-sample-lane .performance-actions:not(.d-lane-transform){grid-template-columns:minmax(0,1fr)}}
+
+#bastardLoopDCard .d-sample-lane>.performance-sound-card>label{display:grid;gap:8px;min-width:0}
+
+#bastardLoopDCard [data-d-status]{color:#a9ddff}
+#bastardLoopDCard [data-d-status][data-state=error]{color:#ffb5aa}
+
+#bastardLoopDCard .d-sample-lane>.performance-sound-card{grid-template-columns:minmax(0,1fr)}
+#bastardLoopDCard .d-sample-lane>.performance-sound-card>label{width:100%;box-sizing:border-box;grid-template-columns:minmax(0,1fr)}
+#bastardLoopDCard .d-sample-lane .channel-eq-entry button,#bastardLoopDCard .d-sample-lane .channel-eq-entry select{min-height:44px;min-width:44px}
+
+#bastardLoopDCard .d-lane-shift>.performance-btn{width:44px;min-width:44px;max-width:44px;box-sizing:border-box}
+#bastardLoopDCard .d-lane-shift>span{min-width:0;font-size:13px;white-space:nowrap}
+
+@media(max-width:480px){#bastardLoopDCard .d-sample-lane .d-lane-transform{grid-template-columns:minmax(0,1fr)}}
+
+#bastardLoopDCard .d-sample-lane .ceq-automation{min-width:0;max-width:100%}
+#bastardLoopDCard .d-sample-lane .ceq-automation .ceq-action{white-space:normal;max-width:100%;box-sizing:border-box}

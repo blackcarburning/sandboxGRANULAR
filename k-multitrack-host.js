@@ -110,9 +110,11 @@
     }
     function sync() {
         for (const track of preparedRooms.keys()) if (!recorder.audible(track) || preparedRooms.get(track).context !== audioContext) clearPreparedRoom(track);
-        const disabled = busy();
-        const destination = document.getElementById('performanceKeyboardKTrack');
-        if (destination) { destination.value = String(recorder.selected); destination.disabled = disabled; }
+        const disabled = busy() || Boolean(window.mygrainEmber?.preparingK || window.mygrainEnemyDrone?.preparingK);
+        for (const id of ['performanceKeyboardKTrack', 'emberKRecordTrack', 'enemyKRecordTrack', 'restructureKRecordTrack']) {
+            const destination = document.getElementById(id);
+            if (destination) { destination.value = String(recorder.selected); destination.disabled = disabled || (id === 'emberKRecordTrack' && Boolean(window.mygrainEmber?.preparingK)) || (id==='restructureKRecordTrack' && Boolean(window.mygrainRestructure?.preparingK)); }
+        }
         for (const row of document.querySelectorAll('[data-k-track]')) {
             const index = Number(row.dataset.kTrack), track = recorder.tracks[index];
             row.querySelector('[data-k-enabled]').checked = track.enabled !== false;

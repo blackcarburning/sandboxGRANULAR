@@ -82,9 +82,9 @@ async function login(context) {
                 return route.continue();
             });
             await page.goto(base, { waitUntil: 'domcontentloaded' });
-            const retry = page.getByRole('button', { name: 'Reload MYGRAIN', exact: true });
+            const retry = page.locator('#mygrainStartupRetry');
             await retry.waitFor({ state: 'visible' });
-            assert.match(await page.locator('#mygrain-account-shell').textContent(), /styling could not load/);
+            assert.match(await page.locator('#mygrain-account-shell').textContent(), /mygrain-accounts\.css|styling could not load/);
             assert.equal(await page.locator('#start-btn').count(), 0);
             await page.waitForTimeout(800);
             const failureErrors = errors.splice(0);

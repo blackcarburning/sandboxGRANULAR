@@ -9,6 +9,8 @@
 #include "include/capi/cef_permission_handler_capi.h"
 #include "include/capi/cef_download_handler_capi.h"
 #include "include/capi/cef_frame_capi.h"
+#include "include/capi/cef_render_process_handler_capi.h"
+#include "include/capi/cef_process_message_capi.h"
 #include "include/capi/cef_jsdialog_handler_capi.h"
 #include "include/capi/cef_cookie_capi.h"
 #include "include/cef_api_hash.h"
@@ -19,6 +21,8 @@
 #include <iomanip>
 #include <fstream>
 #include <sstream>
+#include <set>
+#include <stdexcept>
 #ifdef _WIN32
 #include <shellapi.h>
 #include <shlobj.h>
@@ -71,6 +75,7 @@ void script(const std::string& s){auto* f=browser->get_main_frame(browser);if(f)
 Object<cef_app_t> app;
 Object<cef_client_t> client;
 Object<cef_render_handler_t> render;
+Object<cef_render_process_handler_t> renderer;
 Object<cef_life_span_handler_t> life;
 Object<cef_load_handler_t> load;
 Object<cef_permission_handler_t> permissions;
@@ -81,7 +86,58 @@ Object<cef_jsdialog_handler_t> dialogs;
 Object<cef_audio_handler_t> audio;
 Object<cef_completion_callback_t> cookieReady;
 Object<cef_set_cookie_callback_t> cookieSet;
+
+// UI-thread downloads only. Never write into a temporary CEF profile or the DAW.
+std::filesystem::path downloadsDirectory(){
+#ifdef _WIN32
+ PWSTR value=nullptr;
+ if(FAILED(SHGetKnownFolderPath(FOLDERID_Downloads,KF_FLAG_CREATE,nullptr,&value)))throw std::runtime_error("Cannot locate Downloads folder");
+ std::filesystem::path result(value);CoTaskMemFree(value);return result;
+#elif defined(__APPLE__)
+ NSURL* url=[[NSFileManager defaultManager] URLForDirectory:NSDownloadsDirectory inDomain:NSUserDomainMask appropriateForURL:nil create:YES error:nil];
+ if(!url)throw std::runtime_error("Cannot locate Downloads folder");
+ return std::filesystem::path([url fileSystemRepresentation]);
+#else
+ const char* home=std::getenv("HOME");if(!home)throw std::runtime_error("Cannot locate Downloads folder");
+ return std::filesystem::path(home)/"Downloads";
+#endif
+}
+std::set<std::filesystem::path> reservedDownloads;
+std::filesystem::path downloadDestination(std::string name){
+ // Treat all suggested names as untrusted, including Windows separators on Mac.
+ for(char& c:name)if(static_cast<unsigned char>(c)<32||std::string("/\\:*?\"<>|").find(c)!=std::string::npos)c='_';
+ while(!name.empty()&&(name.back()=='.'||name.back()==' '))name.pop_back();
+ if(name.empty()||name=="."||name=="..")name="mygrain-download";
+ if(name.size()>180)name="mygrain-download"+std::filesystem::u8path(name).extension().string();
+ // Prefix DOS device names on every OS so the saved file remains portable.
+ auto stem=std::filesystem::u8path(name).stem().string(),upper=stem;for(char& c:upper)c=char(std::toupper(static_cast<unsigned char>(c)));
+ if(upper=="CON"||upper=="PRN"||upper=="AUX"||upper=="NUL"||(upper.size()==4&&(upper.rfind("COM",0)==0||upper.rfind("LPT",0)==0)&&upper[3]>='1'&&upper[3]<='9'))name="_"+name;
+ auto directory=downloadsDirectory();std::filesystem::create_directories(directory);
+ auto base=std::filesystem::u8path(name),candidate=directory/base;
+ for(unsigned n=1;std::filesystem::exists(candidate)||reservedDownloads.count(candidate);++n){
+  if(n>100000)throw std::runtime_error("Too many downloads with this name");
+  candidate=directory/std::filesystem::u8path(pathString(base.stem())+" ("+std::to_string(n)+")"+pathString(base.extension()));
+ }
+ reservedDownloads.insert(candidate);return candidate;
+}
+void downloadNotice(const std::string& message,bool error=false){
+ if(!browser)return;
+ script("(()=>{let e=document.getElementById('mygrainNativeDownloadStatus');if(!e){e=document.createElement('div');e.id='mygrainNativeDownloadStatus';e.setAttribute('role','status');e.style.cssText='position:fixed;bottom:14px;left:14px;right:14px;z-index:2147483646;padding:14px;background:#143c31;color:white;border:1px solid #83d5ae;border-radius:10px;overflow-wrap:anywhere;pointer-events:none';document.body.append(e)}e.textContent="+quote(message)+";e.style.background="+quote(error?"#652629":"#143c31")+";clearTimeout(window.mygrainDownloadNoticeTimer);window.mygrainDownloadNoticeTimer=setTimeout(()=>e.remove(),15000);})()");
+}
+
 void setup(){
+ app.api.get_render_process_handler=[](cef_app_t*){return renderer.get();};
+ renderer.api.on_focused_node_changed=[](cef_render_process_handler_t*,cef_browser_t*,cef_frame_t* frame,cef_domnode_t* node){
+  if(!frame)return;String name("mygrain-text-editing");auto* message=cef_process_message_create(name);
+  auto* args=message->get_argument_list(message);args->set_bool(args,0,node&&node->is_editable(node));args->base.release(&args->base);
+  // C API send transfers ownership and invalidates the message reference.
+  frame->send_process_message(frame,PID_BROWSER,message);
+ };
+ client.api.on_process_message_received=[](cef_client_t*,cef_browser_t*,cef_frame_t*,cef_process_id_t source,cef_process_message_t* message)->int{
+  auto* name=message->get_name(message);const bool ours=source==PID_RENDERER&&utf8(name)=="mygrain-text-editing";cef_string_userfree_utf16_free(name);
+  if(!ours)return 0;auto* args=message->get_argument_list(message);if(mapping.data)mapping.data->textEditing.store(args->get_bool(args,0)?1:0,std::memory_order_release);args->base.release(&args->base);return 1;
+ };
+ load.api.on_load_start=[](cef_load_handler_t*,cef_browser_t*,cef_frame_t* frame,cef_transition_type_t){if(frame->is_main(frame)&&mapping.data)mapping.data->textEditing.store(0,std::memory_order_release);};
  app.api.on_before_command_line_processing=[](cef_app_t*,const cef_string_t*,cef_command_line_t* cmd){
   // Closing a DAW editor is not permission to suspend audio or the auto-store timer.
   for(const auto* s:{"disable-background-timer-throttling","disable-renderer-backgrounding","disable-backgrounding-occluded-windows","disable-gpu","disable-gpu-compositing","disable-pinch"}){String v(s);cmd->append_switch(cmd,v);}
@@ -113,14 +169,24 @@ void setup(){
  life.api.on_before_close=[](cef_life_span_handler_t*,cef_browser_t*){closed=true;};
  life.api.on_before_popup=[](cef_life_span_handler_t*,cef_browser_t*,cef_frame_t*,int,const cef_string_t*,const cef_string_t*,cef_window_open_disposition_t,int,const cef_popup_features_t*,cef_window_info_t*,cef_client_t**,cef_browser_settings_t*,cef_dictionary_value_t**,int*)->int{return 1;};
  load.api.on_load_end=[](cef_load_handler_t*,cef_browser_t*,cef_frame_t* frame,int http){if(frame->is_main(frame)){mapping.data->status.store(http==200?2:3);if(http==200&&target.find("#fx=")!=std::string::npos)script(fxClockScript);}};
- // Local network permission is required only by the existing authenticated loopback bridge.
+ // The trusted app needs loopback transport and Web MIDI. CEF 156 represents
+ // both ordinary and SysEx MIDI prompts with CEF_PERMISSION_TYPE_MIDI_SYSEX.
+ // Alloy has no browser permission UI: unhandled MIDI prompts are ignored.
  // Do not grant microphone/camera or unrelated origins permissions.
  permissions.api.on_show_permission_prompt=[](cef_permission_handler_t*,cef_browser_t*,uint64_t,const cef_string_t* origin,uint32_t requested,cef_permission_prompt_callback_t* callback)->int{
   const auto value=utf8(origin);if(value!="https://openclaw.blackcarburning.com"&&value!="https://openclaw.blackcarburning.com/")return 0;
-  const uint32_t allowed=CEF_PERMISSION_TYPE_LOOPBACK_NETWORK;
+  const uint32_t allowed=CEF_PERMISSION_TYPE_LOOPBACK_NETWORK|CEF_PERMISSION_TYPE_MIDI_SYSEX;
   if((requested&~allowed)!=0)return 0;callback->cont(callback,CEF_PERMISSION_RESULT_ACCEPT);return 1;
  };
- downloads.api.on_before_download=[](cef_download_handler_t*,cef_browser_t*,cef_download_item_t*,const cef_string_t* name,cef_before_download_callback_t* callback)->int{callback->cont(callback,name,1);return 1;};
+ downloads.api.can_download=[](cef_download_handler_t*,cef_browser_t*,const cef_string_t*,const cef_string_t*)->int{return 1;};
+ downloads.api.on_before_download=[](cef_download_handler_t*,cef_browser_t*,cef_download_item_t*,const cef_string_t* name,cef_before_download_callback_t* callback)->int{
+  try{auto path=downloadDestination(utf8(name));String full(pathString(path));callback->cont(callback,full,0);downloadNotice("Saving to Downloads: "+pathString(path.filename()));}
+  catch(const std::exception& e){downloadNotice(std::string("Download failed: ")+e.what(),true);}return 1;
+ };
+ downloads.api.on_download_updated=[](cef_download_handler_t*,cef_browser_t*,cef_download_item_t* item,cef_download_item_callback_t*){
+  if(item->is_complete(item)){auto* full=item->get_full_path(item);downloadNotice("Saved to "+utf8(full));cef_string_userfree_utf16_free(full);}
+  else if(item->is_canceled(item))downloadNotice("Download cancelled or interrupted. Please retry.",true);
+ };
 }
 bool parentAlive(uint32_t pid){
 #ifdef _WIN32

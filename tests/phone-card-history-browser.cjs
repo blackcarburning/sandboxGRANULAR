@@ -37,10 +37,10 @@ try{
  const seq=()=>page.evaluate(()=>JSON.stringify(bastardLoopXSequence));
  const count=()=>page.evaluate(()=>mygrainCardHistory.counts);
  const start=await seq();await page.locator('#performanceBastardLoopXRandomPatternBtn').tap();const one=await seq();assert.notEqual(one,start);assert.deepEqual(await count(),{undo:1,redo:0});
- await page.locator('#performanceBastardLoopXRandomPatternBtn').tap();const two=await seq();assert.notEqual(two,one);assert.deepEqual(await count(),{undo:2,redo:0});console.log('PASS ordinary native taps apply once with 2 history levels');
+ await page.locator('#performanceBastardLoopXRandomPatternBtn').tap();const two=await seq();assert.notEqual(two,one);assert.deepEqual(await count(),{undo:4,redo:0});console.log('PASS ordinary native taps apply once with 2 history levels');
  await page.evaluate(()=>{document.getElementById('performanceBastardLoopXLevel').value='41';document.getElementById('performanceBastardLoopXLevel').dispatchEvent(new Event('input'));});
  await page.locator('#sectionJumpUndoBtn').tap();await page.waitForFunction(()=>!mygrainCardHistory.busy);assert.equal(await seq(),one);assert.equal(await page.$eval('#performanceBastardLoopXLevel',e=>e.value),'41');
- await page.locator('#sectionJumpUndoBtn').tap();await page.waitForFunction(()=>!mygrainCardHistory.busy);assert.equal(await seq(),start);assert.deepEqual(await count(),{undo:0,redo:2});
+ await page.locator('#sectionJumpUndoBtn').tap();await page.waitForFunction(()=>!mygrainCardHistory.busy);assert.equal(await seq(),start);assert.deepEqual(await count(),{undo:0,redo:4});
  await page.locator('#sectionJumpRedoBtn').tap();await page.waitForFunction(()=>!mygrainCardHistory.busy);assert.equal(await seq(),one);
  await page.locator('#sectionJumpRedoBtn').tap();await page.waitForFunction(()=>!mygrainCardHistory.busy);assert.equal(await seq(),two);console.log('PASS exact Undo x2 / Redo x2; unrelated volume preserved');
  await page.locator('#performanceBastardLoopXRandomPatternBtn').tap();await page.locator('#performanceBastardLoopLRandomPatternBtn').tap();assert.deepEqual(await count(),{undo:4,redo:0});
@@ -82,14 +82,14 @@ try{
  await page.screenshot({path:`/tmp/mygrain-touch-${process.env.WEBKIT?'webkit':'chromium'}-portrait.png`});await page.setViewportSize({width:844,height:390});await page.waitForTimeout(150);const rail=await page.$eval('#sectionJumpUndoBtn',e=>{const r=e.getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height,hit:document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)===e}});assert.ok(rail.hit&&rail.h>=40&&rail.x<40,JSON.stringify(rail));await page.screenshot({path:`/tmp/mygrain-touch-${process.env.WEBKIT?'webkit':'chromium'}-landscape.png`});console.log('PASS phone portrait/landscape quick controls accessible',JSON.stringify(rail));
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
  await page.setViewportSize({width:1280,height:900});const desktopBefore=await seq();await page.locator('#performanceBastardLoopXRandomPatternBtn').click();assert.notEqual(await seq(),desktopBefore);await page.locator('#sectionJumpUndoBtn').click();await page.waitForFunction(()=>!mygrainCardHistory.busy);assert.equal(await seq(),desktopBefore);console.log('PASS desktop mouse actions immediate and quick Undo usable');
- // Retain two exact undo AND redo levels, discarding only the oldest changes.
+ // Retain four exact undo AND redo levels, discarding only the oldest changes.
  const snapshots=[await seq()];
  for(let i=0;i<12;i++){await page.locator('#performanceBastardLoopXRandomPatternBtn').click();snapshots.push(await seq());}
- assert.deepEqual(await count(),{undo:2,redo:0});
- for(let i=11;i>=10;i--){await page.locator('#sectionJumpUndoBtn').click();await page.waitForFunction(()=>!mygrainCardHistory.busy);assert.equal(await seq(),snapshots[i]);}
- assert.deepEqual(await count(),{undo:0,redo:2});
+ assert.deepEqual(await count(),{undo:4,redo:0});
+ for(let i=11;i>=8;i--){await page.locator('#sectionJumpUndoBtn').click();await page.waitForFunction(()=>!mygrainCardHistory.busy);assert.equal(await seq(),snapshots[i]);}
+ assert.deepEqual(await count(),{undo:0,redo:4});
  assert.equal(await page.locator('#sectionJumpUndoBtn').isDisabled(),true);
- for(let i=11;i<=12;i++){await page.locator('#sectionJumpRedoBtn').click();await page.waitForFunction(()=>!mygrainCardHistory.busy);assert.equal(await seq(),snapshots[i]);}
- assert.deepEqual(await count(),{undo:2,redo:0});console.log('PASS two exact Undo and Redo levels; oldest changes discarded');
+ for(let i=9;i<=12;i++){await page.locator('#sectionJumpRedoBtn').click();await page.waitForFunction(()=>!mygrainCardHistory.busy);assert.equal(await seq(),snapshots[i]);}
+ assert.deepEqual(await count(),{undo:4,redo:0});console.log('PASS four exact Undo and Redo levels; oldest changes discarded');
  await page.evaluate(()=>window.dispatchEvent(new Event('mygrain-account-lock')));assert.deepEqual(await count(),{undo:0,redo:0});console.log('PASS account lock clears history');assert.deepEqual(errors,[]);console.log('PASS no uncaught browser errors');
 }finally{await browser.close()}})().catch(e=>{console.error(e);process.exitCode=1});

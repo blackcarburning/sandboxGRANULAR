@@ -8,7 +8,7 @@ async function render(job){
  if(base.protocol!=='http:'||!['127.0.0.1','localhost'].includes(base.hostname)||base.pathname!=='/mygrain/')throw new Error('Server audio worker requires a loopback app.');
  let context;
  try {
-  if(!browser?.isConnected())browser=await chromium.launch({executablePath:'/snap/bin/chromium',args:['--no-sandbox','--disable-dev-shm-usage','--autoplay-policy=no-user-gesture-required','--js-flags=--max-old-space-size=1536']});
+  if(!browser?.isConnected())browser=await chromium.launch({executablePath:process.env.MYGRAIN_CHROMIUM||'/snap/bin/chromium',args:['--no-sandbox','--disable-dev-shm-usage','--autoplay-policy=no-user-gesture-required','--js-flags=--max-old-space-size=1536']});
   context=await browser.newContext({viewport:{width:1280,height:900},extraHTTPHeaders:job.cookie?{Cookie:job.cookie}:{}});
   const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.route('**/*',route=>{
@@ -26,7 +26,9 @@ async function render(job){
   const result=await page.evaluate(async job=>{
    const c=mygrainSongBeta,reply=await c.request(`/${encodeURIComponent(job.songId)}`),part=reply.song.parts.concat(reply.song.sharedParts||[]).find(p=>p.id===job.partId);
    if(!part||part.sha256!==job.sourceSha256)throw new Error('The saved part changed before server preparation. Refresh Songs.');
-   c.acceptSong(reply.song);c.serverPreparation=false;c.memoryBudget.limitBytes=512*1048576;c.armConcurrency=1;c.abort=new AbortController();
+   // Direct worker calls bypass the UI run() wrapper. Protect this audio context
+   // from the eight-second idle sleeper throughout preparation and capture.
+   c.acceptSong(reply.song);c.busy=true;c.serverPreparation=false;c.memoryBudget.limitBytes=512*1048576;c.armConcurrency=1;c.abort=new AbortController();
    const stage=c.armStage.bind(c);c.armStage=(generation,message,part)=>{window.serverArmStage(message);return stage(generation,message,part)};
    await c.adapter.ready();const generation=c.generation,info=await c.readPartMetadata(part,generation);
    if(c.preparationBytes(part,info,true)>c.memoryBudget.limitBytes)throw new Error('This part exceeds the server’s 512 MB audio preparation budget. Shorten its source samples.');
@@ -36,7 +38,7 @@ async function render(job){
     const saved=c.song.parts.concat(c.song.sharedParts||[]).find(p=>p.id===job.partId),buffer=await c.loadRender(saved),samples=buffer.getChannelData(0);
     let sum=0,peak=0;for(const sample of samples){if(!Number.isFinite(sample))throw new Error('Non-finite server render');sum+=sample*sample;peak=Math.max(peak,Math.abs(sample))}
     return {partId:part.id,sourceSha256:part.sha256,render:saved.render,rms:Math.sqrt(sum/samples.length),peak,frames:buffer.length,sampleRate:buffer.sampleRate};
-   }finally{decoded=null;c.releasePart(part);c.adapter.stop?.()}
+   }finally{decoded=null;c.releasePart(part);c.adapter.stop?.();c.busy=false}
   },{songId:job.songId,partId:job.partId,sourceSha256:job.sourceSha256});
   if(errors.length)throw new Error(errors[0]);emit({result});
  }catch(error){emit({error:String(error.message||error).slice(0,700)})}

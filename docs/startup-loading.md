@@ -42,3 +42,28 @@ gzip, 100 ms latency and 500,000 bytes/s were **3.874 → 3.527 s cold** and
 DOMContentLoaded was faster but is not the user-facing readiness metric. All
 14 startup/recovery cases passed; physical-iPhone timing is unverified. The
 published change requires no service restart.
+
+## 2026-11-22: bounded initial-screen recovery
+
+The two animation frames before reveal are now cosmetic: a 250 ms fallback
+prevents paused frame delivery from keeping an otherwise ready account hidden.
+Already usable cached account CSS is accepted even if its load callback was missed.
+Required startup script/CSS failures show a retry screen. A visible document that
+has not reached readiness after 30 seconds also offers recovery instead of an
+unbounded Loading screen; background expiry waits until the tab becomes visible.
+
+A pending parser-blocking head script suppresses first paint. Recovery therefore
+replaces the incomplete document with a minimal, inline-styled retry screen using
+document.open/write/close. Merely appending a body (or calling window.stop) did not
+produce a reliably paintable recovery screen in Chromium. Retry is a normal reload.
+There is no localStorage/IndexedDB clearing, account migration, audio/engine edit,
+Song render revision change or On Demand modification. The render deck retains
+its immediate reveal path.
+
+Evidence and exact pre-edit HTML: output/mygrain-startup-recovery-20261122T125000Z.
+Tests cover Chromium/WebKit paused-frame readiness, failed script/CSS, held script
+request, painted recovery UI, real retry clicks, storage sentinel retention and
+normal audio initialization. Chromium uses the real 30-second watchdog; WebKit's
+held-script test accelerates only that timer. The unmodified gate reproduces the
+paused-frame lock. These are controlled failure reproductions, not proof of the
+reported physical device's precise cause.

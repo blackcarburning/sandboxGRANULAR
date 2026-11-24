@@ -1,6 +1,6 @@
 # Phone edge controls
 
-Build v2026.11.13.PHONE-EDGES.4 has seven right-edge shortcuts: Song, Mega,
+Build v2026.11.13.PHONE-EDGES.5 has seven right-edge shortcuts: Song, Mega,
 Sparse, Keys, Layers, Mix and Play/Stop. DAW and Actions remain in the full Jump
 menu, not on the edge. Every shortcut is 34px wide. Play/Stop is longer only:
 104px minimum height and its existing larger 12px lettering; the other six retain
@@ -8,8 +8,13 @@ menu, not on the edge. Every shortcut is 34px wide. Play/Stop is longer only:
 colour gradients, darker than build .3; Play is red and running Stop is green.
 The left Baker/Pot captions keep their explicit two-line lettering.
 
-Phone app-container side padding reserves clear gutters for both 34px edge
-rails, including safe-area insets. Do not enlarge a vertical control's width when
+The phone body and outer app background span the viewport behind both rails.
+The performance-controls outer panel also extends behind the edge buttons;
+its inner cards' pale-blue borders align with the buttons' inner edges at 34px
+plus the corresponding safe-area inset. Compensating margins and padding avoid
+stacking body, shell and panel gutters. Standalone effect cards use the same
+34px app gutter. Inner card padding still keeps interactive controls clear.
+Do not enlarge a vertical control's width when
 only extra length is requested, or rely on a screenshot of an empty card to
 prove clearance. Check real populated card controls and arrow hit targets.
 

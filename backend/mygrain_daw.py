@@ -15,10 +15,14 @@ import time
 import wave
 import zipfile
 from concurrent.futures import ThreadPoolExecutor
+import sys
+if str(pathlib.Path(__file__).resolve().parent) not in sys.path:
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import mygrain_worker_pool as pool
 
 JOBS = {}
 LOCK = threading.RLock()
-EXECUTOR = ThreadPoolExecutor(max_workers=1, thread_name_prefix='mygrain-daw')
+EXECUTOR = ThreadPoolExecutor(max_workers=pool.workers(), thread_name_prefix='mygrain-daw')
 SCRIPT = pathlib.Path(__file__).resolve().parents[1] / 'scripts/daw-export-worker.cjs'
 MAX_BYTES = 1024**3
 RATE = 48000
@@ -72,8 +76,9 @@ def midi_file(manifest):
     return b'MThd' + struct.pack('>IHHH', 6, 1, len(chunks), ppq) + b''.join(chunks)
 
 
-def assemble(folder, manifest, output, cancelled=lambda: False):
+def assemble(folder, manifest, output, cancelled=lambda: False, array_module=None):
     import numpy as np
+    xp = array_module or np
     parts = manifest['parts']
     arrangement = manifest['arrangement']
     duration = sum(item['duration'] for item in arrangement)
@@ -104,7 +109,7 @@ def assemble(folder, manifest, output, cancelled=lambda: False):
                         if cancelled():
                             raise ValueError('Export cancelled.')
                         end = min(frames, start + 32768)
-                        block = np.zeros((end - start, 2), dtype=np.float64)
+                        block = xp.zeros((end - start, 2), dtype=xp.float64)
                         for offset, item in offsets:
                             path = parts[item['renderKey']]['stems'].get(key)
                             if not path:
@@ -119,16 +124,16 @@ def assemble(folder, manifest, output, cancelled=lambda: False):
                             if right <= left:
                                 continue
                             source.setpos(left - offset)
-                            raw = np.frombuffer(source.readframes(right - left), dtype=np.uint8).reshape(-1, 3)
-                            pcm = raw[:, 0].astype(np.int32) | raw[:, 1].astype(np.int32) << 8 | raw[:, 2].astype(np.int32) << 16
+                            raw = xp.asarray(np.frombuffer(source.readframes(right - left), dtype=np.uint8)).reshape(-1, 3)
+                            pcm = raw[:, 0].astype(xp.int32) | raw[:, 1].astype(xp.int32) << 8 | raw[:, 2].astype(xp.int32) << 16
                             pcm = (pcm ^ 0x800000) - 0x800000
                             block[left - start:right - start] += pcm.reshape(-1, 2) / 8388608
-                        peak = max(peak, float(np.max(np.abs(block))))
-                        integers = np.rint(np.clip(block, -1, 1) * 8388607).astype(np.int32).reshape(-1)
-                        packed = np.empty((len(integers), 3), dtype=np.uint8)
+                        peak = max(peak, float(xp.max(xp.abs(block))))
+                        integers = xp.rint(xp.clip(block, -1, 1) * 8388607).astype(xp.int32).reshape(-1)
+                        packed = xp.empty((len(integers), 3), dtype=xp.uint8)
                         for shift in range(3):
                             packed[:, shift] = (integers >> (shift * 8)) & 255
-                        dest.writeframesraw(packed.tobytes())
+                        dest.writeframesraw((xp.asnumpy(packed) if array_module is not None else packed).tobytes())
                 finally:
                     for source in readers.values():
                         source.close()
@@ -157,6 +162,7 @@ def assemble(folder, manifest, output, cancelled=lambda: False):
 
 def run(job, payload, folder, ftp, accounts, user):
     process = None
+    lease = None
     def cancelled():
         with LOCK:
             return job.get('cancel', False)
@@ -166,8 +172,11 @@ def run(job, payload, folder, ftp, accounts, user):
     try:
         if cancelled():
             return
+        lease = pool.acquire('app-daw', user['id'], cancelled=cancelled, waiting=lambda position: update(message=f'Queued for shared audio worker · position {position}'))
+        if cancelled():
+            return
         update(state='running', message='Server: preparing saved sounds at 48 kHz')
-        process = subprocess.Popen(['node', str(SCRIPT)], cwd=SCRIPT.parents[1], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, start_new_session=True)
+        process = subprocess.Popen(['node', str(SCRIPT)], cwd=SCRIPT.parents[1], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, start_new_session=True, env=pool.child_env(folder))
         with LOCK:
             job['process'] = process
         def kill():
@@ -238,6 +247,8 @@ def run(job, payload, folder, ftp, accounts, user):
             except ProcessLookupError:
                 pass
             process.wait()
+        if lease:
+            lease.close('done' if job['state'] == 'done' else 'cancelled' if cancelled() else 'failed')
         payload.clear()
         shutil.rmtree(folder)
         with LOCK:
@@ -263,9 +274,9 @@ def handle(handler, user, accounts, ftp, action, query):
                 if old['state'] in ('done', 'failed', 'cancelled') and now - old['updatedAt'] > 86400:
                     JOBS.pop(key)
             active_states = ('uploading', 'queued', 'running')
-            if sum(j['state'] in active_states for j in JOBS.values()) >= 3 or any(j['user'] == user['id'] and j['state'] in active_states for j in JOBS.values()):
+            if sum(j['state'] in active_states for j in JOBS.values()) >= (32 if pool.enabled() else 3) or any(j['user'] == user['id'] and j['state'] in active_states for j in JOBS.values()):
                 raise ValueError('An export is already running or the server queue is full. Wait for it to finish.')
-            folder = pathlib.Path(tempfile.mkdtemp(prefix='mygrain-daw-'))
+            folder = pool.workspace('mygrain-daw-')
             identifier = secrets.token_hex(16)
             job = dict(id=identifier, user=user['id'], state='uploading', message='Receiving pattern source', createdAt=now, updatedAt=now)
             JOBS[identifier] = job

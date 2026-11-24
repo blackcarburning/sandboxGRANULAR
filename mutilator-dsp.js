@@ -1,5 +1,6 @@
 /* Mutilator: sparse additive controls preserve original sound and clock defaults. */
 (function(root){'use strict';
+const Lfo=root.MygrainEffectLfo||(typeof module==='object'&&module.exports?require('./effect-lfo.js'):null);
 const Inputs=root.MygrainEffectInputs||(typeof module==='object'&&module.exports?require('./effect-inputs.js'):null);
 const strains=['gnaw','melt','rupture','scab','venom','hollow','splinter','diode','cinder','shred','vortex','maw'];
 const bounded=(value,fallback)=>Number.isFinite(Number(value))?Math.max(0,Math.min(1,Number(value))):fallback;
@@ -8,7 +9,7 @@ const FILTERS=Object.freeze(['auto','lowpass','bandpass','highpass','notch']);
 const CYCLES=Object.freeze([.5,1,2,4,8]);
 function extensions(v={}){const out={};for(const [k,fallback]of Object.entries(EXT)){let n=v[k];if(k==='filter')n=FILTERS.includes(n)?n:fallback;else if(k==='cycleBeats')n=CYCLES.includes(Number(n))?Number(n):fallback;else{n=n===undefined||n===null||!Number.isFinite(Number(n))?fallback:Number(n);const lo=k==='output'?-18:k==='freeRate'?.125:0,hi=k==='output'?6:k==='freeRate'?12:1;n=Math.max(lo,Math.min(hi,n));}if(n!==fallback)out[k]=n;}return out;}
 function audibleControls(value={}){const v=normalizeMutilator(value),e=extensions(v),out={};for(const k of ['filter','resonance','output'])if(k in e)out[k]=e[k];if(v.rhythm){for(const k of ['sweep','cycleBeats'])if(k in e)out[k]=e[k];}else if((v.freeDepth||0)>0){for(const k of ['sweep','freeRate','freeDepth'])if(k in e)out[k]=e[k];}return out;}
-function normalizeMutilator(value={}){const v=value&&typeof value==='object'?value:{};return {enabled:v.enabled===true,rhythm:v.rhythm===true,strain:strains.includes(v.strain)?v.strain:'gnaw',amount:bounded(v.amount,.5),tone:bounded(v.tone,.5),mix:bounded(v.mix,.5),...extensions(v),...(v.input&&v.input!=='D'&&Inputs.SOURCES.includes(v.input)?{input:v.input}:{})};}
+function normalizeMutilator(value={}){const v=value&&typeof value==='object'?value:{};return {enabled:v.enabled===true,rhythm:v.rhythm===true,strain:strains.includes(v.strain)?v.strain:'gnaw',amount:bounded(v.amount,.5),tone:bounded(v.tone,.5),mix:bounded(v.mix,.5),...extensions(v),...(v.lfo&&typeof v.lfo==='object'?{lfo:Lfo.normalize('mutilator',v.lfo)}:{}),...(v.input&&v.input!=='D'&&Inputs.SOURCES.includes(v.input)?{input:v.input}:{})};}
 // One bar at 120 BPM, replayed at BPM/120 by the audio engine (not a UI timer).
 // 64 KiB per active voice, independent of song duration. No clock work when bypassed.
 const mutilatorPatterns=Object.freeze({
@@ -26,7 +27,7 @@ const mutilatorPatterns=Object.freeze({
  maw:[1,0,.3,0, 0,0,.9,0, 1,0,0,.6, 0,.7,0,0]
 });
 function mutilatorGraph(ctx,source,destination,clock={}){
- let nodes=null;
+ let nodes=null,modulation=null;
  let bpm=Number.isFinite(clock.bpm)&&clock.bpm>0?clock.bpm:120;
  let startTime=Number.isFinite(clock.time)?clock.time:ctx.currentTime;
  let origin=Number.isFinite(clock.origin)?clock.origin:startTime;
@@ -56,9 +57,9 @@ function mutilatorGraph(ctx,source,destination,clock={}){
   const time=Math.max(ctx.currentTime,startTime),offset=(((time-origin)*2*hz)%2+2)%2;
   pulse.connect(nodes.depth);nodes.pulse=pulse;nodes.motionKey=key;nodes.clock={mode:'free',hz,origin,time,offset,periodSeconds:1/hz};pulse.start(time,offset);
  };
- const set=value=>{const v=normalizeMutilator(root.mygrainCookingPot?.active()&&!clock.pot?{...value,enabled:false}:value),snapshot=clock.snapshot?.();if(snapshot){bpm=snapshot.bpm;origin=snapshot.origin;startTime=snapshot.at;}const now=Math.max(ctx.currentTime,startTime);
+ const set=value=>{const v=normalizeMutilator(root.mygrainCookingPot?.active()&&!clock.pot?{...value,enabled:false}:value);if(Lfo.has('mutilator',v)&&Lfo.audible('mutilator',v)){if(!modulation){disconnect();modulation=root.mygrainEffectLfo.createGraph('mutilator',ctx,source,destination,clock);}modulation.set(v);return;}if(modulation){modulation.dispose();modulation=null;}const snapshot=clock.snapshot?.();if(snapshot){bpm=snapshot.bpm;origin=snapshot.origin;startTime=snapshot.at;}const now=Math.max(ctx.currentTime,startTime);
 if(!v.enabled||v.mix<=0||v.amount<=0){disconnect();source.connect(destination);return;}
-  if(!nodes){disconnect();const dry=ctx.createGain(),filter=ctx.createBiquadFilter(),shaper=ctx.createWaveShaper(),dc=ctx.createBiquadFilter(),wet=ctx.createGain(),depth=ctx.createGain(),trim=ctx.createGain();trim.gain.value=10**((v.output||0)/20);nodes={dry,filter,shaper,dc,wet,depth,trim};source.connect(dry);dry.connect(destination);source.connect(filter);filter.connect(shaper);shaper.connect(dc);dc.connect(wet);wet.connect(trim);trim.connect(clock.wetDestination||destination);dc.type='highpass';dc.frequency.value=25;dc.Q.value=.5;shaper.oversample=clock.oversample||'2x';depth.connect(filter.detune);}
+  if(!nodes){disconnect();const dry=ctx.createGain(),filter=ctx.createBiquadFilter(),shaper=ctx.createWaveShaper(),dc=ctx.createBiquadFilter(),wet=ctx.createGain(),depth=ctx.createGain(),trim=ctx.createGain();dry.gain.value=1-v.mix;wet.gain.value=v.mix*.5;trim.gain.value=10**((v.output||0)/20);nodes={dry,filter,shaper,dc,wet,depth,trim};source.connect(dry);dry.connect(destination);source.connect(filter);filter.connect(shaper);shaper.connect(dc);dc.connect(wet);wet.connect(trim);trim.connect(clock.wetDestination||destination);dc.type='highpass';dc.frequency.value=25;dc.Q.value=.5;shaper.oversample=clock.oversample||'2x';depth.connect(filter.detune);}
   const {dry,filter,shaper,wet,trim}=nodes,curve=new Float32Array(2049),drive=1+v.amount*45;
   for(let i=0;i<curve.length;i++){const x=(i/(curve.length-1)*2-1)*drive;if(v.strain==='melt')curve[i]=Math.sin(x);
    else if(v.strain==='rupture')curve[i]=Math.round(Math.tanh(x+Math.sin(x*1.7)*.6)*7)/7;
@@ -80,8 +81,8 @@ if(!v.enabled||v.mix<=0||v.amount<=0){disconnect();source.connect(destination);r
   const originalDepth=(['rupture','hollow'].includes(v.strain)?-1:1)*(1500+v.amount*3300);nodes.depth.gain.setTargetAtTime(v.rhythm?(v.sweep===undefined?originalDepth:originalDepth*sweep):3600*(v.freeDepth||0)*sweep,now,.005);
   if(v.rhythm&&sweep>0)syncClock(v.strain,v.cycleBeats||4);else if(!v.rhythm&&(v.freeDepth||0)>0&&sweep>0)freeClock(v.freeRate||1);else{stopClock();nodes.depth.gain.cancelScheduledValues(now);nodes.depth.gain.setValueAtTime(0,now);nodes.clock=null;}
  };
- return {set,dispose:disconnect,get active(){return !!nodes},get clock(){return nodes?.clock?{...nodes.clock}:null}};
+ return {set,dispose(){modulation?.dispose();modulation=null;disconnect();},get dryControl(){return modulation?.dryControl||null},syncClock(c){modulation?.syncClock(c);},get active(){return !!nodes||!!modulation?.active},get clock(){return modulation?.clock||(nodes?.clock?{...nodes.clock}:null)}};
 }
 
-const api=Object.freeze({STRAINS:Object.freeze(strains),EXT,FILTERS,CYCLES,normalize:normalizeMutilator,extensions,audibleControls,createGraph:mutilatorGraph});root.MygrainMutilator=api;if(typeof module==='object'&&module.exports)module.exports=api;
+const api=Object.freeze({patterns:mutilatorPatterns,STRAINS:Object.freeze(strains),EXT,FILTERS,CYCLES,normalize:normalizeMutilator,extensions,audibleControls,createGraph:mutilatorGraph});root.MygrainMutilator=api;if(typeof module==='object'&&module.exports)module.exports=api;
 })(globalThis);

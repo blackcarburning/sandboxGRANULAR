@@ -76,8 +76,8 @@
 }
 
 /* Independent W/P/O editors, same gestures/layout as V. */
-:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay)[hidden] { display: none; }
-:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) {
+:is(#restructureCutOverlay,#bastardLoopDCutOverlay,#bastardLoopD2CutOverlay,#bastardLoopD3CutOverlay,#bastardLoopD4CutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay)[hidden] { display: none; }
+:is(#restructureCutOverlay,#bastardLoopDCutOverlay,#bastardLoopD2CutOverlay,#bastardLoopD3CutOverlay,#bastardLoopD4CutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) {
     position: fixed;
     inset: 0;
     z-index: 2147483300;
@@ -87,7 +87,7 @@
     padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
     background: #03070be6;
 }
-:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-shell {
+:is(#restructureCutOverlay,#bastardLoopDCutOverlay,#bastardLoopD2CutOverlay,#bastardLoopD3CutOverlay,#bastardLoopD4CutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-shell {
     width: min(900px, 100%);
     max-height: 92dvh;
     overflow-y: auto;
@@ -98,27 +98,27 @@
     background: #0b1521;
     color: #dcecff;
 }
-:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) h3 { margin: 0; color: #dcecff; }
-:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-head,
-:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 14px; }
-:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-head { justify-content: space-between; }
-:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) label { display: flex; gap: 8px; align-items: center; font-size: 13px; color: #dcecff; }
-:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) select,
-:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) input[type="number"] { width: auto; min-height: 38px; padding: 6px 9px; background: #132238; color: #dcecff; border: 1px solid #536884; border-radius: 8px; }
-:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) input[type="number"] { width: 100px; }
-:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) input[type="checkbox"] { width: 18px; height: 18px; }
-:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .performance-btn { min-height: 40px; color: #dcecff; }
-:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) :is(#bastardLoopDCutFromStart,#bastardLoopWCutFromStart,#bastardLoopPCutFromStart,#bastardLoopOCutFromStart),
-:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) :is(#bastardLoopDCutStretch,#bastardLoopWCutStretch,#bastardLoopPCutStretch,#bastardLoopOCutStretch) { background: linear-gradient(145deg, #263e54, #132238); border: 1px solid #536884; }
-:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) :is(#bastardLoopDCutFromStart,#bastardLoopWCutFromStart,#bastardLoopPCutFromStart,#bastardLoopOCutFromStart).active,
-:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) :is(#bastardLoopDCutStretch,#bastardLoopWCutStretch,#bastardLoopPCutStretch,#bastardLoopOCutStretch).active { background: linear-gradient(145deg, #214b3a, #123125); border-color: #36ef69; color: #b8ffcd; }
-:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) :is(#bastardLoopDCutFromStart,#bastardLoopWCutFromStart,#bastardLoopPCutFromStart,#bastardLoopOCutFromStart):focus-visible,
-:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) :is(#bastardLoopDCutStretch,#bastardLoopWCutStretch,#bastardLoopPCutStretch,#bastardLoopOCutStretch):focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
-:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-timeline { position: relative; margin: 26px 18px 28px; touch-action: none; }
-:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-timeline.stretch-active { cursor: grab; }
-:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-timeline.stretch-active:active { cursor: grabbing; }
-:is(#bastardLoopDCutWaveform,#bastardLoopWCutWaveform,#bastardLoopPCutWaveform,#bastardLoopOCutWaveform) { display: block; width: 100%; height: 220px; border-radius: 8px; }
-:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-handle {
+:is(#restructureCutOverlay,#bastardLoopDCutOverlay,#bastardLoopD2CutOverlay,#bastardLoopD3CutOverlay,#bastardLoopD4CutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) h3 { margin: 0; color: #dcecff; }
+:is(#restructureCutOverlay,#bastardLoopDCutOverlay,#bastardLoopD2CutOverlay,#bastardLoopD3CutOverlay,#bastardLoopD4CutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-head,
+:is(#restructureCutOverlay,#bastardLoopDCutOverlay,#bastardLoopD2CutOverlay,#bastardLoopD3CutOverlay,#bastardLoopD4CutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 14px; }
+:is(#restructureCutOverlay,#bastardLoopDCutOverlay,#bastardLoopD2CutOverlay,#bastardLoopD3CutOverlay,#bastardLoopD4CutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-head { justify-content: space-between; }
+:is(#restructureCutOverlay,#bastardLoopDCutOverlay,#bastardLoopD2CutOverlay,#bastardLoopD3CutOverlay,#bastardLoopD4CutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) label { display: flex; gap: 8px; align-items: center; font-size: 13px; color: #dcecff; }
+:is(#restructureCutOverlay,#bastardLoopDCutOverlay,#bastardLoopD2CutOverlay,#bastardLoopD3CutOverlay,#bastardLoopD4CutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) select,
+:is(#restructureCutOverlay,#bastardLoopDCutOverlay,#bastardLoopD2CutOverlay,#bastardLoopD3CutOverlay,#bastardLoopD4CutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) input[type="number"] { width: auto; min-height: 38px; padding: 6px 9px; background: #132238; color: #dcecff; border: 1px solid #536884; border-radius: 8px; }
+:is(#restructureCutOverlay,#bastardLoopDCutOverlay,#bastardLoopD2CutOverlay,#bastardLoopD3CutOverlay,#bastardLoopD4CutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) input[type="number"] { width: 100px; }
+:is(#restructureCutOverlay,#bastardLoopDCutOverlay,#bastardLoopD2CutOverlay,#bastardLoopD3CutOverlay,#bastardLoopD4CutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) input[type="checkbox"] { width: 18px; height: 18px; }
+:is(#restructureCutOverlay,#bastardLoopDCutOverlay,#bastardLoopD2CutOverlay,#bastardLoopD3CutOverlay,#bastardLoopD4CutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .performance-btn { min-height: 40px; color: #dcecff; }
+:is(#restructureCutOverlay,#bastardLoopDCutOverlay,#bastardLoopD2CutOverlay,#bastardLoopD3CutOverlay,#bastardLoopD4CutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) :is(#restructureCutFromStart,#bastardLoopDCutFromStart,#bastardLoopD2CutFromStart,#bastardLoopD3CutFromStart,#bastardLoopD4CutFromStart,#bastardLoopWCutFromStart,#bastardLoopPCutFromStart,#bastardLoopOCutFromStart),
+:is(#restructureCutOverlay,#bastardLoopDCutOverlay,#bastardLoopD2CutOverlay,#bastardLoopD3CutOverlay,#bastardLoopD4CutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) :is(#restructureCutStretch,#bastardLoopDCutStretch,#bastardLoopD2CutStretch,#bastardLoopD3CutStretch,#bastardLoopD4CutStretch,#bastardLoopWCutStretch,#bastardLoopPCutStretch,#bastardLoopOCutStretch) { background: linear-gradient(145deg, #263e54, #132238); border: 1px solid #536884; }
+:is(#restructureCutOverlay,#bastardLoopDCutOverlay,#bastardLoopD2CutOverlay,#bastardLoopD3CutOverlay,#bastardLoopD4CutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) :is(#restructureCutFromStart,#bastardLoopDCutFromStart,#bastardLoopD2CutFromStart,#bastardLoopD3CutFromStart,#bastardLoopD4CutFromStart,#bastardLoopWCutFromStart,#bastardLoopPCutFromStart,#bastardLoopOCutFromStart).active,
+:is(#restructureCutOverlay,#bastardLoopDCutOverlay,#bastardLoopD2CutOverlay,#bastardLoopD3CutOverlay,#bastardLoopD4CutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) :is(#restructureCutStretch,#bastardLoopDCutStretch,#bastardLoopD2CutStretch,#bastardLoopD3CutStretch,#bastardLoopD4CutStretch,#bastardLoopWCutStretch,#bastardLoopPCutStretch,#bastardLoopOCutStretch).active { background: linear-gradient(145deg, #214b3a, #123125); border-color: #36ef69; color: #b8ffcd; }
+:is(#restructureCutOverlay,#bastardLoopDCutOverlay,#bastardLoopD2CutOverlay,#bastardLoopD3CutOverlay,#bastardLoopD4CutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) :is(#restructureCutFromStart,#bastardLoopDCutFromStart,#bastardLoopD2CutFromStart,#bastardLoopD3CutFromStart,#bastardLoopD4CutFromStart,#bastardLoopWCutFromStart,#bastardLoopPCutFromStart,#bastardLoopOCutFromStart):focus-visible,
+:is(#restructureCutOverlay,#bastardLoopDCutOverlay,#bastardLoopD2CutOverlay,#bastardLoopD3CutOverlay,#bastardLoopD4CutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) :is(#restructureCutStretch,#bastardLoopDCutStretch,#bastardLoopD2CutStretch,#bastardLoopD3CutStretch,#bastardLoopD4CutStretch,#bastardLoopWCutStretch,#bastardLoopPCutStretch,#bastardLoopOCutStretch):focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+:is(#restructureCutOverlay,#bastardLoopDCutOverlay,#bastardLoopD2CutOverlay,#bastardLoopD3CutOverlay,#bastardLoopD4CutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-timeline { position: relative; margin: 26px 18px 28px; touch-action: none; }
+:is(#restructureCutOverlay,#bastardLoopDCutOverlay,#bastardLoopD2CutOverlay,#bastardLoopD3CutOverlay,#bastardLoopD4CutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-timeline.stretch-active { cursor: grab; }
+:is(#restructureCutOverlay,#bastardLoopDCutOverlay,#bastardLoopD2CutOverlay,#bastardLoopD3CutOverlay,#bastardLoopD4CutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-timeline.stretch-active:active { cursor: grabbing; }
+:is(#restructureCutWaveform,#bastardLoopDCutWaveform,#bastardLoopD2CutWaveform,#bastardLoopD3CutWaveform,#bastardLoopD4CutWaveform,#bastardLoopWCutWaveform,#bastardLoopPCutWaveform,#bastardLoopOCutWaveform) { display: block; width: 100%; height: 220px; border-radius: 8px; }
+:is(#restructureCutOverlay,#bastardLoopDCutOverlay,#bastardLoopD2CutOverlay,#bastardLoopD3CutOverlay,#bastardLoopD4CutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-handle {
     position: absolute;
     top: -10px;
     height: calc(100% + 20px);
@@ -135,22 +135,22 @@
     color: #36ef69;
     box-shadow: none;
 }
-:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-handle::before { content: ''; position: absolute; inset: 8px 14px; background: currentColor; }
-:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-handle span { position: absolute; top: -10px; left: 0; width: 30px; padding: 4px 0; font-size: 11px; background: #133222; border: 1px solid currentColor; border-radius: 5px; }
-:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) :is(#bastardLoopDCutEnd,#bastardLoopWCutEnd,#bastardLoopPCutEnd,#bastardLoopOCutEnd) { color: #ff6666; }
-:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) :is(#bastardLoopDCutEnd,#bastardLoopWCutEnd,#bastardLoopPCutEnd,#bastardLoopOCutEnd) span { background: #391e25; }
-:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-handle:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
-:is(#bastardLoopDCutPlayhead,#bastardLoopWCutPlayhead,#bastardLoopPCutPlayhead,#bastardLoopOCutPlayhead) { position: absolute; top: 0; height: 100%; width: 2px; background: #ffe675; pointer-events: none; z-index: 2; }
-:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) p { color: #b4c7dd; font-size: 13px; line-height: 1.45; }
-:is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+:is(#restructureCutOverlay,#bastardLoopDCutOverlay,#bastardLoopD2CutOverlay,#bastardLoopD3CutOverlay,#bastardLoopD4CutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-handle::before { content: ''; position: absolute; inset: 8px 14px; background: currentColor; }
+:is(#restructureCutOverlay,#bastardLoopDCutOverlay,#bastardLoopD2CutOverlay,#bastardLoopD3CutOverlay,#bastardLoopD4CutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-handle span { position: absolute; top: -10px; left: 0; width: 30px; padding: 4px 0; font-size: 11px; background: #133222; border: 1px solid currentColor; border-radius: 5px; }
+:is(#restructureCutOverlay,#bastardLoopDCutOverlay,#bastardLoopD2CutOverlay,#bastardLoopD3CutOverlay,#bastardLoopD4CutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) :is(#restructureCutEnd,#bastardLoopDCutEnd,#bastardLoopD2CutEnd,#bastardLoopD3CutEnd,#bastardLoopD4CutEnd,#bastardLoopWCutEnd,#bastardLoopPCutEnd,#bastardLoopOCutEnd) { color: #ff6666; }
+:is(#restructureCutOverlay,#bastardLoopDCutOverlay,#bastardLoopD2CutOverlay,#bastardLoopD3CutOverlay,#bastardLoopD4CutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) :is(#restructureCutEnd,#bastardLoopDCutEnd,#bastardLoopD2CutEnd,#bastardLoopD3CutEnd,#bastardLoopD4CutEnd,#bastardLoopWCutEnd,#bastardLoopPCutEnd,#bastardLoopOCutEnd) span { background: #391e25; }
+:is(#restructureCutOverlay,#bastardLoopDCutOverlay,#bastardLoopD2CutOverlay,#bastardLoopD3CutOverlay,#bastardLoopD4CutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-handle:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+:is(#restructureCutPlayhead,#bastardLoopDCutPlayhead,#bastardLoopD2CutPlayhead,#bastardLoopD3CutPlayhead,#bastardLoopD4CutPlayhead,#bastardLoopWCutPlayhead,#bastardLoopPCutPlayhead,#bastardLoopOCutPlayhead) { position: absolute; top: 0; height: 100%; width: 2px; background: #ffe675; pointer-events: none; z-index: 2; }
+:is(#restructureCutOverlay,#bastardLoopDCutOverlay,#bastardLoopD2CutOverlay,#bastardLoopD3CutOverlay,#bastardLoopD4CutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) p { color: #b4c7dd; font-size: 13px; line-height: 1.45; }
+:is(#restructureCutOverlay,#bastardLoopDCutOverlay,#bastardLoopD2CutOverlay,#bastardLoopD3CutOverlay,#bastardLoopD4CutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 @media (max-width: 600px) {
-    :is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) { padding-inline: 8px; }
-    :is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-shell { padding: 14px 12px; max-height: 96dvh; }
-    :is(#bastardLoopDCutWaveform,#bastardLoopWCutWaveform,#bastardLoopPCutWaveform,#bastardLoopOCutWaveform) { height: 160px; }
-    :is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-row { gap: 10px; }
-    :is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-row label { flex-wrap: wrap; }
-    :is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-row > .performance-btn { flex: 1 1 140px; }
-    :is(#bastardLoopDCutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-actions .performance-btn { flex: 1 1 150px; }
+    :is(#restructureCutOverlay,#bastardLoopDCutOverlay,#bastardLoopD2CutOverlay,#bastardLoopD3CutOverlay,#bastardLoopD4CutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) { padding-inline: 8px; }
+    :is(#restructureCutOverlay,#bastardLoopDCutOverlay,#bastardLoopD2CutOverlay,#bastardLoopD3CutOverlay,#bastardLoopD4CutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-shell { padding: 14px 12px; max-height: 96dvh; }
+    :is(#restructureCutWaveform,#bastardLoopDCutWaveform,#bastardLoopD2CutWaveform,#bastardLoopD3CutWaveform,#bastardLoopD4CutWaveform,#bastardLoopWCutWaveform,#bastardLoopPCutWaveform,#bastardLoopOCutWaveform) { height: 160px; }
+    :is(#restructureCutOverlay,#bastardLoopDCutOverlay,#bastardLoopD2CutOverlay,#bastardLoopD3CutOverlay,#bastardLoopD4CutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-row { gap: 10px; }
+    :is(#restructureCutOverlay,#bastardLoopDCutOverlay,#bastardLoopD2CutOverlay,#bastardLoopD3CutOverlay,#bastardLoopD4CutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-row label { flex-wrap: wrap; }
+    :is(#restructureCutOverlay,#bastardLoopDCutOverlay,#bastardLoopD2CutOverlay,#bastardLoopD3CutOverlay,#bastardLoopD4CutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-row > .performance-btn { flex: 1 1 140px; }
+    :is(#restructureCutOverlay,#bastardLoopDCutOverlay,#bastardLoopD2CutOverlay,#bastardLoopD3CutOverlay,#bastardLoopD4CutOverlay,#bastardLoopWCutOverlay,#bastardLoopPCutOverlay,#bastardLoopOCutOverlay) .weird-cut-actions .performance-btn { flex: 1 1 150px; }
 }
 
 #bastardLoopCutOverlay[hidden] { display: none; }
@@ -434,3 +434,13 @@
 .loop-gap-cells button.copy-selected{outline:2px solid #ffe675;outline-offset:-2px;box-shadow:inset 0 0 0 1px #142232}
 .loop-gap-controls .loop-gap-copy-hint{color:#ffe6a1!important;overflow-wrap:anywhere}
 .loop-gap-controls>[data-gap-copy]{flex:0 1 auto;min-width:80px}
+
+/* Desktop cut panels share the translucent glass treatment, not solid navy. */
+@media (min-width: 961px) and (hover: hover) and (pointer: fine) {
+    html body [id$="CutOverlay"] :is(.vocal-cut-shell,.weird-cut-shell) {
+        background: rgba(11,21,33,.76) !important;
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+    }
+    html body [id$="CutOverlay"] { background: rgba(3,7,11,.35) !important; }
+}

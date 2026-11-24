@@ -78,7 +78,7 @@ function recordingFixture(overrides = {}) {
         bastardLoopKRecordingState: 'idle', bastardLoopKRecordingToken: 0,
         bastardLoopKRecordingAbortController: null,
         bastardLoopKCountInTimerIds: [],
-        bastardLoopKRecordingCancelled: false, bastardLoopKRecordingStartsFullLoop: false, bastardLoopKRecordingArp: false, bastardLoopKRecordingHeld: false,
+        bastardLoopKRecordingCancelled: false, bastardLoopKRecordingStartsFullLoop: false, bastardLoopKRecordingArp: false, bastardLoopKRecordingHeld: false, bastardLoopKRecordingSource: null,
         bastardLoopKSourceBpm: 300, sequencerBPM: 300,
         bastardLoopPlaying: false, sequencerPlaying: false, drumMachinePlaying: false,
         isArpeggiatorPlaying: () => false,

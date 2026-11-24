@@ -12,16 +12,24 @@ Loading decodes/validates all audio first, guards account/source changes, then u
 
 ## iPhone Low Power
 
-`iphone-low-power.js` exposes a transient `mygrainPower` helper. The menu button is near the top of Jump, has a lightning symbol, and is removed on non-iPhone UAs. It defaults off each page load and is not represented in localStorage, saved state, presets or pattern archives.
+`iphone-low-power.js` exposes a device/account-local `mygrainPower` helper. The menu button is near the top of Jump, has a lightning symbol, and is removed on non-iPhone UAs. It defaults off only when no device/account preference is stored. The account-scoped localStorage preference survives reload and randomisation; it is not represented in saved patches, presets or pattern archives. See `low-power.md` for the current live DSP policy.
 
-Quality adaptation is live-context-only. Shared loop reverbs, master reverb and the dedicated drum send use mono impulses with four-sample temporal resolution and a 1.5-second maximum tail, at the unchanged native context sample rate. Native convolution still requires the context rate. Loop filters cap at 24 dB/oct; main filters use one stage; drum tone uses one stage; waveshapers bypass oversampling; control-rate modulation updates at 66 rather than 33 ms. All visible/saved settings retain their original values. Switching off rebuilds normal impulse/filter processing from those values. Offline renders stay full quality.
+Quality adaptation is live-context-only. Current Low Power uses half-rate effect
+worklets, mono reverbs bounded to 0.75 seconds at native context rate, loop/card
+filters capped at 12 dB/oct, the existing reduced main/drum filter stages,
+no-oversampling waveshapers and 100 ms optional main modulation updates. Visible
+and saved settings retain their original values; switching Off restores full
+processing. Every offline/export/server render remains full quality.
 
-Quality-specific cache keys prevent reuse of light impulses in normal mode. Dedicated drum workers are canceled/rebuilt with the quality key. Randomisation entry points and random UI actions switch the transient mode off before randomising.
+Quality-specific cache keys prevent reuse of light impulses in normal mode.
+Dedicated drum workers are canceled/rebuilt with the quality key. Randomisation
+and reload retain the device/account preference. See `low-power.md` for engine
+rate, render-deck and phone-navigation rules.
 
 ## Verification
 
 - `node --test tests/iphone-low-power.test.cjs tests/loop-card-fx.test.cjs tests/drum-tone.test.js tests/drum-lane-solo.test.cjs`
 - `python3 tests/test_drum_pattern_library.py`
-- `tests/drum-library-power-browser.cjs`: isolated server on port 18959, temporary stores, Chromium/WebKit iPhone emulation plus desktop exclusion. Tests nested folders, exact seven-slot PCM, state/EQ recall, Undo/Redo/reload, pinned authentication, same-account second browser, low-power graph metrics, direct Jump interaction, unchanged exported preset/settings, randomisation and reload reset.
+- `tests/drum-library-power-browser.cjs`: isolated server on port 18959, temporary stores, Chromium/WebKit iPhone emulation plus desktop exclusion. Tests nested folders, exact seven-slot PCM, state/EQ recall, Undo/Redo/reload, pinned authentication, same-account second browser, low-power graph metrics, direct Jump interaction, unchanged exported preset/settings, randomisation and the original reload-reset behavior (superseded by the retained-preference tests in `breadcrumbs-power-browser.cjs` and `low-power-live-browser.cjs`).
 
 Physical iPhone CPU/battery performance is not measured by these tests.

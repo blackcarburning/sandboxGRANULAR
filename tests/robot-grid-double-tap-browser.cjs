@@ -1,0 +1,35 @@
+const {chromium,webkit}=require('playwright-core'),assert=require('node:assert/strict'),fs=require('node:fs');
+// Dedicated isolated song-beta-test-server.py fixture only. Never production account stores.
+const path=require('node:path'),base=process.env.BASE||'http://127.0.0.1:19039/mygrain/',d={root:path.resolve(__dirname,'..'),out:process.env.MYGRAIN_ROBOT_TEST_OUTPUT||'/tmp'};
+assert.match(base,/^http:\/\/127\.0\.0\.1:\d+\/mygrain\/$/);
+(async()=>{const results=[];
+for(const[kind,B]of Object.entries({chromium,webkit})){const b=await B.launch(kind==='chromium'?{executablePath:'/snap/bin/chromium',args:['--no-sandbox','--autoplay-policy=no-user-gesture-required']}:{});try{const c=await b.newContext({viewport:{width:1200,height:900},hasTouch:true,isMobile:true}),p=await c.newPage(),errors=[];p.on('pageerror',e=>errors.push(e.message));p.setDefaultTimeout(60000);assert((await c.request.post(base+'api/auth/login',{data:{username:'admin',password:'isolated-robot-fixture'}})).ok());await p.route('**/*',r=>{const u=new URL(r.request().url());if(u.origin!==new URL(base).origin||r.request().method()!=='GET')return r.abort();return r.continue();});
+await p.goto(base);await p.waitForFunction(()=>window.mygrainRobot&&document.documentElement.dataset.mygrainStartup==='ready');await p.evaluate(()=>mygrainCardHistory.ready);await p.locator('#start-btn').click();await p.waitForFunction(()=>isAudioGraphReady()&&!engineStarting&&!stateSaveSuspended&&!mygrainCardHistory.busy);
+for(const file of ['robot.js','robot.css']){const r=await c.request.get(base+file+'?v=20261122-robot-touch-drag-2');assert.equal(r.status(),200);assert.deepEqual(await r.body(),fs.readFileSync(d.root+'/'+file));}
+await p.evaluate(()=>{stopAllPerformancePlayback({silent:true});const bank=audioContext.createBuffer(1,Math.round(audioContext.sampleRate/10),audioContext.sampleRate);bank.getChannelData(0).fill(.01);mygrainRobot.restore({enabled:false,level:.7,loopBars:4,phrases:[{id:'drag',text:'one two',voice:'male1',speed:170,enabled:true,lanes:[{word:'one',offset:0,duration:.05,pattern:[3,...Array(15).fill(0)]},{word:'two',offset:.05,duration:.05,pattern:[0,2,...Array(14).fill(0)]}]}]});mygrainRobot.setBuffer(bank);const card=document.getElementById('robotCard');mygrainDisplay.reveal(card);document.getElementById('robotGrid').scrollIntoView({block:'center',behavior:'instant'});});
+await p.evaluate(async()=>{await mygrainRobot.prepare(audioContext);mygrainRobot.restore({...mygrainRobot.settings(),enabled:true});mygrainRobot.start(audioContext.currentTime+.03);});const cell=(i,j)=>p.locator(`#robotGrid [data-lane="${i}"][data-step="${j}"]`),pat=()=>p.evaluate(()=>mygrainRobot.settings().phrases[0].lanes.map(l=>l.pattern));
+async function point(el){await el.scrollIntoViewIfNeeded();const a=await el.boundingBox();assert(a);const pos={x:a.x+a.width/2,y:a.y+a.height/2};assert(await el.evaluate((el,pos)=>el===document.elementFromPoint(pos.x,pos.y),pos));return pos;}
+async function drag(from,to){const a=await point(from),z=await point(to);await p.mouse.move(a.x,a.y);await p.mouse.down();await p.mouse.move(z.x,z.y,{steps:12});await p.mouse.up();await p.waitForFunction(()=>!mygrainCardHistory.busy);}
+
+async function ready(){await p.waitForFunction(()=>!mygrainCardHistory.busy);}
+async function waitTap(){await p.waitForTimeout(340);}
+async function hits(i,j){return (await pat())[i][j];}
+await p.waitForFunction(()=>!mygrainUiActivity.busy);await p.waitForTimeout(650);await cell(0,0).click();await p.waitForFunction(()=>mygrainRobot.settings().phrases[0].lanes[0].pattern[0]===4);await ready();
+for(const n of [0,1,2,3,4]){await waitTap();await cell(0,0).click();await p.waitForFunction(n=>mygrainRobot.settings().phrases[0].lanes[0].pattern[0]===n,n);await ready();}
+// The button is recreated after the first tap: native double clicks must still delete.
+await waitTap();let pos=await point(cell(1,1));await p.mouse.dblclick(pos.x,pos.y,{delay:70});await p.waitForFunction(()=>mygrainRobot.settings().phrases[0].lanes[1].pattern[1]===0);await ready();
+await p.evaluate(()=>mygrainCardHistory.undo());assert.equal(await hits(1,1),3);await p.evaluate(()=>mygrainCardHistory.redo());assert.equal(await hits(1,1),0);await p.evaluate(()=>mygrainRobot.start(audioContext.currentTime+.03));
+// Trusted touch double taps on both an existing note and an empty cell.
+await p.setViewportSize({width:390,height:844});await waitTap();pos=await point(cell(0,0));await p.touchscreen.tap(pos.x,pos.y);await p.touchscreen.tap(pos.x,pos.y);await p.waitForFunction(()=>mygrainRobot.settings().phrases[0].lanes[0].pattern[0]===0);await ready();
+await waitTap();pos=await point(cell(0,2));await p.touchscreen.tap(pos.x,pos.y);await p.touchscreen.tap(pos.x,pos.y);await p.waitForFunction(()=>mygrainRobot.settings().phrases[0].lanes[0].pattern[2]===0);await ready();
+// Rapid taps on separate cells keep both notes, rather than deleting either.
+await waitTap();await cell(0,2).tap();await cell(1,2).tap();await ready();assert.equal(await hits(0,2),1);assert.equal(await hits(1,2),1);
+// Keyboard presses never count as a double-tap delete.
+await cell(0,2).press('Enter');await ready();await cell(0,2).press('Enter');await ready();assert.equal(await hits(0,2),3);
+// Slow repeated taps retain all ratchets. Then drag still preserves them.
+await waitTap();await cell(0,2).tap();await ready();assert.equal(await hits(0,2),4);await waitTap();await cell(0,2).tap();await ready();assert.equal(await hits(0,2),0);
+await waitTap();await cell(0,2).tap();await ready();await waitTap();await cell(0,2).tap();await ready();assert.equal(await hits(0,2),2);await drag(cell(0,2),cell(0,3));await ready();assert.equal(await hits(0,2),0);assert.equal(await hits(0,3),2);
+assert(await p.evaluate(()=>mygrainRobot.running));
+const round=await p.evaluate(async()=>{const before=JSON.stringify(mygrainRobot.settings()),pcm=Array.from(mygrainRobot.buffer.getChannelData(0)),zip=await mygrainSongBetaAdapter.capture(),part=await mygrainSongBetaAdapter.decode(await zip.arrayBuffer(),{buffers:new Map(),bytes:0});mygrainRobot.restore();mygrainSongBetaAdapter.recall(part,{start:false});await mygrainSongBetaAdapter.whenPersisted();return {settings:before===JSON.stringify(mygrainRobot.settings()),before,after:JSON.stringify(mygrainRobot.settings()),pcm:pcm.every((v,i)=>Math.abs(v-mygrainRobot.buffer.getChannelData(0)[i])<1/32767),frames:pcm.length===mygrainRobot.buffer.length};});assert(round.settings&&round.pcm&&round.frames,JSON.stringify(round));
+assert.deepEqual(errors,[]);results.push({kind,singleTapRatchets:true,trustedDoubleTapDelete:true,emptyDoubleTap:true,mouseDoubleClick:true,separateCells:true,keyboardRatchets:true,dragPreservesRatchets:true,undoRedo:true,portablePcmAndPatternRecall:true,errors});await p.screenshot({path:d.out+'/'+kind+'-double-tap.png'});await c.close();}finally{await b.close();}}
+fs.writeFileSync(d.out+'/double-tap-results.json',JSON.stringify(results,null,2));console.log(JSON.stringify(results,null,2));})().catch(e=>{console.error(e);process.exitCode=1});

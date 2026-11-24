@@ -17,12 +17,33 @@
         });
     }
 
+    function pickupSeconds(part) {
+        const value=part.render?.robotPreRollFrames!=null?part.render.robotPreRollFrames/part.render.sampleRate:(part.robotPreRollSeconds||0);
+        return Number.isFinite(value)&&value>0&&value<=.2001?value:0;
+    }
+
+    function startWithPickups(context, source, buffer, part, entry, destination, track) {
+        const pre=pickupSeconds(part),full=root.MygrainSongBeta.sourcePartDurationSeconds(part),base=root.MygrainSongBeta.partDurationSeconds({...part,repeats:1});
+        if(!pre){source.playbackRate.value=buffer.duration/full;source.loopEnd=buffer.duration*base/full;source.start(entry.start);return;}
+        const rate=(buffer.duration-pre)/full;
+        if(!(rate>0)||context.currentTime>=entry.start-pre/rate)throw Error('Song pickup missed its start. Arm Cache again.');
+        source.playbackRate.value=rate;source.loopStart=pre;source.loopEnd=pre+(buffer.duration-pre)*base/full;
+        // Keep pickup separate from the loop body: repeat it only at real part
+        // boundaries, never bake an outgoing next-repeat word into a transition.
+        for(let n=0;n<part.repeats;n++){
+            const pickup=context.createBufferSource();pickup.buffer=buffer;pickup.playbackRate.value=rate;pickup.connect(destination);track(pickup);
+            pickup.start(entry.start+n*base-pre/rate,0,pre);pickup.stop(entry.start+n*base);
+        }
+        source.start(entry.start,pre);
+    }
+
     function schedule(context, parts, renders, onEnded = () => {}, destination = context.destination) {
         const sources = [];
         const entries = [];
         const startTime = Math.ceil((context.currentTime + .25) * context.sampleRate) / context.sampleRate;
         let duration = 0;
         let stopped = false;
+        let lastSource;
         const interrupted = () => {
             if (!stopped && context.state !== 'running') { stop(); onEnded('interrupted'); }
         };
@@ -49,14 +70,13 @@
                 source.buffer = buffer;
                 source.loop = true;
                 const fullDuration = root.MygrainSongBeta.sourcePartDurationSeconds(part);
-                source.playbackRate.value = buffer.duration / fullDuration;
-                source.loopEnd = buffer.duration * baseDuration / fullDuration;
                 source.connect(destination);
-                source.start(start);
+                startWithPickups(context,source,buffer,part,{start,end},destination,pickup=>sources.push(pickup));
+                lastSource=source;
                 source.stop(end);
                 entries.push({ id: part.id, start, end });
             }
-            sources.at(-1).onended = () => { if (!stopped) { stop(); onEnded('finished'); } };
+            lastSource.onended = () => { if (!stopped) { stop(); onEnded('finished'); } };
             context.addEventListener?.('statechange', interrupted);
         } catch (error) {
             stop();
@@ -71,7 +91,12 @@
         const offset = looping ? options.startIndex || 0 : 0;
         if (!Number.isInteger(offset) || offset < 0 || offset >= parts.length) throw new Error('Invalid song start part.');
         const partAt = index => parts[(index + offset) % parts.length];
-        const initialCount = looping ? 2 : Math.min(2, parts.length);
+        const maxPickup=Math.max(0,...parts.map(pickupSeconds));
+        const minDuration=maxPickup?Math.min(...parts.map(part=>root.MygrainSongBeta.partDurationSeconds(part))):Infinity;
+        // Very short placement cuts can be shorter than the next word's pickup.
+        // Keep a bounded time horizon instead of waiting until its attack passed.
+        const ahead=maxPickup?Math.max(2,Math.min(6,1+Math.ceil((maxPickup+.02)/minDuration))):2;
+        const initialCount = looping ? ahead : Math.min(ahead, parts.length);
         const initial = [];
         for (let index = 0; index < initialCount; index += 1) {
             initial.push(looping && parts.length === 1 && index > 0 ? initial[0] : await load(partAt(index)));
@@ -120,8 +145,6 @@
             source.buffer = buffer;
             source.loop = true;
             const fullDuration = root.MygrainSongBeta.sourcePartDurationSeconds(part);
-            source.playbackRate.value = buffer.duration / fullDuration;
-            source.loopEnd = buffer.duration * baseDuration / fullDuration;
             source.connect(destination);
             source.onended = () => {
                 if (stopped) return;
@@ -136,7 +159,7 @@
                 wake?.();
                 if (!looping && index === parts.length - 1) { stop(); onEnded('finished'); }
             };
-            source.start(entry.start);
+            startWithPickups(context,source,buffer,part,entry,destination,pickup=>{sources.add(pickup);pickup.onended=()=>{pickup.onended=null;pickup.disconnect();pickup.buffer=null;sources.delete(pickup);};});
             source.stop(entry.end);
         };
         try {
@@ -148,7 +171,7 @@
                 for (let index = initialCount; (looping || index < parts.length) && !stopped; index += 1) {
                     const buffer = singleBuffer || await load(partAt(index));
                     if (stopped) return;
-                    if (completed < index - 2) await new Promise(resolve => { wake = resolve; });
+                    if (completed < index - initialCount) await new Promise(resolve => { wake = resolve; });
                     wake = null;
                     if (stopped) return;
                     queue(index, buffer);
@@ -231,7 +254,7 @@
         frame.title = 'Isolated song audio renderer';
         frame.setAttribute('aria-hidden', 'true');
         frame.style.cssText = 'position:fixed;width:1200px;height:900px;opacity:0;pointer-events:none;z-index:-1;top:0;left:0;border:0';
-        frame.srcdoc = html.replace(/<script\b[^>]*\bsrc\s*=\s*["']https?:\/\/[^>]*>[\s\S]*?<\/script>/gi, '').replace('<head>', `<head><base href="${base.href}"><script src="song-beta-render-deck.js?v=20261111-effect-output-1"><\/script>`);
+        frame.srcdoc = html.replace(/<script\b[^>]*\bsrc\s*=\s*["']https?:\/\/[^>]*>[\s\S]*?<\/script>/gi, '').replace('<head>', `<head><base href="${base.href}"><script src="song-beta-render-deck.js?v=20261122-glasshaus-1"><\/script>`);
         root.document.body.append(frame);
         let capture, cancelRecording;
         try {
@@ -252,6 +275,12 @@
             if (root.document.hidden) throw new Error('Keep MYGRAIN in the foreground while preparing song audio.');
             deck.saveAudioBufferToDB = async () => {};
             deck.clearAudioBufferFromDB = async () => {};
+            await waitWithAbort(deck.mygrainEffectLfo?.prepare(context), signal);
+            if(deck.MygrainGlassHaus?.audible(part.snapshot.state.modes.glasshaus))await waitWithAbort(deck.MygrainGlassHaus.prepare(context),signal);
+            if(deck.MygrainRobot?.audible(part.snapshot.state.modes.robot))await waitWithAbort(deck.MygrainRobot.prepare(context),signal);
+            if (deck.MygrainEnemyDrone?.audible(part.snapshot.state.modes.enemyDrone)) await waitWithAbort(deck.MygrainEnemyDrone.prepare(context), signal);
+            if (part.snapshot.state.modes.ember?.sampleSource && deck.MygrainEmber?.audible(part.snapshot.state.modes.ember)) await waitWithAbort(deck.MygrainEmber.prepare(context, part.snapshot.state.modes.ember), signal);
+            if(deck.MygrainRestructure?.audible(part.snapshot.state.modes.restructure))await waitWithAbort(deck.MygrainRestructure.prepare(context,part.snapshot.state.modes.restructure),signal);
             await waitWithAbort(deck.mygrainResonator?.prepare(context, part.snapshot.state.modes.resonatorR), signal);
             await waitWithAbort(deck.mygrainAcousticFx?.prepare(context, part.snapshot.state.modes), signal);
             await waitWithAbort(deck.mygrainWasp?.prepare(context, part.snapshot.state.modes.wasp), signal);
@@ -273,11 +302,15 @@
             }
             // D stretches from its immutable source. Finish this CPU work before
             // choosing capture/start frames, not while starting scheduled audio.
-            if (deck.mygrainD?.playable()) deck.mygrainD.playback();
+            if (deck.mygrainD?.playable()) deck.mygrainD.prepare();
             await options.prepareDeck?.(deck);
-            const frames = Math.round(((options.durationSeconds ?? root.MygrainSongBeta.sourcePartDurationSeconds(timing)) + (options.tailSeconds || 0)) * context.sampleRate);
+            const durationSeconds=(options.durationSeconds ?? root.MygrainSongBeta.sourcePartDurationSeconds(timing)) + (options.tailSeconds || 0);
+            const pickup=Math.min(.2,Math.max(0,Number(timing.robotPreRollSeconds)||0));
+            const pickupFrames=Math.round(pickup*context.sampleRate);
+            const frames = Math.round(durationSeconds * context.sampleRate)+pickupFrames;
             const captureTiming = renderCaptureTiming(context, deck, options.startLeadSeconds);
-            const startFrame = captureTiming.startFrame;
+            const startFrame = captureTiming.startFrame-pickupFrames;
+            if(pickupFrames)deck.__mygrainRobotRenderEnd=captureTiming.sourceTime+durationSeconds;
             capture = new root.AudioWorkletNode(context, 'mygrain-song-capture-v1', {
                 numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2],
                 processorOptions: { startFrame, frames }
@@ -311,6 +344,7 @@
             recorded.catch(() => {});
             options.beforeStart?.(deck, captureTiming.sourceTime);
             deck.mygrainSongBetaAdapter.startAt(captureTiming.sourceTime);
+            if(pickupFrames&&captureTiming.sourceTime-pickup<context.currentTime+.01)throw Error('Transport deadline expired; prepare and replan playback');
             const channels = await recorded;
             options.afterCapture?.(deck);
             const buffer = context.createBuffer(2, frames, context.sampleRate);

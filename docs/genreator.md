@@ -149,3 +149,57 @@ and source snapshot. Cooking Pot power/order, output routing and master gain
 are not writable. Recipe-only extension: no DSP or stored patch format changes,
 and no additional Song render revision is needed; existing effect-specific and
 unified-input cache compatibility applies to generated snapshots.
+
+## Missing GENREator startup calls (2026-11-24)
+
+The preload list alone does not execute JavaScript. Both `ai-patch-direction.js`
+and `genreator.js` must also be passed to the authenticated `loadScript` startup
+path, after the Song adapter and before AI Song Parts. Removing that executable
+tag leaves an apparently ready editor with no genre buttons, EQ protection or
+INSTAREEL, and leaves the shared AI Patch engine uninitialised.
+
+Restore the narrowly missing tag using the matching existing preload URLs; do not
+roll back the whole index or replace either module. Keep the render-deck early
+returns in both modules. The existing bootstrap browser test detects this failure
+through runtime readiness and all 15 interactive genre buttons. No saved format,
+DSP or Song-render identity changes are required.
+
+## Fresh AI patch card scope (2026-11-24)
+
+The shared contract currently covers loop cards A/B/C/D/V/W/P/O/L/X/Q/M/M+/K,
+three drum sample/pattern lanes and their shared bus, Noise, and the advertised
+grain scalar controls. Its nine effect entries are Mutilator, Bass Face, Wasp,
+Filter Playground, Wire World, Sonic Crystal, Resonator, Turntable and Henry's
+Hose; per-channel FX remain restricted to the schema's channel list. Recorded
+M/M+/K audio is retained, not synthesised or overwritten. This is an inventory,
+not a claim that every recipe uses every supported source.
+
+Robot, GlassHaus, Enemy Drone, Ember and Restructure (including archived
+Dropbox audio) are outside the model's source contract. Heavy Lifter, Bubble
+Chamber and final Master Baker are also outside its processing contract. A
+successful fresh Generate, Regenerate or GENREator transaction now switches
+those powers Off after recipe application, before history/autosave closes and
+transport resumes. Preserve their recipes, bank selections, recorded PCM and
+levels; do not clear/re-randomise them. Restructure's power-only helper must not
+claim a previously absent new-R source or upgrade an archived recipe.
+
+Waiting/model errors, rejected/no-op recipes, cancellation, stale replies and
+application failures do not commit this shutdown. The full existing transaction
+restores prior powers/settings on failure and Undo, and Redo restores the exact
+generated result without another model call. Refine and Song-section development
+retain the current patch's unsupported/manual-only cards. Manual power, local
+randomisation, saved-patch recall, existing Song snapshots and INSTAREEL of a
+chosen patch keep their previous behavior. No DSP/schema/render-version changes.
+
+On Demand was audited separately: its isolated worker clears its own sources and
+effects, applies a native genre plan, then explicitly creates/adds Ember in Loop
+mode (or its own Ember/Drone-only profiles). Those separate shop policies and
+private deployment are not changed by this full-app AI patch policy. Existing
+server Song capture/rendering already serialises and honours the canonical
+powers; the rule must stay in generation, never in recall or the render worker.
+
+Regression: `tests/ai-generation-card-scope-browser.cjs` uses isolated accounts,
+fixture model replies and the real adapter/history in Chromium and WebKit. It
+covers all three fresh entry points, running graph shutdown, ZIP/PCM retention,
+Undo/Redo, Refine/section preservation, pending source/model cancellation, stale
+success replies, rollback after shutdown, no-op rejection and archived R absence.

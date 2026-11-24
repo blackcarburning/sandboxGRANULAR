@@ -1,12 +1,13 @@
 # Phone loop actions, card history and Solo
 
-Current history limit: **two shared Undo/Redo levels**, as of `v2026.10.29.CRACKLE-LOG.1`.
+Current history limit: **four shared Undo/Redo levels**, as of 2026-11-23.
+Existing two-level journals remain valid; reload restores up to four exact steps.
 Older sections below describe historical ten-level behavior. The current limit overrides it.
 
 ## CRACKLE-LOG.1 — bounded history and diagnostics
 
-- Keep only the nearest two main-journal changes, including AI/K operations.
-- Read validated legacy ten-level journals, retain the newest two Undo states
+- Keep only the nearest four main-journal changes, including AI/K operations.
+- Read validated legacy ten-level journals, retain the newest four Undo states
   (or nearest Redo states in any remaining capacity), atomically prune unused
   stored PCM, and never hydrate abandoned audio to migrate.
 - Preserve PCM codec, device/account ownership, tab-writer checks, reservation
@@ -78,7 +79,7 @@ Solo controls are normal tap toggles and are explicitly excluded from the hold g
 
 ## TOUCH.3 correction
 
-Removed the entire card-wide pointer/click hold guard and its CSS. It blocked normal taps on non-Solo card actions; extending exceptions was insufficient. Keep only the styling observer, exact two-step history, the existing pending-random-operation guard and the left history rail. Regression tests now require real native taps, not held or programmatic clicks, for card randomisation.
+Removed the entire card-wide pointer/click hold guard and its CSS. It blocked normal taps on non-Solo card actions; extending exceptions was insufficient. Keep only the styling observer, exact four-step history, the existing pending-random-operation guard and the left history rail. Regression tests now require real native taps, not held or programmatic clicks, for card randomisation.
 
 ## TOUCH.4 — ten-step device-guarded history
 

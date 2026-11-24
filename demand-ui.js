@@ -7,24 +7,43 @@
             (/iPhone|iPad|iPod/.test(host.navigator?.userAgent||'') || host.matchMedia?.('(any-pointer: coarse)').matches);
         let scrolling=false,timer=null,until=0,events=0,bursts=0,reason=null,width=host.innerWidth,height=host.innerHeight;
         let lastScrollTarget=null,scrollTarget=null;
-        const listeners=[];
+        const listeners=[],pausedVisuals=new Map();
+        function pauseVisuals(){
+            // Touch only actual animated targets, not every control in this large document.
+            for(const animation of doc.getAnimations?.()||[]){
+                const el=animation.effect?.target;
+                if(animation.playState!=='running'||!el?.style||pausedVisuals.has(el))continue;
+                const saved=['animation-play-state','transition'].map(key=>[key,el.style.getPropertyValue(key),el.style.getPropertyPriority(key)]);
+                pausedVisuals.set(el,saved);
+                el.style.setProperty('animation-play-state','paused','important');
+                el.style.setProperty('transition','none','important');
+            }
+        }
+        function resumeVisuals(){
+            for(const [el,saved]of pausedVisuals)for(const [key,value,priority]of saved){
+                const own=key==='transition'?'none':'paused';
+                if(el.style.getPropertyValue(key)!==own||el.style.getPropertyPriority(key)!=='important')continue;
+                if(value)el.style.setProperty(key,value,priority);else el.style.removeProperty(key);
+            }
+            pausedVisuals.clear();
+        }
         function settle(){
             timer=null;
             if(doc.hidden || now()>=until){
-                scrolling=false;delete doc.documentElement.dataset.mygrainScrolling;
+                scrolling=false;delete doc.documentElement.dataset.mygrainScrolling;resumeVisuals();
                 host.dispatchEvent(new host.CustomEvent('mygrain-ui-settled'));
             }else timer=host.setTimeout(settle,Math.max(1,until-now()));
         }
         function mark(nextReason='scroll'){
             if(!eligible || doc.hidden)return;
             events++;reason=nextReason;until=now()+180;
-            if(!scrolling){scrolling=true;bursts++;doc.documentElement.dataset.mygrainScrolling='true';host.dispatchEvent(new host.CustomEvent('mygrain-ui-busy'));}
+            if(!scrolling){pauseVisuals();scrolling=true;bursts++;doc.documentElement.dataset.mygrainScrolling='true';host.dispatchEvent(new host.CustomEvent('mygrain-ui-busy'));}
             // At most one pending timer, including continuous momentum scrolling.
             if(timer===null)timer=host.setTimeout(settle,180);
         }
         function reset(){
             if(timer!==null)host.clearTimeout(timer);timer=null;until=0;
-            scrolling=false;delete doc.documentElement.dataset.mygrainScrolling;
+            scrolling=false;delete doc.documentElement.dataset.mygrainScrolling;resumeVisuals();
         }
         function listen(target,type,fn,options){target.addEventListener(type,fn,options);listeners.push(()=>target.removeEventListener(type,fn,options));}
         if(eligible){
@@ -115,7 +134,7 @@ if(!root.document)return;
  const doc=root.document, states=new Map(), visible=new Set(), pending=new Set();
  const cards=new Map(), pendingCards=new Map();let released=0,redraws=0,parked=0;
  const deferLifecycle=()=>root.mygrainUiActivity?.busy||doc.documentElement.dataset.mygrainJumping==='true';
- const style=doc.createElement('style');style.textContent='html[data-mygrain-scrolling] *, html[data-mygrain-scrolling] *::before, html[data-mygrain-scrolling] *::after { animation-play-state:paused!important; transition:none!important; } [data-mygrain-visual-parked], [data-mygrain-visual-parked] * { animation-play-state:paused!important; transition:none!important; will-change:auto!important; backdrop-filter:none!important; -webkit-backdrop-filter:none!important; }';doc.head.append(style);
+ const style=doc.createElement('style');style.textContent='[data-mygrain-visual-parked], [data-mygrain-visual-parked] * { animation-play-state:paused!important; transition:none!important; will-change:auto!important; backdrop-filter:none!important; -webkit-backdrop-filter:none!important; }';doc.head.append(style);
  const blocked=()=>doc.hidden||root.mygrainUiActivity?.busy||doc.documentElement.dataset.mygrainJumping==='true';
  const inViewport=el=>{if(!el.isConnected||el.closest('[data-mygrain-visual-parked]'))return false;const r=el.getBoundingClientRect();return r.width>0&&r.height>0&&r.bottom>0&&r.right>0&&r.top<root.innerHeight&&r.left<root.innerWidth};
  function release(s){
@@ -204,7 +223,7 @@ document.addEventListener('DOMContentLoaded',()=>{
  const nav=document.createElement('button');nav.id='sectionJumpWaspBtn';nav.type='button';nav.className='section-jump-option';nav.dataset.jumpTarget='#waspCard';nav.innerHTML='<span class="jump-button-label">The\nWasp</span>';nav.onclick=()=>root.mygrainJumpToButton?.(nav);document.querySelector('[data-jump-target="#finalPanSection"]')?.parentElement.append(nav);
  const pgCard=document.createElement('section');pgCard.id='filterPlaygroundCard';pgCard.className='performance-feature-card filter-playground-card';pgCard.innerHTML='<h3>FP · FILTER PLAYGROUND</h3><p>Independent final-mix filter. Open to load controls.</p>';card.before(pgCard);const resonator=document.getElementById('resonatorCard');if(resonator)card.after(resonator);root.mygrainAcousticUi?.place();
  const pgNav=document.createElement('button');pgNav.id='sectionJumpPlaygroundBtn';pgNav.type='button';pgNav.className='section-jump-option';pgNav.dataset.jumpTarget='#filterPlaygroundCard';pgNav.innerHTML='<span class="jump-button-label">Filter\nPlayground</span>';pgNav.onclick=()=>root.mygrainJumpToButton?.(pgNav);nav.after(pgNav);
- let ready;const open=()=>ready||(ready=(async()=>{await load(root.mygrainPhone?'wasp-filter-phone.js?v=20261026-poles-1':'wasp-filter-desktop.js?v=20261026-mobile-vocals-1');card.removeAttribute('id');pgCard.removeAttribute('id');await load('wasp-ui.js?v=20261112-effects-bottom-1');card.remove();pgCard.remove()})().catch(error=>{ready=null;throw error}));
+ let ready;const open=()=>ready||(ready=(async()=>{await load(root.mygrainPhone?'wasp-filter-phone.js?v=20261026-poles-1':'wasp-filter-desktop.js?v=20261026-mobile-vocals-1');card.removeAttribute('id');pgCard.removeAttribute('id');await load('wasp-ui.js?v=20261114-insert-routing-1');card.remove();pgCard.remove()})().catch(error=>{ready=null;throw error}));
  whenVisible(card,open);whenVisible(pgCard,open);
 });
 })(typeof window==='undefined'?globalThis:window);

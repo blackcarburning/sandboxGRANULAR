@@ -7,7 +7,7 @@
         const repeats = Number(part.repeats);
         const cycle = part.patternCycleMultiplier ?? 1;
         const playbackSteps = part.playbackSteps ?? steps * cycle;
-        if (!Number.isFinite(bpm) || bpm < 40 || bpm > 300 || !Number.isInteger(steps) || steps < 8 || steps > 64 || !Number.isInteger(repeats) || repeats < 1 || repeats > 64 || (!Number.isInteger(cycle) || cycle < 1 || cycle > 8192) || !Number.isInteger(playbackSteps) || playbackSteps < 1 || playbackSteps > steps * cycle) {
+        if (!Number.isFinite(bpm) || bpm < 1/16 || bpm > 300 || !Number.isInteger(steps) || steps < 8 || steps > 64 || !Number.isInteger(repeats) || repeats < 1 || repeats > 64 || (!Number.isInteger(cycle) || cycle < 1 || cycle > 8192) || !Number.isInteger(playbackSteps) || playbackSteps < 1 || playbackSteps > steps * cycle) {
             throw new Error('Invalid saved part timing.');
         }
         return (60 / bpm) * (playbackSteps / 4) * repeats;
@@ -80,8 +80,8 @@
         ['drumKick', 'Kick'], ['drumSnare', 'Snare'], ['drumHat', 'Hat'], ['drumPerc', 'Perc'],
         ['drumClap', 'Clap'], ['drumCymbals', 'Cymbals'], ['drumEtc', 'ETC'], ['drumRoll', 'Snare Roll']
     ];
-    const eqCopyChannels = [...loopLayers, 'generated', 'sample', ...kCopyTracks, ...drumCopyLanes.map(([id]) => id)];
-    const eqChannelLabel = key => key === 'generated' ? 'Generated Loop' : key === 'sample' ? 'Sample Layer' : kCopyTracks.includes(key) ? `K track ${key.slice(1)}` : drumCopyLanes.find(([id]) => id === key)?.[1] || `Loop ${key}`;
+    const eqCopyChannels = [...loopLayers, 'E', 'generated', 'sample', ...kCopyTracks, ...drumCopyLanes.map(([id]) => id)];
+    const eqChannelLabel = key => key === 'E' ? 'E · Ember' : key === 'generated' ? 'Generated Loop' : key === 'sample' ? 'Sample Layer' : kCopyTracks.includes(key) ? `K track ${key.slice(1)}` : drumCopyLanes.find(([id]) => id === key)?.[1] || `Loop ${key}`;
     const copyLabels = new Map([...loopLayers.map(layer => [layer, `Bastardloop ${layer}`]), ...kCopyTracks.map((id, index) => [id, `K track ${index + 1}`]), ['drums', 'Drum machine (all)'], ...drumCopyLanes.map(([id, label]) => [id, `${label} drum lane`]), ...eqCopyChannels.map(key => ['eq:' + key, `${eqChannelLabel(key)} EQ only`])]);
 
     function copySelection(value) {
@@ -143,29 +143,45 @@
         if(!dsp)return false;const controls=dsp.normalize(m);return controls.amount>0&&controls.mix>0&&Object.keys(dsp.audibleControls(controls)).length>0;
     }
 
+    function dLoopRenderVersion(decoded) {
+        const snap=decoded?.snapshot,d=snap?.state?.modes?.loopD,keys=new Set(snap?.assets?.map(a=>a.key)||[]);
+        if(d?.enabled!==true)return 0;
+        if(d.lanes?.some((s,i)=>s.enabled===true&&(s.level??1)>0&&keys.has('bastardD'+(i+2))&&(Number(s.pitch)||s.reverse===true||Number(s.shift)||Number(s.maximiser)>0||s.cut?.enabled||s.cut?.gapEnabled&&s.cut.gaps?.length)))return 4;
+        if(keys.has('bastardD')&&d.mix&&(d.mix.enabled===false||d.mix.level!==1||d.mix.pan!==0)||d.lanes?.some((s,i)=>s.enabled===true&&(s.level??1)>0&&keys.has('bastardD'+(i+2))))return 3;
+        return keys.has('bastardD')?(Number(d.maximiser)>0?2:1):0;
+    }
+
     function unifiedInputsVersion(decoded) {
         const m=decoded?.snapshot?.state?.modes||{},bass=m.bassFace||{},mut=m.loopD?.mutilator||{},tt=m.turntable||{},w=m.wasp||{},r=m.resonatorR||{};
         const active=v=>v?.enabled&&(v.mix??.5)>0&&(v.amount??.5)>0;
-        const equalized=Object.entries(m.channelEq?.channels||{}).filter(([,v])=>v?.manualBypass!==true&&(v?.enabled||v?.automation?.read&&v.automation.points?.some(p=>p.enabled)));
+        const equalized=Object.entries(m.channelEq?.channels||{}).filter(([key,v])=>(key!=='E'||root.MygrainEmber?.audible(m.ember))&&v?.manualBypass!==true&&(v?.enabled||v?.automation?.read&&v.automation.points?.some(p=>p.enabled)));
         const localFx=v=>v&&(v.filterEnabled||v.reverbEnabled&&v.room>0||v.delayEnabled&&v.delay>0);
-        if(equalized.length&&([bass,mut].some(active)||[tt,w,w.playground,r,m.wireWorld,m.sonicCrystal,m.bubbleChamber].some(v=>v?.enabled)||equalized.some(([key])=>localFx(m.loopFx?.channels?.[key]))))return 3;
+        if(equalized.length&&([bass,mut].some(active)||[tt,w,w.playground,r,m.wireWorld,m.sonicCrystal,m.bubbleChamber].some(v=>v?.enabled)||(['henrysHose','heavyLifter'].some(k=>m[k]?.enabled&&(m[k]?.level!==0||(k==='heavyLifter'&&root.MygrainHeavyLifter?.levelCanMove(m[k])))&&m[k]?.source!=='DAW'))||equalized.some(([key])=>localFx(m.loopFx?.channels?.[/^D[234]$/.test(key)?'D':key]))))return 3;
         const characters=[{...bass,input:bass.input||'X'},{...mut,input:mut.input||'D'}].filter(active);
         const channels=m.loopFx?.channels,changed=characters.some(v=>v.input!=='DAW'&&(!channels||Object.entries(channels).some(([key,s])=>(v.input==='all'||v.input===key||v.input==='K'&&/^K[1-5]$/.test(key))&&(s.filterEnabled||s.reverbEnabled&&s.room>0||s.delayEnabled&&s.delay>0))));
         if(changed||!m.cookingPot?.enabled&&m.loopD?.enabled&&active(mut)&&(!mut.input||mut.input==='D'))return 2;
         return [bass,mut].some(v=>v.enabled&&v.input==='all'&&(v.mix??.5)>0&&(v.amount??.5)>0)||tt.enabled&&tt.input&&!['all','drums'].includes(tt.input)||w.enabled&&w.routes?.slice(0,2).some(r=>r.enabled&&(['D','DAW'].includes(r.source)||r.source==='all'&&m.loopD?.enabled)&&r.depth!==0)||r.enabled&&r.slots?.some(s=>s.enabled&&s.source==='DAW')?1:0;
     }
 
+    function channelEqRenderVersion(decoded, part = {}) {
+        const modes = decoded?.snapshot?.state?.modes || {}, channels = modes.channelEq?.channels || {};
+        const active = c => c?.manualBypass !== true && (c?.enabled === true || c?.automation?.read === true && c.automation.points?.some(p => p.enabled));
+        if (Number(part.eqVersion) >= 4 || root.MygrainEmber?.audible(modes.ember) && active(channels.E)) return 4;
+        if (Number(part.eqVersion) >= 3 || Object.entries(channels).some(([key, c]) => key !== 'E' && !['X', 'L'].includes(key) && c?.manualBypass !== true && c?.automation?.read === true && c.automation.points?.some(p => p.enabled))) return 3;
+        return Number(part.eqVersion) >= 1 || Object.entries(channels).some(([key, c]) => key !== 'E' && active(c)) ? 2 : 0;
+    }
+
     function cookingPotRenderVersion(decoded,part={}) {return Math.max(Number(part.cookingPotVersion)||0,root.MygrainCookingPot?.renderVersion(decoded?.snapshot?.state?.modes)||0);}
-    function needsCookingPotRender(decoded) {return decoded?.snapshot?.state?.modes?.cookingPot?.enabled===true && needsEffectOutputRender(decoded);}
+    function needsCookingPotRender(decoded) {return cookingPotRenderVersion(decoded)>0;}
 
     function effectOutputRenderVersion(decoded,part={}) {
         const Inputs=root.MygrainEffectInputs||(typeof module==='object'&&module.exports?require('./effect-inputs.js'):null),snapshot=decoded?.snapshot,m=snapshot?.state?.modes||{},selected=v=>(Array.isArray(v)?v:String(v||'').split(',')).some(k=>!['','none'].includes(String(k).trim().toLowerCase()));
-        return Math.max(Number(part.effectOutputVersion)||0,Inputs?.routedEffects(Inputs.soloSources(m,snapshot?.extra?.performanceSourceLayerSolo),Inputs.effectSettings(m)).length?5:0,m.masterBaker?.enabled===true?4:0,m.effectOutput?.mainMuted===true?3:0,m.generatedSampleSolo===true||['loopLayerSolo','grainLayerSolo','sourceWaveformSolo','drumMachineLaneSolos'].some(k=>selected(m[k]))||selected(snapshot?.extra?.performanceSourceLayerSolo)?2:needsEffectOutputRender(decoded)?1:0);
+        return Math.max(Number(part.effectOutputVersion)||0,Inputs?.soloInsertVersion(m,snapshot?.extra?.performanceSourceLayerSolo)||0,Object.keys((root.MygrainCookingPot||(typeof module==='object'&&module.exports?require('./cooking-pot-model.js'):null))?.outputVolumes(m)||{}).length?6:0,Inputs?.routedEffects(Inputs.soloSources(m,snapshot?.extra?.performanceSourceLayerSolo),Inputs.effectSettings(m)).length?5:0,m.masterBaker?.enabled===true?4:0,m.effectOutput?.mainMuted===true?3:0,m.generatedSampleSolo===true||['loopLayerSolo','grainLayerSolo','sourceWaveformSolo','drumMachineLaneSolos'].some(k=>selected(m[k]))||selected(snapshot?.extra?.performanceSourceLayerSolo)?2:needsEffectOutputRender(decoded)?1:0);
     }
 
     function needsEffectOutputRender(decoded) {
         const m=decoded?.snapshot?.state?.modes||{},w=m.wasp||{};
-        return !!(w.enabled||w.playground?.enabled||m.turntable?.enabled||m.resonatorR?.enabled||m.wireWorld?.enabled||m.sonicCrystal?.enabled||m.bubbleChamber?.enabled||m.bassFace?.enabled||m.loopD?.mutilator?.enabled);
+        return !!(w.enabled||w.playground?.enabled||m.turntable?.enabled||m.resonatorR?.enabled||m.wireWorld?.enabled||m.sonicCrystal?.enabled||m.bubbleChamber?.enabled||(['henrysHose','heavyLifter'].some(k=>m[k]?.enabled&&(m[k]?.level!==0||(k==='heavyLifter'&&root.MygrainHeavyLifter?.levelCanMove(m[k])))&&m[k]?.source!=='DAW'))||m.bassFace?.enabled||m.loopD?.mutilator?.enabled);
     }
 
     function needsKickRoutingRender(decoded) {
@@ -895,7 +911,7 @@
         }
 
         preparationBytes(part, info, rendering = true) {
-            const renderSize = sourcePartDurationSeconds(part) * (this.adapter.context?.()?.sampleRate || 48000) * 8;
+            const renderSize = (sourcePartDurationSeconds(part)+(part.robotPreRollSeconds||0)) * (this.adapter.context?.()?.sampleRate || 48000) * 8;
             // Include encoded originals, source/deck clones, capture/PCM/upload
             // copies and headroom for the isolated renderer, not just decodes.
             return 16 * 1048576 + (Number(info?.fxBytes) || 0) + (Number(part.bytes) || info?.body?.byteLength || 0) * 2
@@ -984,16 +1000,19 @@
             if ((part.waspSourceVersion || (legacyWasp?.enabled && legacyWasp.routes?.slice(0,2).filter(route => route.enabled).length > 1)) && part.render?.waspSourceVersion !== 1) return false;
             if (Math.max(Number(part.playgroundVersion)||0,playgroundRenderVersion(decoded)) > (Number(part.render?.playgroundVersion)||0)) return false;
             if (part.playgroundVersion && !decoded && Number(part.render?.playgroundVersion||0)<2) return false;
-            const dRequired = Math.max(Number(part.loopDVersion||0), decoded?.snapshot?.state?.modes?.loopD?.enabled === true && decoded?.snapshot?.assets?.some(asset => asset.key === 'bastardD') ? (Number(decoded.snapshot.state.modes.loopD.maximiser)>0?2:1) : 0);
+            const enemyRequired = Math.max(Number(part.enemyDroneVersion||0), root.MygrainEnemyDrone?.renderVersion(decoded?.snapshot?.state?.modes?.enemyDrone)||0);
+            if (Number(part.render?.enemyDroneVersion||0) < enemyRequired) return false;
+            const clocks = decoded?.snapshot?.state?.modes?.clockDividers;
+            if ((part.clockDividerVersion || clocks && (clocks.loop !== 1 || clocks.drums !== 1)) && part.render?.clockDividerVersion !== 1) return false;
+            const emberRequired = Math.max(Number(part.emberVersion||0), root.MygrainEmber?.renderVersion(decoded?.snapshot?.state?.modes?.ember)||0,root.MygrainRestructure?.renderVersion(decoded?.snapshot?.state?.modes?.restructure)||0,root.MygrainRobot?.renderVersion(decoded?.snapshot?.state?.modes?.robot)||0,root.MygrainGlassHaus?.renderVersion(decoded?.snapshot?.state?.modes?.glasshaus)||0);
+            if (Number(part.render?.emberVersion||0) < emberRequired) return false;
+            const dRequired = Math.max(Number(part.loopDVersion||0), dLoopRenderVersion(decoded));
             if (Number(part.render?.loopDVersion||0) < dRequired) return false;
             if ((part.mutilatorVersion || this.needsCurrentMutilator(decoded)) && part.render?.mutilatorVersion !== 2) return false;
             if(part.render?.mutilatorVersion===1)return false;
-            const fxRequired = part.loopFxVersion === 1 || decoded?.snapshot?.state?.modes?.loopFx?.version === 1;
-            if (fxRequired && part.render?.loopFxVersion !== 1) return false;
-            const extendedEq = Number(part.eqVersion) >= 3 || Object.entries(decoded?.snapshot?.state?.modes?.channelEq?.channels || {}).some(([key, channel]) => !['X','L'].includes(key) && channel?.manualBypass !== true && channel?.automation?.read === true && channel.automation.points?.some(point => point.enabled));
-            if (extendedEq && Number(part.render?.channelEqVersion || 0) < 3) return false;
-            const eqRequired = Number(part.eqVersion) >= 1 || Object.values(decoded?.snapshot?.state?.modes?.channelEq?.channels || {}).some(channel => channel?.manualBypass !== true && (channel?.enabled === true || (channel?.automation?.read === true && channel.automation.points?.some(point => point.enabled))));
-            if (eqRequired && !(Number(part.render?.channelEqVersion) >= 2)) return false;
+            const fxRequired = Math.max(Number(part.loopFxVersion)||0,(root.MygrainLoopFx?.renderVersion(decoded?.snapshot?.state?.modes?.loopFx)??(decoded?.snapshot?.state?.modes?.loopFx?.version===1?1:0)));
+            if (Number(part.render?.loopFxVersion||0) < fxRequired) return false;
+            if (Number(part.render?.channelEqVersion || 0) < channelEqRenderVersion(decoded, part)) return false;
             const pianoVersion = Number(part.qVersion) >= 2 ? Math.max(3, Number(part.qVersion)) : Number(part.qVersion) || 0;
             if (!decoded) return (!pianoVersion || Number(part.render?.qVersion) >= pianoVersion) && ((this.renderSources.has(sourceId(part)) && this.renderSources.get(sourceId(part)) === contentKey(part))
                 || (part.render?.keyboardVersion === 1 && Number(part.render?.grainVersion) >= 5 && part.render?.portableVersion === 1 && part.render?.kReverbVersion === 1));
@@ -1011,7 +1030,7 @@
 
         hasSavedRender(part) {
             const known = this.snapshots.has(sourceId(part)) || this.cache.has(sourceId(part)) || this.renderSources.has(sourceId(part));
-            return part.render?.version === 1 && part.render.sourceSha256 === part.sha256 && (Number(part.render.sampleCutVersion||0)>=Number(part.sampleCutVersion||0)) && (Number(part.render.unifiedInputsVersion||0)>=Number(part.unifiedInputsVersion||0)) && (!part.waspSourceVersion || part.render.waspSourceVersion === 1) && (!part.playgroundVersion || Number(part.render.playgroundVersion)>=Number(part.playgroundVersion)) && (Number(part.render.loopDVersion||0)>=Number(part.loopDVersion||0)) && (!(Number(part.eqVersion) >= 3) || Number(part.render.channelEqVersion) >= 3) && (Number(part.render.acousticFxVersion||0)>=Number(part.acousticFxVersion||0)) && (Number(part.render.cookingPotVersion||0)>=Number(part.cookingPotVersion||0)) && (!part.effectOutputVersion || Number(part.render.effectOutputVersion)>=Number(part.effectOutputVersion)) && (!part.drumProcessingVersion || part.render.drumProcessingVersion === 1) && (!part.kickRoutingVersion || part.render.kickRoutingVersion === 1) && (!part.characterFxVersion || part.render.characterFxVersion === 1) && (!part.mutilatorControlsVersion || part.render.mutilatorControlsVersion === 1) && (!part.mutilatorVersion || part.render.mutilatorVersion === 2) && part.render.mutilatorVersion !== 1 && (!(part.loopDVersion || part.playgroundVersion) || this.isRenderCompatible(part)) && (!known || this.isRenderCompatible(part));
+            return part.render?.version === 1 && (!part.clockDividerVersion || part.render.clockDividerVersion === 1) && (Number(part.render?.enemyDroneVersion||0)>=Number(part.enemyDroneVersion||0)) && (Number(part.render?.emberVersion||0)>=Number(part.emberVersion||0)) && part.render.sourceSha256 === part.sha256 && (Number(part.render.sampleCutVersion||0)>=Number(part.sampleCutVersion||0)) && (Number(part.render.unifiedInputsVersion||0)>=Number(part.unifiedInputsVersion||0)) && (!part.waspSourceVersion || part.render.waspSourceVersion === 1) && (!part.playgroundVersion || Number(part.render.playgroundVersion)>=Number(part.playgroundVersion)) && (Number(part.render.loopDVersion||0)>=Number(part.loopDVersion||0)) && (!(Number(part.eqVersion) >= 3) || Number(part.render.channelEqVersion) >= 3) && (Number(part.render.acousticFxVersion||0)>=Number(part.acousticFxVersion||0)) && (Number(part.render.cookingPotVersion||0)>=Number(part.cookingPotVersion||0)) && (!part.effectOutputVersion || Number(part.render.effectOutputVersion)>=Number(part.effectOutputVersion)) && (!part.drumProcessingVersion || part.render.drumProcessingVersion === 1) && (!part.kickRoutingVersion || part.render.kickRoutingVersion === 1) && (!part.characterFxVersion || part.render.characterFxVersion === 1) && (!part.mutilatorControlsVersion || part.render.mutilatorControlsVersion === 1) && (!part.mutilatorVersion || part.render.mutilatorVersion === 2) && part.render.mutilatorVersion !== 1 && (!(part.loopDVersion || part.playgroundVersion) || this.isRenderCompatible(part)) && (!known || this.isRenderCompatible(part));
         }
 
         async prepareRender(part, decoded, generation) {
@@ -1037,7 +1056,7 @@
             let buffer;
             let bytes;
             let rendered = false;
-            if (part.render?.version === 1 && part.render.sourceSha256 === part.sha256 && (Number(part.render.unifiedInputsVersion||0)>=Number(part.unifiedInputsVersion||0)) && compatible) {
+            if (part.render?.version === 1 && (!part.clockDividerVersion || part.render.clockDividerVersion === 1) && (Number(part.render?.enemyDroneVersion||0)>=Number(part.enemyDroneVersion||0)) && (Number(part.render?.emberVersion||0)>=Number(part.emberVersion||0)) && part.render.sourceSha256 === part.sha256 && (Number(part.render.unifiedInputsVersion||0)>=Number(part.unifiedInputsVersion||0)) && compatible) {
                 bytes = await this.readRender(part, this.abort?.signal, generation);
                 this.armStage(generation, 'Decoding playback render', part);
                 await this.paintBeforeArmWork(generation);
@@ -1054,7 +1073,7 @@
                 const body = this.adapter.encodeRender(buffer);
                 bytes = body;
                 this.armStage(generation, 'Saving playback render to server', part);
-                const result = await this.request(`/${encodeURIComponent(this.song.id)}/parts/${part.id}/render?sha256=${part.sha256}&samplecuts=1&kreverb=1&channeleq=${Number(part.eqVersion) >= 3 || Object.entries(decoded?.snapshot?.state?.modes?.channelEq?.channels || {}).some(([key, channel]) => !['X','L'].includes(key) && channel?.manualBypass !== true && channel?.automation?.read === true && channel.automation.points?.some(point => point.enabled)) ? 3 : 2}&loopfx=1&loopd=2&characterfx=1&acousticfx=${Math.max(Number(part.acousticFxVersion)||0,window.MygrainAcousticFx?.renderVersion(decoded?.snapshot?.state?.modes)||0,1)}&effectoutput=${effectOutputRenderVersion(decoded,part)||1}&cookingpot=3&unifiedinputs=3&kickrouting=1&mutilator=2&mutilatorcontrols=1&playground=3&waspsource=1&drumaccent=1${keyboard ? '&keyboard=1' : ''}${grains ? '&grain=5' : ''}${vocalCut ? '&vocalcut=1' : ''}${vocalRepeat ? '&vocalrepeat=1' : ''}${drumLanes ? '&drumlanes=1' : ''}${drumSamples ? '&drumsample=1' : ''}${drumProcessing ? '&drumprocessing=1' : ''}${drumRoll ? '&drumroll=1' : ''}${portable ? '&portable=1' : ''}${piano ? `&q=${piano}` : ''}`, {
+                const result = await this.request(`/${encodeURIComponent(this.song.id)}/parts/${part.id}/render?sha256=${part.sha256}&enemy=${Math.max(Number(part.enemyDroneVersion||0),root.MygrainEnemyDrone?.renderVersion(decoded?.snapshot?.state?.modes?.enemyDrone)||0)}&ember=${Math.max(Number(part.emberVersion||0),root.MygrainEmber?.renderVersion(decoded?.snapshot?.state?.modes?.ember)||0,root.MygrainRestructure?.renderVersion(decoded?.snapshot?.state?.modes?.restructure)||0,root.MygrainRobot?.renderVersion(decoded?.snapshot?.state?.modes?.robot)||0,root.MygrainGlassHaus?.renderVersion(decoded?.snapshot?.state?.modes?.glasshaus)||0,1)}&clockdividers=1&samplecuts=1&kreverb=1&channeleq=${Math.max(2,channelEqRenderVersion(decoded,part))}&loopfx=${Math.max(1,Number(part.loopFxVersion)||0,(root.MygrainLoopFx?.renderVersion(decoded?.snapshot?.state?.modes?.loopFx)??(decoded?.snapshot?.state?.modes?.loopFx?.version===1?1:0)))}&loopd=${Math.max(3,dLoopRenderVersion(decoded))}&characterfx=1&acousticfx=${Math.max(Number(part.acousticFxVersion)||0,window.MygrainAcousticFx?.renderVersion(decoded?.snapshot?.state?.modes)||0,1)}&effectoutput=${effectOutputRenderVersion(decoded,part)||1}&cookingpot=5&unifiedinputs=3&kickrouting=1&mutilator=2&mutilatorcontrols=1&playground=3&waspsource=1&drumaccent=1${keyboard ? '&keyboard=1' : ''}${grains ? '&grain=5' : ''}${vocalCut ? '&vocalcut=1' : ''}${vocalRepeat ? '&vocalrepeat=1' : ''}${drumLanes ? '&drumlanes=1' : ''}${drumSamples ? '&drumsample=1' : ''}${drumProcessing ? '&drumprocessing=1' : ''}${drumRoll ? '&drumroll=1' : ''}${portable ? '&portable=1' : ''}${piano ? `&q=${piano}` : ''}`, {
                     method: 'POST', headers: { 'Content-Type': 'audio/wav' }, body, signal: this.abort?.signal
                 });
                 if (generation !== this.generation) throw new DOMException('Cancelled', 'AbortError');
@@ -1063,9 +1082,10 @@
                 if ((part.mutilatorControlsVersion || needsMutilatorControlsRender(decoded)) && saved.render.mutilatorControlsVersion !== 1) throw new Error('The song server needs expanded Mutilator support. Reload MYGRAIN and arm again.');
                 if ((part.mutilatorVersion || this.needsCurrentMutilator(decoded)) && saved.render.mutilatorVersion !== 2) throw new Error('The song server needs switchable Mutilator support. Reload MYGRAIN and arm again.');
                 if (Math.max(Number(part.playgroundVersion)||0,playgroundRenderVersion(decoded)) > Number(saved.render.playgroundVersion||0)) throw new Error('The song server needs current Playground input/clock support. Reload MYGRAIN and arm again.');
-                if ((part.loopFxVersion === 1 || decoded?.snapshot?.state?.modes?.loopFx?.version === 1) && saved.render.loopFxVersion !== 1) throw new Error('The song server needs standard loop FX support. Reload MYGRAIN and arm again.');
+                if (Number(saved.render.loopFxVersion||0) < Math.max(Number(part.loopFxVersion)||0,(root.MygrainLoopFx?.renderVersion(decoded?.snapshot?.state?.modes?.loopFx)??(decoded?.snapshot?.state?.modes?.loopFx?.version===1?1:0)))) throw new Error('The song server needs standard loop FX support. Reload MYGRAIN and arm again.');
                 if (Object.values(decoded?.snapshot?.state?.modes?.channelEq?.channels || {}).some(channel => channel?.manualBypass !== true && (channel?.enabled === true || (channel?.automation?.read === true && channel.automation.points?.some(point => point.enabled)))) && !(Number(saved.render.channelEqVersion) >= 2)) throw new Error('The song server needs channel EQ render support. Reload MYGRAIN and arm again.');
-                if (Number(saved.render.loopDVersion||0)<Math.max(Number(part.loopDVersion||0),decoded?.snapshot?.state?.modes?.loopD?.enabled === true && decoded?.snapshot?.assets?.some(asset => asset.key === 'bastardD')?(Number(decoded.snapshot.state.modes.loopD.maximiser)>0?2:1):0)) throw new Error('The song server needs D loop render support. Reload MYGRAIN and arm again.');
+                if (Number(saved.render.channelEqVersion||0) < channelEqRenderVersion(decoded,part)) throw new Error('The song server needs Ember EQ rendering. Reload MYGRAIN and arm again.');
+                if (Number(saved.render.loopDVersion||0)<Math.max(Number(part.loopDVersion||0),dLoopRenderVersion(decoded))) throw new Error('The song server needs D loop render support. Reload MYGRAIN and arm again.');
                 if (needsKReverbRender(decoded) && saved.render.kReverbVersion !== 1) throw new Error('The song server needs K Hall reverb render support. Reload MYGRAIN and arm again.');
                 if (keyboard && saved.render.keyboardVersion !== 1) throw new Error('The song server needs keyboard-render support. Reload MYGRAIN and arm again.');
                 if ((Number(part.sampleCutVersion)||root.MygrainVocalCut?.renderVersion(decoded?.snapshot)) && saved.render.sampleCutVersion!==1) throw new Error('The song server needs sample-crossfade render support. Reload MYGRAIN and arm again.');
@@ -1128,7 +1148,7 @@
         }
 
         retainRender(part, buffer) {
-            const expected = sourcePartDurationSeconds(part);
+            const expected = sourcePartDurationSeconds(part)+(part.robotPreRollSeconds||0);
             if (Math.abs(buffer.duration - expected) > 2 / buffer.sampleRate) throw new Error(`Prepared audio has the wrong pattern length for ${part.name}.`);
             const size = buffer.length * buffer.numberOfChannels * 4;
             if (this.renders.has(sourceId(part))) {
@@ -1229,7 +1249,7 @@
                     if (body.size > 128 * 1024 * 1024) throw new Error('The upgraded part exceeds the 128 MB upload limit. No saved part was changed.');
                     const digest = Array.from(new Uint8Array(await this.crypto.subtle.digest('SHA-256', await body.arrayBuffer())), value => value.toString(16).padStart(2, '0')).join('');
                     let renderBytes;
-                    if (part.render?.version === 1 && part.render.sourceSha256 === part.sha256 && (Number(part.render.unifiedInputsVersion||0)>=Number(part.unifiedInputsVersion||0)) && this.isRenderCompatible(part, info)) {
+                    if (part.render?.version === 1 && (!part.clockDividerVersion || part.render.clockDividerVersion === 1) && (Number(part.render?.enemyDroneVersion||0)>=Number(part.enemyDroneVersion||0)) && (Number(part.render?.emberVersion||0)>=Number(part.emberVersion||0)) && part.render.sourceSha256 === part.sha256 && (Number(part.render.unifiedInputsVersion||0)>=Number(part.unifiedInputsVersion||0)) && this.isRenderCompatible(part, info)) {
                         renderBytes = await this.readRender(part, this.abort?.signal, generation);
                     }
                     this.assertUpgradeCurrent(generation, expected);
@@ -1261,7 +1281,7 @@
                     if (generation !== this.generation) throw new DOMException('Cancelled', 'AbortError');
                     if (renderBytes && !this.hasSavedRender(saved)) {
                         const renderExpected = { ...expected, revision: this.song.revision, sha256: digest };
-                        const flags = [['samplecuts','sampleCutVersion'], ['unifiedinputs','unifiedInputsVersion'], ['cookingpot','cookingPotVersion'], ['mutilatorcontrols','mutilatorControlsVersion'], ['effectoutput','effectOutputVersion'], ['kickrouting','kickRoutingVersion'], ['acousticfx','acousticFxVersion'], ['characterfx','characterFxVersion'], ['waspsource', 'waspSourceVersion'], ['mutilator', 'mutilatorVersion'], ['loopd', 'loopDVersion'], ['keyboard', 'keyboardVersion'], ['grain', 'grainVersion'], ['vocalcut', 'vocalCutVersion'],
+                        const flags = [['clockdividers','clockDividerVersion'], ['enemy','enemyDroneVersion'], ['ember','emberVersion'], ['samplecuts','sampleCutVersion'], ['unifiedinputs','unifiedInputsVersion'], ['cookingpot','cookingPotVersion'], ['mutilatorcontrols','mutilatorControlsVersion'], ['effectoutput','effectOutputVersion'], ['kickrouting','kickRoutingVersion'], ['acousticfx','acousticFxVersion'], ['characterfx','characterFxVersion'], ['waspsource', 'waspSourceVersion'], ['mutilator', 'mutilatorVersion'], ['loopd', 'loopDVersion'], ['keyboard', 'keyboardVersion'], ['grain', 'grainVersion'], ['vocalcut', 'vocalCutVersion'],
                             ['vocalrepeat', 'vocalRepeatVersion'], ['drumlanes', 'drumLanesVersion'], ['drumsample', 'drumSampleVersion'], ['drumprocessing', 'drumProcessingVersion'], ['drumaccent', 'drumAccentVersion'], ['drumroll', 'drumRollVersion'], ['portable', 'portableVersion'], ['q', 'qVersion'], ['kreverb', 'kReverbVersion'], ['playground', 'playgroundVersion']]
                             .filter(([, field]) => part.render[field]).map(([flag, field]) => `&${flag}=${part.render[field]}`).join('');
                         this.armStage(generation, 'Saving retained playback render', part);
@@ -1384,9 +1404,9 @@
                 const pendingUpgrades = this.adapter.upgradePart ? await this.upgradeSongParts(generation, { automatic: true }) : 0;
                 if (generation !== this.generation) return;
                 uniqueParts = this.uniqueParts();
-                // Legacy v2-v4 markers do not describe source-owned effect Solo.
+                // Legacy v2-v6 markers do not describe source-isolated insert Solo.
                 // Inspect only small manifests before trusting old saved PCM.
-                for (const part of uniqueParts) if (!this.snapshots.has(sourceId(part)) && Number(part.effectOutputVersion || 0) >= 2 && Number(part.render?.effectOutputVersion || 0) < 5) await this.readPartMetadata(part, generation);
+                for (const part of uniqueParts) if (!this.snapshots.has(sourceId(part)) && Number(part.effectOutputVersion || 0) >= 2 && Number(part.render?.effectOutputVersion || 0) < 7) await this.readPartMetadata(part, generation);
                 const parts = uniqueParts.filter(part => !this.isPartReady(part));
                 const reused = uniqueParts.length - parts.length;
                 this.armFeedback.completed = reused;
@@ -1407,9 +1427,9 @@
                             // Older render metadata cannot tell whether full-decay
                             // sampled drums are present. Inspect the editable source
                             // before trusting a legacy freeze's fast reuse path.
-                            if (!info && (Number(part.render?.sampleCutVersion||0)<1 || (part.cookingPotVersion && Number(part.render?.cookingPotVersion||0)<3) || !this.isRenderCompatible(part) || Number(part.render?.effectOutputVersion||0) < 5 || part.render?.kickRoutingVersion !== 1 || Number(part.render?.loopDVersion||0) < 1 || part.render?.drumAccentVersion !== 1 || part.render?.drumSampleVersion !== 1 || part.render?.drumRollVersion !== 1 || part.render?.kReverbVersion !== 1 || Number(part.render?.playgroundVersion||0) < 3 || part.render?.waspSourceVersion !== 1 || (Number(part.qVersion) > 0 && Number(part.render?.qVersion) < 6))) info = await this.readPartMetadata(part, generation);
+                            if (!info && (Number(part.render?.sampleCutVersion||0)<1 || (Number(part.render?.cookingPotVersion||0)<4) || !this.isRenderCompatible(part) || Number(part.render?.effectOutputVersion||0) < 7 || part.render?.kickRoutingVersion !== 1 || Number(part.render?.loopDVersion||0) < 1 || part.render?.drumAccentVersion !== 1 || part.render?.drumSampleVersion !== 1 || part.render?.drumRollVersion !== 1 || part.render?.kReverbVersion !== 1 || Number(part.render?.playgroundVersion||0) < 3 || part.render?.waspSourceVersion !== 1 || (Number(part.qVersion) > 0 && Number(part.render?.qVersion) < 6))) info = await this.readPartMetadata(part, generation);
                             if (this.hasSavedRender(part)) {
-                                const renderSize = sourcePartDurationSeconds(part) * (this.adapter.context?.()?.sampleRate || 48000) * 8;
+                                const renderSize = (sourcePartDurationSeconds(part)+(part.robotPreRollSeconds||0)) * (this.adapter.context?.()?.sampleRate || 48000) * 8;
                                 this.armStage(generation, 'Waiting for playback memory', part);
                                 releaseRender = await this.reservePreparation(renderSize * 4, abort.signal);
                                 await this.prepareRender(part, info || {}, generation);
@@ -1418,7 +1438,7 @@
                                 // whose estimate already exceeds the safety budget.
                                 // The server uses the current app engine; fetch only PCM.
                                 const saved = await this.prepareOnServer(part, generation);
-                                const renderSize = sourcePartDurationSeconds(part) * (this.adapter.context?.()?.sampleRate || 48000) * 8;
+                                const renderSize = (sourcePartDurationSeconds(part)+(part.robotPreRollSeconds||0)) * (this.adapter.context?.()?.sampleRate || 48000) * 8;
                                 releaseRender = await this.reservePreparation(renderSize * 4, abort.signal);
                                 await this.prepareRender(saved, info || {}, generation);
                             } else {
@@ -1983,7 +2003,7 @@
                 const renders = this.song.parts.every(part => this.renders.has(sourceId(part))) ? this.renders : part => this.loadRender(part, abort.signal, generation);
                 const result = await this.adapter.exportSong(this.song.parts, renders, filename, abort.signal);
                 if (generation !== this.generation) return;
-                this.status(`Saved ${result.savedName || filename} to the rendered WAV folder.${result.peak >= .999 ? ' Audio reaches full scale; check the saved part levels if you hear distortion.' : ''}`);
+                this.status(`Saved ${result.savedName || filename} to the rendered WAV folder.${result.robotPreRollSeconds?' Beat 1 follows a '+Math.round(result.robotPreRollSeconds*1000)+' ms Robot pickup.':''}${result.peak >= .999 ? ' Audio reaches full scale; check the saved part levels if you hear distortion.' : ''}`);
             } finally {
                 if (this.abort === abort) this.abort = null;
             }

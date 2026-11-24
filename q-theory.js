@@ -377,6 +377,34 @@
         }
     }
 
+    // decodeAudioData may resample a portable atlas without updating its saved
+    // frame map. Keep that PCM untouched and map boundaries to its actual rate.
+    // Only the exact historical 20-ms-padded atlas footprint is recoverable.
+    function bankForAsset(state, asset) {
+        const bank = state?.bank;
+        if (!bank || !asset || bank.sampleRate === asset.sampleRate) return bank;
+        const rates = [22050, 24000, 32000, 44100, 48000, 88200, 96000, 176400, 192000];
+        if (!rates.includes(bank.sampleRate) || !rates.includes(asset.sampleRate)
+            || !Array.isArray(bank.samples) || !bank.samples.length) throw new Error('Q bank rate mismatch is not recoverable. Original audio retained.');
+        const padding = Math.ceil(bank.sampleRate * .02);
+        let frames = 0;
+        for (const sample of bank.samples) {
+            if (sample.offset !== frames) throw new Error('Q bank frame map is not a complete portable atlas.');
+            frames = sample.offset + sample.frames + padding;
+        }
+        validateBank(state, { ...asset, sampleRate: bank.sampleRate, frames });
+        const ratio = asset.sampleRate / bank.sampleRate;
+        if (!Number.isSafeInteger(asset.frames) || Math.abs(asset.frames - Math.round(frames * ratio)) > 1)
+            throw new Error('Q bank audio does not match the saved resampled atlas.');
+        const result = { ...copy(bank), sampleRate: asset.sampleRate, samples: bank.samples.map(sample => {
+            const offset = Math.round(sample.offset * ratio);
+            return { ...sample, offset, frames: Math.round((sample.offset + sample.frames) * ratio) - offset,
+                ...(state.instrument === 'strings' ? { loopStart: Math.round(sample.loopStart * ratio), loopEnd: Math.round(sample.loopEnd * ratio) } : {}) };
+        }) };
+        validateBank({ ...state, bank: result }, asset);
+        return result;
+    }
+
     function midiFile(state, length, bpm) {
         const sequence = [{ tick: 0, priority: 0, bytes: [255, 81, 3, ...[16, 8, 0].map(shift => (Math.round(60000000 / bpm) >> shift) & 255)] }, { tick: 0, priority: 1, bytes: [192, state.instrument === 'strings' ? 48 : 0] }];
         for (const event of playbackEvents(state, length)) {
@@ -399,7 +427,7 @@
         return new Uint8Array([77, 84, 104, 100, 0, 0, 0, 6, 0, 0, 0, 1, 1, 224, 77, 84, 114, 107, ...[24, 16, 8, 0].map(shift => (track.length >> shift) & 255), ...track]);
     }
 
-    const api = { customColour, independentChord, notes, qualities, instruments, stringSections, clamp, copy, pitchClass, noteName, chord, identifyChord, editChordNotes, chordEditLoop, scaleChords, chordPalette, normalizeStep, defaults, normalizeState, sampleEnvelope, validArpSteps, accentGain, transposed, effectiveVelocity, events, arpOrder, arpPhrase, arpSequence, playbackEvents, sampleFor, sampleMidi, sampleVelocity, sampleIdentity, validateBank, midiFile };
+    const api = { customColour, independentChord, notes, qualities, instruments, stringSections, clamp, copy, pitchClass, noteName, chord, identifyChord, editChordNotes, chordEditLoop, scaleChords, chordPalette, normalizeStep, defaults, normalizeState, sampleEnvelope, validArpSteps, accentGain, transposed, effectiveVelocity, events, arpOrder, arpPhrase, arpSequence, playbackEvents, sampleFor, sampleMidi, sampleVelocity, sampleIdentity, validateBank, bankForAsset, midiFile };
     if (typeof module === 'object' && module.exports) module.exports = api;
     root.MygrainQTheory = api;
 })(typeof window === 'object' ? window : globalThis);

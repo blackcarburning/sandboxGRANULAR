@@ -5,7 +5,7 @@
     if (!dsp || !runtime) throw new Error('Channel EQ could not load. Reload MYGRAIN.');
     const automation = window.mygrainEqAutomation;
     const colours = ['#f1a25c', '#e9d65b', '#7bd8a1', '#81b7ff'];
-    const names = Object.fromEntries(dsp.KEYS.map(key => [key, key.startsWith('drum') ? ({ drumRoll: 'Snare Roll', drumEtc: 'ETC', drumCymbals: 'Crash / Cymbals' }[key] || key.slice(4)) : key.startsWith('K') ? `K track ${key.slice(1)}` : key === 'generated' ? 'Generated Loop' : key === 'sample' ? 'Sample Layer' : `Loop ${key}`]));
+    const names = Object.fromEntries(dsp.KEYS.map(key => [key, key.startsWith('drum') ? ({ drumRoll: 'Snare Roll', drumEtc: 'ETC', drumCymbals: 'Crash / Cymbals' }[key] || key.slice(4)) : key.startsWith('K') ? `K track ${key.slice(1)}` : key === 'E' ? 'E · Ember' : key === 'generated' ? 'Generated Loop' : key === 'sample' ? 'Restructure' : `Loop ${key}`]));
     const typeNames = { bell: 'Bell', lowshelf: 'Low Shelf', highshelf: 'High Shelf', highpass: 'Low Cut', lowpass: 'High Cut' };
     const dialog = document.createElement('dialog'); dialog.id = 'channelEqDialog'; dialog.setAttribute('aria-labelledby', 'channelEqTitle');
     const x = f => 45 + Math.log(Math.max(20, Math.min(20000, f)) / 20) / Math.log(1000) * 837;
@@ -33,9 +33,11 @@
     for (const channelKey of ['A', 'B', 'C', 'D', 'V', 'W', 'P', 'O', 'L', 'X', 'Q', 'M', 'M+']) {
         const selector = channelKey === 'Q' ? '#bastardLoopQCard' : `[aria-label="Bastardloop${channelKey === 'A' ? '' : ' ' + channelKey} controls"]`;
         const card = document.querySelector(selector);
-        mount(card?.querySelector('.performance-feature-head, .q-header') || card, channelKey);
+        mount(channelKey === 'D' ? card.querySelector('[data-d-eq-slot="1"]') : card?.querySelector('.performance-feature-head, .q-header') || card, channelKey);
     }
-    mount(document.querySelector('[aria-label="Dropbox sample layer controls"]'), 'sample');
+    mount(document.getElementById('emberEqSlot'), 'E');
+    for (const number of [2, 3, 4]) mount(document.querySelector(`[data-d-eq-slot="${number}"]`), `D${number}`);
+    mount(document.querySelector('[aria-label="Restructure sample layer controls"]'), 'sample');
     mount(document.getElementById('generatedWaveformEditor'), 'generated');
     for (let i = 0; i < 5; i++) mount(document.querySelector(`[data-k-track="${i}"] .k-track-heading`), `K${i + 1}`);
     for (const kind of ['kick', 'snare', 'hat', 'perc', 'clap', 'cymbals', 'etc', 'roll']) {

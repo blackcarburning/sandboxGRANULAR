@@ -1,0 +1,1522 @@
+[
+  {
+    "card": "mutilator",
+    "id": "mutilator.input",
+    "kind": "value"
+  },
+  {
+    "card": "mutilator",
+    "id": "mutilator.strain",
+    "kind": "value"
+  },
+  {
+    "card": "mutilator",
+    "id": "mutilator.filter",
+    "kind": "value"
+  },
+  {
+    "card": "mutilator",
+    "id": "mutilator.cycleBeats",
+    "kind": "value"
+  },
+  {
+    "card": "mutilator",
+    "id": "mutilator.amount",
+    "kind": "value"
+  },
+  {
+    "card": "mutilator",
+    "id": "mutilator.tone",
+    "kind": "value"
+  },
+  {
+    "card": "mutilator",
+    "id": "mutilator.resonance",
+    "kind": "value"
+  },
+  {
+    "card": "mutilator",
+    "id": "mutilator.sweep",
+    "kind": "value"
+  },
+  {
+    "card": "mutilator",
+    "id": "mutilator.freeDepth",
+    "kind": "value"
+  },
+  {
+    "card": "mutilator",
+    "id": "mutilator.mix",
+    "kind": "value"
+  },
+  {
+    "card": "mutilator",
+    "id": "mutilator.freeRate",
+    "kind": "value"
+  },
+  {
+    "card": "mutilator",
+    "id": "mutilator.output",
+    "kind": "value"
+  },
+  {
+    "card": "mutilator",
+    "id": "mutilator.rhythm",
+    "kind": "value"
+  },
+  {
+    "card": "bassFace",
+    "id": "bassFace.input",
+    "kind": "value"
+  },
+  {
+    "card": "bassFace",
+    "id": "bassFace.strain",
+    "kind": "value"
+  },
+  {
+    "card": "bassFace",
+    "id": "bassFace.amount",
+    "kind": "value"
+  },
+  {
+    "card": "bassFace",
+    "id": "bassFace.tone",
+    "kind": "value"
+  },
+  {
+    "card": "bassFace",
+    "id": "bassFace.body",
+    "kind": "value"
+  },
+  {
+    "card": "bassFace",
+    "id": "bassFace.mix",
+    "kind": "value"
+  },
+  {
+    "card": "bassFace",
+    "id": "bassFace.rhythm",
+    "kind": "value"
+  },
+  {
+    "card": "turntable",
+    "id": "turntable.input",
+    "kind": "value"
+  },
+  {
+    "card": "turntable",
+    "id": "turntable.rpm",
+    "kind": "value"
+  },
+  {
+    "card": "turntable",
+    "id": "turntable.needle",
+    "kind": "value"
+  },
+  {
+    "card": "turntable",
+    "id": "turntable.mainsHz",
+    "kind": "value"
+  },
+  {
+    "card": "turntable",
+    "id": "turntable.year",
+    "kind": "value"
+  },
+  {
+    "card": "turntable",
+    "id": "turntable.wow",
+    "kind": "value"
+  },
+  {
+    "card": "turntable",
+    "id": "turntable.flutter",
+    "kind": "value"
+  },
+  {
+    "card": "turntable",
+    "id": "turntable.hum",
+    "kind": "value"
+  },
+  {
+    "card": "turntable",
+    "id": "turntable.clicks",
+    "kind": "value"
+  },
+  {
+    "card": "turntable",
+    "id": "turntable.crackle",
+    "kind": "value"
+  },
+  {
+    "card": "turntable",
+    "id": "turntable.wear",
+    "kind": "value"
+  },
+  {
+    "card": "turntable",
+    "id": "turntable.output",
+    "kind": "value"
+  },
+  {
+    "card": "resonator",
+    "id": "resonator.outputLevel",
+    "kind": "value"
+  },
+  {
+    "card": "resonator",
+    "id": "resonator.delay.mode",
+    "kind": "value"
+  },
+  {
+    "card": "resonator",
+    "id": "resonator.delay.division",
+    "kind": "value"
+  },
+  {
+    "card": "resonator",
+    "id": "resonator.delay.ms",
+    "kind": "value"
+  },
+  {
+    "card": "resonator",
+    "id": "resonator.slots.0.object",
+    "kind": "value"
+  },
+  {
+    "card": "resonator",
+    "id": "resonator.slots.0.material",
+    "kind": "value"
+  },
+  {
+    "card": "resonator",
+    "id": "resonator.slots.0.enabled",
+    "kind": "value"
+  },
+  {
+    "card": "resonator",
+    "id": "resonator.slots.0.source",
+    "kind": "value"
+  },
+  {
+    "card": "resonator",
+    "id": "resonator.slots.0.band",
+    "kind": "value"
+  },
+  {
+    "card": "resonator",
+    "id": "resonator.slots.0.ends",
+    "kind": "value"
+  },
+  {
+    "card": "resonator",
+    "id": "resonator.slots.0.drive",
+    "kind": "value"
+  },
+  {
+    "card": "resonator",
+    "id": "resonator.slots.0.damping",
+    "kind": "value"
+  },
+  {
+    "card": "resonator",
+    "id": "resonator.slots.0.level",
+    "kind": "value"
+  },
+  {
+    "card": "resonator",
+    "id": "resonator.slots.0.pan",
+    "kind": "value"
+  },
+  {
+    "card": "resonator",
+    "id": "resonator.slots.0.width",
+    "kind": "value"
+  },
+  {
+    "card": "resonator",
+    "id": "resonator.slots.0.height",
+    "kind": "value"
+  },
+  {
+    "card": "resonator",
+    "id": "resonator.slots.0.thickness",
+    "kind": "value"
+  },
+  {
+    "card": "resonator",
+    "id": "resonator.slots.0.depth",
+    "kind": "value"
+  },
+  {
+    "card": "resonator",
+    "id": "resonator.slots.0.gap",
+    "kind": "value"
+  },
+  {
+    "card": "resonator",
+    "id": "resonator.slots.0.looseness",
+    "kind": "value"
+  },
+  {
+    "card": "resonator",
+    "id": "resonator.slots.0.length",
+    "kind": "value"
+  },
+  {
+    "card": "resonator",
+    "id": "resonator.slots.0.diameter",
+    "kind": "value"
+  },
+  {
+    "card": "resonator",
+    "id": "resonator.slots.0.radius",
+    "kind": "value"
+  },
+  {
+    "card": "resonator",
+    "id": "resonator.slots.0.tear",
+    "kind": "value"
+  },
+  {
+    "card": "resonator",
+    "id": "resonator.slots.0.rub",
+    "kind": "value"
+  },
+  {
+    "card": "resonator",
+    "id": "resonator.slots.0.excitationCurve",
+    "kind": "curve"
+  },
+  {
+    "card": "resonator",
+    "id": "resonator.slots.1.object",
+    "kind": "value"
+  },
+  {
+    "card": "resonator",
+    "id": "resonator.slots.1.material",
+    "kind": "value"
+  },
+  {
+    "card": "resonator",
+    "id": "resonator.slots.1.enabled",
+    "kind": "value"
+  },
+  {
+    "card": "resonator",
+    "id": "resonator.slots.1.source",
+    "kind": "value"
+  },
+  {
+    "card": "resonator",
+    "id": "resonator.slots.1.band",
+    "kind": "value"
+  },
+  {
+    "card": "resonator",
+    "id": "resonator.slots.1.ends",
+    "kind": "value"
+  },
+  {
+    "card": "resonator",
+    "id": "resonator.slots.1.drive",
+    "kind": "value"
+  },
+  {
+    "card": "resonator",
+    "id": "resonator.slots.1.damping",
+    "kind": "value"
+  },
+  {
+    "card": "resonator",
+    "id": "resonator.slots.1.level",
+    "kind": "value"
+  },
+  {
+    "card": "resonator",
+    "id": "resonator.slots.1.pan",
+    "kind": "value"
+  },
+  {
+    "card": "resonator",
+    "id": "resonator.slots.1.width",
+    "kind": "value"
+  },
+  {
+    "card": "resonator",
+    "id": "resonator.slots.1.height",
+    "kind": "value"
+  },
+  {
+    "card": "resonator",
+    "id": "resonator.slots.1.thickness",
+    "kind": "value"
+  },
+  {
+    "card": "resonator",
+    "id": "resonator.slots.1.depth",
+    "kind": "value"
+  },
+  {
+    "card": "resonator",
+    "id": "resonator.slots.1.gap",
+    "kind": "value"
+  },
+  {
+    "card": "resonator",
+    "id": "resonator.slots.1.looseness",
+    "kind": "value"
+  },
+  {
+    "card": "resonator",
+    "id": "resonator.slots.1.length",
+    "kind": "value"
+  },
+  {
+    "card": "resonator",
+    "id": "resonator.slots.1.diameter",
+    "kind": "value"
+  },
+  {
+    "card": "resonator",
+    "id": "resonator.slots.1.radius",
+    "kind": "value"
+  },
+  {
+    "card": "resonator",
+    "id": "resonator.slots.1.tear",
+    "kind": "value"
+  },
+  {
+    "card": "resonator",
+    "id": "resonator.slots.1.rub",
+    "kind": "value"
+  },
+  {
+    "card": "resonator",
+    "id": "resonator.slots.1.excitationCurve",
+    "kind": "curve"
+  },
+  {
+    "card": "wireWorld",
+    "id": "wireWorld.dispersion",
+    "kind": "value"
+  },
+  {
+    "card": "wireWorld",
+    "id": "wireWorld.travel",
+    "kind": "value"
+  },
+  {
+    "card": "wireWorld",
+    "id": "wireWorld.feedback",
+    "kind": "value"
+  },
+  {
+    "card": "wireWorld",
+    "id": "wireWorld.damping",
+    "kind": "value"
+  },
+  {
+    "card": "wireWorld",
+    "id": "wireWorld.width",
+    "kind": "value"
+  },
+  {
+    "card": "wireWorld",
+    "id": "wireWorld.level",
+    "kind": "value"
+  },
+  {
+    "card": "wireWorld",
+    "id": "wireWorld.direction",
+    "kind": "value"
+  },
+  {
+    "card": "wireWorld",
+    "id": "wireWorld.source",
+    "kind": "value"
+  },
+  {
+    "card": "sonicCrystal",
+    "id": "sonicCrystal.tuning",
+    "kind": "value"
+  },
+  {
+    "card": "sonicCrystal",
+    "id": "sonicCrystal.spacing",
+    "kind": "value"
+  },
+  {
+    "card": "sonicCrystal",
+    "id": "sonicCrystal.coupling",
+    "kind": "value"
+  },
+  {
+    "card": "sonicCrystal",
+    "id": "sonicCrystal.disorder",
+    "kind": "value"
+  },
+  {
+    "card": "sonicCrystal",
+    "id": "sonicCrystal.defect",
+    "kind": "value"
+  },
+  {
+    "card": "sonicCrystal",
+    "id": "sonicCrystal.loss",
+    "kind": "value"
+  },
+  {
+    "card": "sonicCrystal",
+    "id": "sonicCrystal.reflection",
+    "kind": "value"
+  },
+  {
+    "card": "sonicCrystal",
+    "id": "sonicCrystal.width",
+    "kind": "value"
+  },
+  {
+    "card": "sonicCrystal",
+    "id": "sonicCrystal.level",
+    "kind": "value"
+  },
+  {
+    "card": "sonicCrystal",
+    "id": "sonicCrystal.cells",
+    "kind": "value"
+  },
+  {
+    "card": "sonicCrystal",
+    "id": "sonicCrystal.source",
+    "kind": "value"
+  },
+  {
+    "card": "bubbleChamber",
+    "id": "bubbleChamber.radius",
+    "kind": "value"
+  },
+  {
+    "card": "bubbleChamber",
+    "id": "bubbleChamber.spread",
+    "kind": "value"
+  },
+  {
+    "card": "bubbleChamber",
+    "id": "bubbleChamber.decay",
+    "kind": "value"
+  },
+  {
+    "card": "bubbleChamber",
+    "id": "bubbleChamber.motion",
+    "kind": "value"
+  },
+  {
+    "card": "bubbleChamber",
+    "id": "bubbleChamber.damping",
+    "kind": "value"
+  },
+  {
+    "card": "bubbleChamber",
+    "id": "bubbleChamber.resonance",
+    "kind": "value"
+  },
+  {
+    "card": "bubbleChamber",
+    "id": "bubbleChamber.fizz",
+    "kind": "value"
+  },
+  {
+    "card": "bubbleChamber",
+    "id": "bubbleChamber.flow",
+    "kind": "value"
+  },
+  {
+    "card": "bubbleChamber",
+    "id": "bubbleChamber.width",
+    "kind": "value"
+  },
+  {
+    "card": "bubbleChamber",
+    "id": "bubbleChamber.level",
+    "kind": "value"
+  },
+  {
+    "card": "bubbleChamber",
+    "id": "bubbleChamber.population",
+    "kind": "value"
+  },
+  {
+    "card": "bubbleChamber",
+    "id": "bubbleChamber.source",
+    "kind": "value"
+  },
+  {
+    "card": "henrysHose",
+    "id": "henrysHose.length",
+    "kind": "value"
+  },
+  {
+    "card": "henrysHose",
+    "id": "henrysHose.bore",
+    "kind": "value"
+  },
+  {
+    "card": "henrysHose",
+    "id": "henrysHose.ribs",
+    "kind": "value"
+  },
+  {
+    "card": "henrysHose",
+    "id": "henrysHose.damping",
+    "kind": "value"
+  },
+  {
+    "card": "henrysHose",
+    "id": "henrysHose.reflection",
+    "kind": "value"
+  },
+  {
+    "card": "henrysHose",
+    "id": "henrysHose.orbit",
+    "kind": "value"
+  },
+  {
+    "card": "henrysHose",
+    "id": "henrysHose.freeRate",
+    "kind": "value"
+  },
+  {
+    "card": "henrysHose",
+    "id": "henrysHose.rotationMode",
+    "kind": "value"
+  },
+  {
+    "card": "henrysHose",
+    "id": "henrysHose.division",
+    "kind": "value"
+  },
+  {
+    "card": "henrysHose",
+    "id": "henrysHose.direction",
+    "kind": "value"
+  },
+  {
+    "card": "henrysHose",
+    "id": "henrysHose.phase",
+    "kind": "value"
+  },
+  {
+    "card": "henrysHose",
+    "id": "henrysHose.sing",
+    "kind": "value"
+  },
+  {
+    "card": "henrysHose",
+    "id": "henrysHose.stereoFeed",
+    "kind": "value"
+  },
+  {
+    "card": "henrysHose",
+    "id": "henrysHose.micMode",
+    "kind": "value"
+  },
+  {
+    "card": "henrysHose",
+    "id": "henrysHose.micLType",
+    "kind": "value"
+  },
+  {
+    "card": "henrysHose",
+    "id": "henrysHose.micRType",
+    "kind": "value"
+  },
+  {
+    "card": "henrysHose",
+    "id": "henrysHose.micLX",
+    "kind": "value"
+  },
+  {
+    "card": "henrysHose",
+    "id": "henrysHose.micLY",
+    "kind": "value"
+  },
+  {
+    "card": "henrysHose",
+    "id": "henrysHose.micLHeight",
+    "kind": "value"
+  },
+  {
+    "card": "henrysHose",
+    "id": "henrysHose.micLAim",
+    "kind": "value"
+  },
+  {
+    "card": "henrysHose",
+    "id": "henrysHose.micRX",
+    "kind": "value"
+  },
+  {
+    "card": "henrysHose",
+    "id": "henrysHose.micRY",
+    "kind": "value"
+  },
+  {
+    "card": "henrysHose",
+    "id": "henrysHose.micRHeight",
+    "kind": "value"
+  },
+  {
+    "card": "henrysHose",
+    "id": "henrysHose.micRAim",
+    "kind": "value"
+  },
+  {
+    "card": "henrysHose",
+    "id": "henrysHose.width",
+    "kind": "value"
+  },
+  {
+    "card": "henrysHose",
+    "id": "henrysHose.level",
+    "kind": "value"
+  },
+  {
+    "card": "henrysHose",
+    "id": "henrysHose.doppler",
+    "kind": "value"
+  },
+  {
+    "card": "henrysHose",
+    "id": "henrysHose.source",
+    "kind": "value"
+  },
+  {
+    "card": "heavyLifter",
+    "id": "heavyLifter.source",
+    "kind": "value"
+  },
+  {
+    "card": "heavyLifter",
+    "id": "heavyLifter.mode",
+    "kind": "value"
+  },
+  {
+    "card": "heavyLifter",
+    "id": "heavyLifter.level",
+    "kind": "value"
+  },
+  {
+    "card": "heavyLifter",
+    "id": "heavyLifter.width",
+    "kind": "value"
+  },
+  {
+    "card": "heavyLifter",
+    "id": "heavyLifter.recipes.materialBody.size",
+    "kind": "value"
+  },
+  {
+    "card": "heavyLifter",
+    "id": "heavyLifter.recipes.materialBody.decay",
+    "kind": "value"
+  },
+  {
+    "card": "heavyLifter",
+    "id": "heavyLifter.recipes.materialBody.damping",
+    "kind": "value"
+  },
+  {
+    "card": "heavyLifter",
+    "id": "heavyLifter.recipes.materialBody.detail",
+    "kind": "value"
+  },
+  {
+    "card": "heavyLifter",
+    "id": "heavyLifter.recipes.materialBody.blend",
+    "kind": "value"
+  },
+  {
+    "card": "heavyLifter",
+    "id": "heavyLifter.recipes.materialBody.drive",
+    "kind": "value"
+  },
+  {
+    "card": "heavyLifter",
+    "id": "heavyLifter.samples.materialBody",
+    "kind": "samples"
+  },
+  {
+    "card": "heavyLifter",
+    "id": "heavyLifter.recipes.mechanicalMotion.speed",
+    "kind": "value"
+  },
+  {
+    "card": "heavyLifter",
+    "id": "heavyLifter.recipes.mechanicalMotion.depth",
+    "kind": "value"
+  },
+  {
+    "card": "heavyLifter",
+    "id": "heavyLifter.recipes.mechanicalMotion.colour",
+    "kind": "value"
+  },
+  {
+    "card": "heavyLifter",
+    "id": "heavyLifter.recipes.mechanicalMotion.flutter",
+    "kind": "value"
+  },
+  {
+    "card": "heavyLifter",
+    "id": "heavyLifter.recipes.mechanicalMotion.irregularity",
+    "kind": "value"
+  },
+  {
+    "card": "heavyLifter",
+    "id": "heavyLifter.recipes.mechanicalMotion.blend",
+    "kind": "value"
+  },
+  {
+    "card": "heavyLifter",
+    "id": "heavyLifter.samples.mechanicalMotion",
+    "kind": "samples"
+  },
+  {
+    "card": "heavyLifter",
+    "id": "heavyLifter.recipes.spectralImprint.imprint",
+    "kind": "value"
+  },
+  {
+    "card": "heavyLifter",
+    "id": "heavyLifter.recipes.spectralImprint.detail",
+    "kind": "value"
+  },
+  {
+    "card": "heavyLifter",
+    "id": "heavyLifter.recipes.spectralImprint.shift",
+    "kind": "value"
+  },
+  {
+    "card": "heavyLifter",
+    "id": "heavyLifter.recipes.spectralImprint.motion",
+    "kind": "value"
+  },
+  {
+    "card": "heavyLifter",
+    "id": "heavyLifter.recipes.spectralImprint.focus",
+    "kind": "value"
+  },
+  {
+    "card": "heavyLifter",
+    "id": "heavyLifter.recipes.spectralImprint.transients",
+    "kind": "value"
+  },
+  {
+    "card": "heavyLifter",
+    "id": "heavyLifter.samples.spectralImprint",
+    "kind": "samples"
+  },
+  {
+    "card": "heavyLifter",
+    "id": "heavyLifter.recipes.livingConvolution.length",
+    "kind": "value"
+  },
+  {
+    "card": "heavyLifter",
+    "id": "heavyLifter.recipes.livingConvolution.morph",
+    "kind": "value"
+  },
+  {
+    "card": "heavyLifter",
+    "id": "heavyLifter.recipes.livingConvolution.speed",
+    "kind": "value"
+  },
+  {
+    "card": "heavyLifter",
+    "id": "heavyLifter.recipes.livingConvolution.decay",
+    "kind": "value"
+  },
+  {
+    "card": "heavyLifter",
+    "id": "heavyLifter.recipes.livingConvolution.reverse",
+    "kind": "value"
+  },
+  {
+    "card": "heavyLifter",
+    "id": "heavyLifter.recipes.livingConvolution.colour",
+    "kind": "value"
+  },
+  {
+    "card": "heavyLifter",
+    "id": "heavyLifter.samples.livingConvolution",
+    "kind": "samples"
+  },
+  {
+    "card": "heavyLifter",
+    "id": "heavyLifter.recipes.spectralAlloy.alloy",
+    "kind": "value"
+  },
+  {
+    "card": "heavyLifter",
+    "id": "heavyLifter.recipes.spectralAlloy.anchor",
+    "kind": "value"
+  },
+  {
+    "card": "heavyLifter",
+    "id": "heavyLifter.recipes.spectralAlloy.inharmonicity",
+    "kind": "value"
+  },
+  {
+    "card": "heavyLifter",
+    "id": "heavyLifter.recipes.spectralAlloy.motion",
+    "kind": "value"
+  },
+  {
+    "card": "heavyLifter",
+    "id": "heavyLifter.recipes.spectralAlloy.focus",
+    "kind": "value"
+  },
+  {
+    "card": "heavyLifter",
+    "id": "heavyLifter.recipes.spectralAlloy.transients",
+    "kind": "value"
+  },
+  {
+    "card": "heavyLifter",
+    "id": "heavyLifter.samples.spectralAlloy",
+    "kind": "samples"
+  },
+  {
+    "card": "heavyLifter",
+    "id": "heavyLifter.recipes.stressedMetal.size",
+    "kind": "value"
+  },
+  {
+    "card": "heavyLifter",
+    "id": "heavyLifter.recipes.stressedMetal.decay",
+    "kind": "value"
+  },
+  {
+    "card": "heavyLifter",
+    "id": "heavyLifter.recipes.stressedMetal.stress",
+    "kind": "value"
+  },
+  {
+    "card": "heavyLifter",
+    "id": "heavyLifter.recipes.stressedMetal.speed",
+    "kind": "value"
+  },
+  {
+    "card": "heavyLifter",
+    "id": "heavyLifter.recipes.stressedMetal.loss",
+    "kind": "value"
+  },
+  {
+    "card": "heavyLifter",
+    "id": "heavyLifter.recipes.stressedMetal.drive",
+    "kind": "value"
+  },
+  {
+    "card": "heavyLifter",
+    "id": "heavyLifter.samples.stressedMetal",
+    "kind": "samples"
+  },
+  {
+    "card": "wasp",
+    "id": "wasp.melt",
+    "kind": "value"
+  },
+  {
+    "card": "wasp",
+    "id": "wasp.blend",
+    "kind": "value"
+  },
+  {
+    "card": "wasp",
+    "id": "wasp.output",
+    "kind": "value"
+  },
+  {
+    "card": "wasp",
+    "id": "wasp.routes.0.source",
+    "kind": "value"
+  },
+  {
+    "card": "wasp",
+    "id": "wasp.routes.0.destination",
+    "kind": "value"
+  },
+  {
+    "card": "wasp",
+    "id": "wasp.routes.0.method",
+    "kind": "value"
+  },
+  {
+    "card": "wasp",
+    "id": "wasp.routes.0.mode",
+    "kind": "value"
+  },
+  {
+    "card": "wasp",
+    "id": "wasp.routes.0.depth",
+    "kind": "value"
+  },
+  {
+    "card": "wasp",
+    "id": "wasp.routes.0.level",
+    "kind": "value"
+  },
+  {
+    "card": "wasp",
+    "id": "wasp.routes.0.cutoff",
+    "kind": "value"
+  },
+  {
+    "card": "wasp",
+    "id": "wasp.routes.0.resonance",
+    "kind": "value"
+  },
+  {
+    "card": "wasp",
+    "id": "wasp.routes.0.attack",
+    "kind": "value"
+  },
+  {
+    "card": "wasp",
+    "id": "wasp.routes.0.release",
+    "kind": "value"
+  },
+  {
+    "card": "wasp",
+    "id": "wasp.routes.0.sensitivity",
+    "kind": "value"
+  },
+  {
+    "card": "wasp",
+    "id": "wasp.routes.1.source",
+    "kind": "value"
+  },
+  {
+    "card": "wasp",
+    "id": "wasp.routes.1.destination",
+    "kind": "value"
+  },
+  {
+    "card": "wasp",
+    "id": "wasp.routes.1.method",
+    "kind": "value"
+  },
+  {
+    "card": "wasp",
+    "id": "wasp.routes.1.mode",
+    "kind": "value"
+  },
+  {
+    "card": "wasp",
+    "id": "wasp.routes.1.depth",
+    "kind": "value"
+  },
+  {
+    "card": "wasp",
+    "id": "wasp.routes.1.level",
+    "kind": "value"
+  },
+  {
+    "card": "wasp",
+    "id": "wasp.routes.1.cutoff",
+    "kind": "value"
+  },
+  {
+    "card": "wasp",
+    "id": "wasp.routes.1.resonance",
+    "kind": "value"
+  },
+  {
+    "card": "wasp",
+    "id": "wasp.routes.1.attack",
+    "kind": "value"
+  },
+  {
+    "card": "wasp",
+    "id": "wasp.routes.1.release",
+    "kind": "value"
+  },
+  {
+    "card": "wasp",
+    "id": "wasp.routes.1.sensitivity",
+    "kind": "value"
+  },
+  {
+    "card": "wasp",
+    "id": "wasp.activeRoute",
+    "kind": "value"
+  },
+  {
+    "card": "wasp",
+    "id": "wasp.filter.enabled",
+    "kind": "value"
+  },
+  {
+    "card": "wasp",
+    "id": "wasp.filter.mode",
+    "kind": "value"
+  },
+  {
+    "card": "wasp",
+    "id": "wasp.filter.slope",
+    "kind": "value"
+  },
+  {
+    "card": "wasp",
+    "id": "wasp.filter.wave",
+    "kind": "value"
+  },
+  {
+    "card": "wasp",
+    "id": "wasp.filter.cutoff",
+    "kind": "value"
+  },
+  {
+    "card": "wasp",
+    "id": "wasp.filter.rate",
+    "kind": "value"
+  },
+  {
+    "card": "wasp",
+    "id": "wasp.filter.attack",
+    "kind": "value"
+  },
+  {
+    "card": "wasp",
+    "id": "wasp.filter.release",
+    "kind": "value"
+  },
+  {
+    "card": "wasp",
+    "id": "wasp.filter.resonance",
+    "kind": "value"
+  },
+  {
+    "card": "wasp",
+    "id": "wasp.filter.highpass",
+    "kind": "value"
+  },
+  {
+    "card": "wasp",
+    "id": "wasp.filter.lowpass",
+    "kind": "value"
+  },
+  {
+    "card": "wasp",
+    "id": "wasp.filter.sweep",
+    "kind": "value"
+  },
+  {
+    "card": "wasp",
+    "id": "wasp.filter.envelope",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.input",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.routeKick",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.mode",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.slope",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.cutoff",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.resonant",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.q",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.rate",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.sensitivity",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.attack",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.release",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.glide",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.motion",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.mix",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.modulation.cutoff.clock",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.modulation.cutoff.beats",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.modulation.cutoff.multiplier",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.modulation.cutoff.timing",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.modulation.cutoff.snap",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.modulation.cutoff.snapTiming",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.modulation.cutoff.interpolation",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.modulation.cutoff.source",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.modulation.cutoff.hz",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.modulation.cutoff.bpm",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.modulation.cutoff.amount",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.modulation.cutoff.phaseOffset",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.modulation.cutoff.curve",
+    "kind": "curve"
+  },
+  {
+    "card": "playground",
+    "id": "playground.modulation.resonant.clock",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.modulation.resonant.beats",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.modulation.resonant.multiplier",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.modulation.resonant.timing",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.modulation.resonant.snap",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.modulation.resonant.snapTiming",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.modulation.resonant.interpolation",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.modulation.resonant.source",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.modulation.resonant.hz",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.modulation.resonant.bpm",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.modulation.resonant.amount",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.modulation.resonant.phaseOffset",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.modulation.resonant.curve",
+    "kind": "curve"
+  },
+  {
+    "card": "playground",
+    "id": "playground.modulation.q.clock",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.modulation.q.beats",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.modulation.q.multiplier",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.modulation.q.timing",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.modulation.q.snap",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.modulation.q.snapTiming",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.modulation.q.interpolation",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.modulation.q.source",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.modulation.q.hz",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.modulation.q.bpm",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.modulation.q.amount",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.modulation.q.phaseOffset",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.modulation.q.curve",
+    "kind": "curve"
+  },
+  {
+    "card": "playground",
+    "id": "playground.rateMod.enabled",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.rateMod.target",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.rateMod.clock",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.rateMod.beats",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.rateMod.multiplier",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.rateMod.timing",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.rateMod.hz",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.rateMod.depth",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.rateMod.curve",
+    "kind": "curve"
+  },
+  {
+    "card": "mutilator",
+    "id": "mutilator.overallVolume",
+    "kind": "value"
+  },
+  {
+    "card": "bassFace",
+    "id": "bassFace.overallVolume",
+    "kind": "value"
+  },
+  {
+    "card": "turntable",
+    "id": "turntable.dryWet",
+    "kind": "value"
+  },
+  {
+    "card": "turntable",
+    "id": "turntable.overallVolume",
+    "kind": "value"
+  },
+  {
+    "card": "resonator",
+    "id": "resonator.dryWet",
+    "kind": "value"
+  },
+  {
+    "card": "resonator",
+    "id": "resonator.overallVolume",
+    "kind": "value"
+  },
+  {
+    "card": "wireWorld",
+    "id": "wireWorld.dryWet",
+    "kind": "value"
+  },
+  {
+    "card": "wireWorld",
+    "id": "wireWorld.overallVolume",
+    "kind": "value"
+  },
+  {
+    "card": "sonicCrystal",
+    "id": "sonicCrystal.dryWet",
+    "kind": "value"
+  },
+  {
+    "card": "sonicCrystal",
+    "id": "sonicCrystal.overallVolume",
+    "kind": "value"
+  },
+  {
+    "card": "bubbleChamber",
+    "id": "bubbleChamber.dryWet",
+    "kind": "value"
+  },
+  {
+    "card": "bubbleChamber",
+    "id": "bubbleChamber.overallVolume",
+    "kind": "value"
+  },
+  {
+    "card": "wasp",
+    "id": "wasp.overallVolume",
+    "kind": "value"
+  },
+  {
+    "card": "playground",
+    "id": "playground.overallVolume",
+    "kind": "value"
+  },
+  {
+    "card": "henrysHose",
+    "id": "henrysHose.dryWet",
+    "kind": "value"
+  },
+  {
+    "card": "henrysHose",
+    "id": "henrysHose.overallVolume",
+    "kind": "value"
+  },
+  {
+    "card": "heavyLifter",
+    "id": "heavyLifter.dryWet",
+    "kind": "value"
+  },
+  {
+    "card": "heavyLifter",
+    "id": "heavyLifter.overallVolume",
+    "kind": "value"
+  }
+]

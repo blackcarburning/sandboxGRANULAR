@@ -76,3 +76,34 @@ with the current engine; it never rewrites source ZIPs or advances Song revision
 Warm renders reuse the saved PCM. Tests: `sample-crossfades.test.cjs`,
 `test_sample_crossfades.py`, `smooth-jump-browser.cjs`, and real old/current
 `source-grid-song.cjs` server jobs in a disposable account store.
+
+## Wide desktop Jump grid (2026-11-14)
+
+At viewport widths of 1280 CSS px and above, navigation-palette.css expands
+`--desktop-nav-width` to 448px and the existing Jump grid to four columns. The
+seven priority buttons span two columns, keeping their order while using fewer
+rows. Other buttons stack their existing icon above the unchanged label. Below
+1280px the original two-column desktop dock/phone drawer remains unchanged.
+Browser zoom follows available CSS viewport width, not physical screen pixels.
+The shared width token also moves Start and reserves editor clearance. Jump/Find
+remain fixed above the single scrollable list; search, hidden duplicates, original
+buttons/listeners, lazy destinations, phone shortcuts and audio/state are retained.
+
+## MIDI save/download parity (2026-11-23)
+
+Loop L, Loop X and Drum Machine MIDI exports now await the same app-owned
+filename dialog as WAV saving (`snapshot:false`). Cancel/Escape/close/account
+change/lock do not upload. Repository export semantics and MIDI encoding are
+unchanged. MIDI Browser Rename also uses the app dialog instead of `prompt`.
+Its Download MIDI button asks for the local-copy filename before fetching and
+uses the existing `downloadBlob` path, exactly as WAV Browser downloads do.
+No file picker/share API is used. Download renaming never renames the repository
+original; failed fetches restore the action and do not start a download.
+
+This is hosted HTML only: reload the app after storing/saving work. No new
+plugin installation. The existing CEF instrument 0.1.5 helper owns the OS
+Downloads destination, completion notice and numbered duplicate filenames.
+Older helper versions still need the already-released full 0.1.5 installation.
+No audio, patch/Song format, source PCM, render identity or installer changes.
+Regression: `tests/midi-save-dialog-browser.cjs` uses synthetic MIDI endpoints
+and real UI controls, asserting byte-exact SMF downloads in Chromium/WebKit.

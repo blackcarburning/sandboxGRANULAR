@@ -3,6 +3,8 @@
 
     const palette = Object.freeze({
         song: '#b8efbe',
+        'solo-tracker': '#d51d32',
+        dfeeder: '#f5b399',
         'ai-patch': '#ff299b',
         mega: 'linear-gradient(180deg, rgba(8, 54, 70, 0.96), rgba(17, 103, 125, 0.96))',
         sparse: 'linear-gradient(180deg, rgba(74, 46, 10, 0.96), rgba(138, 98, 18, 0.96))',
@@ -17,6 +19,10 @@
         'loop-v': '#ff9dbb',
         'loop-w': '#87e1c6',
         'loop-d': '#008cff',
+        glasshaus: '#f5f7f7',
+        robot: '#e3474b',
+        enemy: '#101114',
+        ember: '#f3e6c9',
         mutilator: '#58b787',
         cookingPot: '#f3b35e',
         partsBin: '#55c99f',
@@ -33,7 +39,7 @@
         'loop-k': '#b7d4bc',
         'noise-n': '#91cbd4',
         drums: '#e9a28c',
-        sample: '#9ed6d9',
+        sample: 'linear-gradient(135deg, #126b50, #218c69)',
         layers: '#a4e8cb',
         mixer: '#ffc28e',
         'quick-grain': '#c2c8ed',
@@ -61,11 +67,12 @@
         wasp: 'repeating-linear-gradient(125deg, #ffdc38 0px, #ffdc38 16px, #e23c30 16px, #e23c30 28px)',
         turntable: '#c19a67',
         resonator: '#e8a278',
-        wireWorld: '#ffba76', sonicCrystal: '#95fbd9', bubbleChamber: '#a6ccff',
+        heavyLifter: '#c4cbd0', henrysHose: '#ff6267', wireWorld: '#ffba76', sonicCrystal: '#95fbd9', bubbleChamber: '#a6ccff',
         pan: '#efc4cf'
     });
     const foreground = '#f2f6ff';
     const states = Object.freeze({
+        sample: Object.freeze({ color: '#effff7', border: '#69ac91' }),
         'loop-store': Object.freeze({ color: '#fff4e8', border: '#d47b35' }),
         'loop-store-render': Object.freeze({ color: '#3b1c04', border: '#ffc477' }),
         wasp: Object.freeze({ color: '#21170e', border: '#ffdc38' }),
@@ -91,6 +98,12 @@
     })));
     const targets = Object.freeze({
         '#songBetaCard': 'song',
+        '#dfeederCard': 'dfeeder',
+        '#glasshausCard': 'glasshaus',
+        '#robotCard': 'robot',
+        '#enemyDroneCard': 'enemy',
+        '#emberCard': 'ember',
+        '#restructureCard': 'sample',
         '#aiPatchCard': 'ai-patch',
         '.performance-keyboard-card': 'keyboard',
         '.synth-container': 'synth',
@@ -116,7 +129,7 @@
         '#resonatorCard': 'resonator',
         '[aria-label="Bastardloop K controls"]': 'loop-k',
         '[aria-label="Drum machine controls"]': 'drums',
-        '[aria-label="Dropbox sample layer controls"]': 'sample',
+        '[aria-label="Restructure sample layer controls"]': 'sample',
         '#performanceLayerSwitchesCard': 'layers',
         '#performanceMixerCard': 'mixer',
         '[aria-label="Mixer controls"]': 'mixer',
@@ -150,11 +163,12 @@
         '#bassFaceCard': 'bassFace',
         '#cookingPotCard': 'cookingPot',
         '#partsBinCard': 'partsBin',
-        '#wireWorldCard': 'wireWorld', '#sonicCrystalCard': 'sonicCrystal', '#bubbleChamberCard': 'bubbleChamber',
+        '#heavyLifterCard': 'heavyLifter', '#henrysHoseCard': 'henrysHose', '#wireWorldCard': 'wireWorld', '#sonicCrystalCard': 'sonicCrystal', '#bubbleChamberCard': 'bubbleChamber',
         '#finalPanSection': 'pan',
         '#performancePanLabResetBtn': 'pan'
     });
     const buttons = Object.freeze({
+        sectionJumpSoloTrackerBtn: 'solo-tracker',
         sectionJumpMegaRandomBtn: 'mega', sectionJumpMegaRandomPanelBtn: 'mega',
         sectionJumpSparseRandomBtn: 'sparse', sectionJumpSparseRandomPanelBtn: 'sparse',
         sectionJumpTransportBtn: 'transport', sectionJumpTransportPanelBtn: 'transport',
@@ -336,7 +350,7 @@
     const effectCardIds = Object.freeze([
         'cookingPotCard', 'turntableCard', 'filterPlaygroundCard', 'loopDMutilator',
         'bassFaceCard', 'waspCard', 'resonatorCard', 'wireWorldCard',
-        'sonicCrystalCard', 'bubbleChamberCard', 'masterBakerCard'
+        'sonicCrystalCard', 'bubbleChamberCard', 'masterBakerCard', 'henrysHoseCard', 'heavyLifterCard'
     ]);
     function arrangeEffectCards() {
         if (root.__mygrainSongRenderDeck) return;
@@ -350,8 +364,19 @@
         const bin = doc.getElementById('partsBinCard');
         if (bin) bin.style.order = '199';
         // Move existing instances, retaining listeners, controls and lazy placeholders.
-        const tail = [...shell.children].slice(-cards.length);
-        if (cards.some((card, index) => tail[index] !== card)) shell.append(...cards);
+        const feeder = doc.getElementById('dfeederCard');
+        if (feeder) feeder.style.order = '300';
+        const ember = doc.getElementById('emberCard');
+        if (ember) {
+            const anchor = doc.querySelector('[aria-label="Bastardloop C controls"]');
+            if (anchor) {
+                ember.style.order = root.getComputedStyle(anchor).order;
+                if (anchor.nextElementSibling !== ember) anchor.after(ember);
+            }
+        }
+        const tailCards = [...cards, ...(feeder ? [feeder] : [])];
+        const tail = [...shell.children].slice(-tailCards.length);
+        if (tailCards.some((card, index) => tail[index] !== card)) shell.append(...tailCards);
         arrangeJumpButtons();
     }
     const jumpOriginalOrder = new Map();
@@ -367,25 +392,24 @@
         const add = node => { if (node && !selected.has(node)) { selected.add(node); ordered.push(node); } };
         {
             for (const selector of [
-                '#sectionJumpInitialisePanelBtn', '[data-jump-target=".performance-toolbar"]',
-                '#sectionJumpAiBtn', '#sectionJumpCookingPotBtn', '#sectionJumpPartsBinBtn', '#sectionJumpMasterBakerBtn', '#sectionJumpSongBtn',
+                '#sectionJumpInitialisePanelBtn', '[data-jump-target=".performance-toolbar"]', '#iphoneLowPowerControl',
+                '#sectionJumpAiBtn', '#sectionJumpCookingPotBtn', '#sectionJumpPartsBinBtn', '#sectionJumpMasterBakerBtn', '#sectionJumpSongBtn', '#sectionJumpSoloTrackerBtn',
                 '#sectionJumpLayerSwitchBtn', '#sectionJumpBastardMixerBtn',
                 '#sectionJumpMegaRandomBtn', '#sectionJumpSparseRandomBtn',
                 '#sectionJumpFinalMixBtn', '[data-jump-click="#performanceWavBrowserBtn"]',
                 '#sectionJumpLoopStoreAddBtn', '[data-jump-click="#performanceLoopStoreBrowserBtn"]',
-                '#sectionJumpKeyboardBtn', '#sectionJumpActionsBtn',
-                '[data-jump-target="[aria-label=\'Drum machine controls\']"]', '[data-jump-target="#genreatorCard"]'
+                ...(desktop ? ['#sectionJumpKeyboardBtn', '#sectionJumpActionsBtn', '[data-jump-target="[aria-label=\'Drum machine controls\']"]', '[data-jump-target="#genreatorCard"]'] : ['[data-jump-target="[aria-label=\'Drum machine controls\']"]', '[data-jump-target="#genreatorCard"]', '#sectionJumpKeyboardBtn', '#sectionJumpActionsBtn'])
             ]) add(button(selector));
-            const wide = ordered.slice(0, 7);
+            const wide = ordered.filter(node => node.id !== 'iphoneLowPowerControl').slice(0, 8);
             for (const child of grid.children) child.classList.toggle('desktop-jump-wide', wide.includes(child));
         }
         const effects = new Set([
             ...['[aria-label=\'Filter controls\']', '#internalEffectsPanel', '#internalDelayCard', '#internalReverbCard'],
             ...effectCardIds.map(id => '#' + id)
         ]);
-        const rest = [...grid.children].filter(node => !selected.has(node) && !effects.has(node.dataset.jumpTarget));
+        const rest = [...grid.children].filter(node => !selected.has(node) && !effects.has(node.dataset.jumpTarget) && node.id !== 'sectionJumpDfeederBtn');
         // Loop order is explicit: parked/detached card geometry must not reshuffle it.
-        const loopOrder = ['Loop A', 'Loop B', 'Loop C', 'Loop D', 'Loop V', 'Loop W', 'Loop P', 'Loop O', 'Loop L', 'Loop X', 'Loop Q', 'Loop M', 'Loop M+', 'Loop K'];
+        const loopOrder = ['Loop A', 'Loop B', 'Loop C', 'E · Ember', 'Loop D', 'Loop V', 'Loop W', 'Loop P', 'Loop O', 'Loop L', 'Loop X', 'Loop Q', 'Loop M', 'Loop M+', 'Loop K'];
         rest.sort((a, b) => {
             const ai = loopOrder.indexOf(a.textContent.trim()), bi = loopOrder.indexOf(b.textContent.trim());
             if (ai >= 0 || bi >= 0) return (ai < 0 ? loopOrder.length : ai) - (bi < 0 ? loopOrder.length : bi);
@@ -393,6 +417,7 @@
         });
         rest.forEach(add);
         for (const selector of effects) [...grid.children].filter(node => node.dataset.jumpTarget === selector).forEach(add);
+        add(button('#sectionJumpDfeederBtn'));
         if (ordered.some((node, index) => grid.children[index] !== node)) grid.append(...ordered);
     }
     function initializeEffectCardOrder() {
@@ -411,9 +436,110 @@
         if (grid) observer.observe(grid, { childList: true });
     }
 
+    // View existing Solo owners only; no second audio mask or saved UI state.
+    function initializeSoloTracker() {
+        if (root.__mygrainSongRenderDeck) return;
+        const launch = root.document.getElementById('sectionJumpSoloTrackerBtn');
+        if (!launch || root.mygrainSoloTracker) return;
+        const dialog = root.document.createElement('dialog');
+        dialog.id = 'soloTrackerDialog';
+        dialog.className = 'solo-tracker-dialog';
+        dialog.setAttribute('aria-labelledby', 'soloTrackerTitle');
+        dialog.innerHTML = '<header><h2 id="soloTrackerTitle">Solo Tracker</h2><div><button type="button" id="soloTrackerClear">Clear</button><button type="button" id="soloTrackerClose">Close</button></div></header><p id="soloTrackerStatus" role="status" aria-live="polite"></p><ul id="soloTrackerList" aria-label="Active solos" tabindex="0"></ul>';
+        root.document.body.append(dialog);
+        const list = dialog.querySelector('ul'), status = dialog.querySelector('[role="status"]');
+        const clear = dialog.querySelector('#soloTrackerClear');
+        let observer = null, queued = false, signature = '', clearing = false, opener = null;
+        function selections() {
+            const rows = [], add = (id, label, kind) => rows.push({ id, label, kind });
+            const loops = { bastarda:'Loop A', bastardb:'Loop B', bastardc:'Loop C', bastarde:'E · Ember', bastardd:'Loop D', bastardv:'Loop V', bastardw:'Loop W', bastardp:'Loop P', bastardo:'Loop O', bastardl:'Loop L', bastardx:'Loop X', bastardq:'Loop Q', bastardm:'Loop M', bastardmplus:'Loop M+', bastardk:'Loop K', dropbox:'Restructure', noise:'N · Noise', drums:'Drum machine' };
+            for (const key of loopLayerSolo) add('loop:'+key, loops[key] || key, 'Global source');
+            const sources = { osc:'Oscillator', granular:'Granular', sample:'Generated sample layer', loop:'Generated dry loop', piano:'Piano', strings:'Strings', keyboardsample:'Keyboard sample' };
+            for (const key of performanceSourceLayerSolo) add('source:'+key, sources[key] || key, 'Global source');
+            for (const key of grainLayerSolo) add('grain:'+key, 'Grain '+key, 'Global source');
+            if (generatedSampleSolo) add('generated-sample', 'Generated sample', 'Sample Solo');
+            for (const key of getSourceWaveformSoloState()) add('waveform:'+key, SOURCE_WAVEFORM_KIND_LABELS[key] || key, 'Raw waveform');
+            const drums = { kick:'Kick', snare:'Snare', hat:'Hat', perc:'Percussion', clap:'Clap', cymbals:'Crash / Cymbals', etc:'ETC', roll:'Snare roll' };
+            for (const key of drumMachineLaneSolos) add('drum:'+key, 'Drums · '+(drums[key] || key), 'Drum lane');
+            const effects = { mutilator:'Mutilator', bassFace:'Bass Face', turntable:'Turntable', resonator:'Resonator', playground:'Filter Playground', wasp:'Wasp', sonicCrystal:'Sonic Crystal', bubbleChamber:'Bubble Chamber', wireWorld:'Wire World', henrysHose:'Henry’s Hose', heavyLifter:'Heavy Lifter' };
+            const selected = root.mygrainEffectOutput?.diagnostics();
+            for (const key of selected?.solos || []) {
+                const manual = selected.manualSolos.includes(key), routed = selected.routedSolos.includes(key);
+                add('effect:'+key, effects[key] || key, manual ? routed ? 'Effect · manual + source' : 'Effect · manual' : 'Effect · included by source');
+            }
+            for (const lane of root.mygrainD?.localSoloLanes() || []) add('d-local:'+lane, 'D · sample '+lane, 'Local to D');
+            const q = root.mygrainQ, editor = q?.chordEditor;
+            if (q?.playbackSolo) add('q-playback', 'Q · solo playback mode', 'Q transport');
+            if (editor?.opened && editor.soloSelected) {
+                const pitch = editor.step()?.notes[editor.selected];
+                add('q-note', 'Q · chord note '+(root.MygrainQTheory?.noteName(pitch) || pitch), 'Local chord preview');
+            }
+            return rows;
+        }
+        function refresh() {
+            if (!dialog.open) return;
+            const rows = selections(), next = JSON.stringify(rows);
+            clear.disabled = clearing || !rows.length || Boolean(root.mygrainCardHistory?.busy || root.mygrainSongBeta?.playing || stateSaveSuspended);
+            if (signature === next) return;
+            signature = next;
+            status.textContent = rows.length ? rows.length+' active Solo selection'+(rows.length === 1 ? '' : 's') : 'Nothing is soloed.';
+            list.replaceChildren(...rows.map(row => {
+                const item = root.document.createElement('li'); item.dataset.soloId = row.id;
+                const label = root.document.createElement('span'); label.textContent = row.label;
+                const kind = root.document.createElement('small'); kind.textContent = row.kind;
+                item.append(label, kind); return item;
+            }));
+        }
+        function queueRefresh() {
+            if (!dialog.open || queued) return;
+            queued = true; root.queueMicrotask(() => { queued = false; refresh(); });
+        }
+        function open(event) {
+            if (dialog.open) return;
+            opener = event?.currentTarget || launch;
+            root.guardSectionJumpAfterOverlayClose?.();
+            signature = ''; dialog.showModal(); refresh();
+            observer = new MutationObserver(records => {
+                if (records.some(record => !dialog.contains(record.target))) queueRefresh();
+            });
+            observer.observe(root.document.body, { subtree:true, childList:true, attributes:true, attributeFilter:['aria-pressed', 'disabled'] });
+            dialog.querySelector('#soloTrackerClose').focus({ preventScroll:true });
+        }
+        dialog.querySelector('#soloTrackerClose').onclick = () => dialog.close();
+        dialog.addEventListener('close', () => {
+            observer?.disconnect(); observer = null;
+            const target = opener?.getClientRects().length && !opener.hidden ? opener : root.document.getElementById('sectionJumpHandle');
+            target?.focus({ preventScroll:true });
+        });
+        clear.onclick = async () => {
+            if (clear.disabled || clearing) return;
+            clearing = true; refresh();
+            try {
+                const action = async () => {
+                    const q = root.mygrainQ;
+                    if (q?.chordEditor?.opened && q.chordEditor.soloSelected) await q.chordEditor.toggleSolo();
+                    for (const lane of root.mygrainD?.localSoloLanes() || []) root.mygrainD.setLocalSolo(lane, false);
+                    clearAllPerformanceSoloStates({ silent:true, skipSave:true });
+                    if (q?.playbackSolo) await q.action('play-mode');
+                    saveState();
+                };
+                if (root.mygrainCardHistory) await root.mygrainCardHistory.runDraftEdit('Clear all solos', action);
+                else await action();
+                signature = '';
+            } catch (error) { status.textContent = error.message; }
+            finally { clearing = false; refresh(); }
+        };
+        launch.addEventListener('click', open);
+        root.addEventListener('mygrain-effect-solo', queueRefresh);
+        root.addEventListener('mygrain-history-update', queueRefresh);
+        root.addEventListener('mygrain-account-lock', () => { if (dialog.open) dialog.close(); });
+        root.mygrainSoloTracker = { open, selections, get observing() { return Boolean(observer); } };
+    }
+
     function initialize() {
         initializeEffectCardOrder();
         refresh();
+        initializeSoloTracker();
         initializeDesktopDock();
         initializePhoneEdgeShortcuts();
         initializeRenderActions();
@@ -495,7 +621,7 @@
         drawer.after(stack);
         stack.setAttribute('aria-label', 'Quick section and transport controls');
         for (const id of [
-            'sectionJumpSongBtn', 'sectionJumpMegaRandomBtn', 'sectionJumpSparseRandomBtn',
+            'sectionJumpSongBtn', 'sectionJumpSoloTrackerBtn', 'sectionJumpMegaRandomBtn', 'sectionJumpSparseRandomBtn',
             'sectionJumpKeyboardBtn', 'sectionJumpLayerSwitchBtn', 'sectionJumpBastardMixerBtn',
             'sectionJumpTransportBtn'
         ]) {
@@ -566,7 +692,7 @@
             empty.hidden = matches > 0;
         };
         const sync = () => {
-            // One shared list and identical ordering at every viewport.
+            // Shared controls; phone priority puts Drums/GENREator before Keys/Actions.
             drawer.querySelectorAll('.section-jump-quick').forEach(rememberQuick);
             for (const node of origins.keys()) if (node.parentElement !== grid) grid.append(node);
             arrangeJumpButtons(); filter();

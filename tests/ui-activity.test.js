@@ -81,3 +81,12 @@ test('preview clock stops during nested scroll/hidden views, resumes latest stat
  clock.stop();assert.equal(disconnected,1);assert.equal(f.timers.size,0);f.win.dispatchEvent(new Event('mygrain-ui-settled'));assert.equal(f.timers.size,0);
  clock.start();io([{isIntersecting:true,intersectionRatio:1}]);el.isConnected=false;f.advance(100);assert.equal(disconnected,2);assert.equal(clock.snapshot().running,false);assert.equal(f.timers.size,0);
 });
+
+test('scroll pauses only actual animated targets, restores owned styles once and leaves external edits alone',()=>{
+ const f=fixture(),values=new Map([['animation-play-state',['running','']]]);let scans=0;
+ const style={getPropertyValue:k=>values.get(k)?.[0]||'',getPropertyPriority:k=>values.get(k)?.[1]||'',setProperty:(k,v,p)=>values.set(k,[v,p]),removeProperty:k=>values.delete(k)},target={style};
+ f.doc.getAnimations=()=>{scans++;return[{playState:'running',effect:{target}},{playState:'running',effect:{target}},{playState:'paused',effect:{target:{style:null}}}]};
+ for(let i=0;i<10;i++)f.doc.dispatchEvent(new Event('scroll'));
+ assert.equal(scans,1);assert.deepEqual(values.get('animation-play-state'),['paused','important']);assert.deepEqual(values.get('transition'),['none','important']);f.advance(200);assert.deepEqual(values.get('animation-play-state'),['running','']);assert(!values.has('transition'));
+ f.doc.dispatchEvent(new Event('scroll'));style.setProperty('animation-play-state','paused','');f.ui.destroy();assert.deepEqual(values.get('animation-play-state'),['paused','']);assert(!values.has('transition'));
+});

@@ -24,7 +24,7 @@ enum EventType : uint32_t {Move=1,Down,Up,Wheel,KeyDown,KeyUp,Char,Focus,Reload,
 // Modifiers use the stable CEF EVENTFLAG_* values.
 struct Event {uint32_t type=0;int32_t x=0,y=0,a=0,b=0;uint32_t modifiers=0;};
 struct Shared {
- uint32_t signature=magic,version=2;
+ uint32_t signature=magic,version=3;
  std::atomic<uint32_t> quit{0},width{1240},height{756},shown{1},status{0};
  char url[1024]{};
  std::atomic<uint32_t> painting{0};
@@ -33,6 +33,7 @@ struct Shared {
  std::atomic<uint32_t> write{0},read{0};Event events[queueSize]{};
  PreviewAudio preview;
  std::atomic<uint32_t> dialogKind{0};char dialogInput[2049]{};
+ std::atomic<uint32_t> textEditing{0};
  uint8_t pixels[3][frameBytes];
 };
 static_assert(std::atomic<uint32_t>::is_always_lock_free,"IPC requires lock-free uint32");
@@ -64,7 +65,7 @@ public:
   auto* p=mmap(nullptr,sizeof(Shared),PROT_READ|PROT_WRITE,MAP_SHARED,fd,0);if(p==MAP_FAILED)return false;data=(Shared*)p;
 #endif
   if(create&&data)new(data)Shared;
-  return data&&data->signature==magic&&data->version==2;
+  return data&&data->signature==magic&&data->version==3;
  }
  void close(){
 #ifdef _WIN32

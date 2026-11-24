@@ -1,7 +1,7 @@
 // Editor is only a remote CEF surface. Closing it never closes the browser.
 namespace {
 struct CefSurface {
- Bridge& owner;bool hostKeyboard=false,focused=false;HWND window=nullptr;uint32_t frame=0,w=0,h=0;std::vector<uint8_t> pixels;std::string status,details;ULONG_PTR graphicsToken=0;HFONT font=nullptr,smallFont=nullptr;uint32_t displayedInterval=0;HBRUSH background=CreateSolidBrush(RGB(16,22,33)),inputBackground=CreateSolidBrush(RGB(18,36,52));
+ Bridge& owner;bool hostKeyboard=false,focused=false,forwardingSpace=false;cef::SpaceKey space;HWND window=nullptr;uint32_t frame=0,w=0,h=0;std::vector<uint8_t> pixels;std::string status,details;ULONG_PTR graphicsToken=0;HFONT font=nullptr,smallFont=nullptr;uint32_t displayedInterval=0;HBRUSH background=CreateSolidBrush(RGB(16,22,33)),inputBackground=CreateSolidBrush(RGB(18,36,52));
  explicit CefSurface(Bridge& b):owner(b){Gdiplus::GdiplusStartupInput input;Gdiplus::GdiplusStartup(&graphicsToken,&input,nullptr);font=CreateFontW(-13,0,0,0,FW_SEMIBOLD,FALSE,FALSE,FALSE,DEFAULT_CHARSET,OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,CLEARTYPE_QUALITY,DEFAULT_PITCH,L"Segoe UI");smallFont=CreateFontW(-12,0,0,0,FW_NORMAL,FALSE,FALSE,FALSE,DEFAULT_CHARSET,OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,CLEARTYPE_QUALITY,DEFAULT_PITCH,L"Segoe UI");}
  ~CefSurface(){DeleteObject(font);DeleteObject(smallFont);DeleteObject(background);DeleteObject(inputBackground);if(graphicsToken)Gdiplus::GdiplusShutdown(graphicsToken);}
  void layout(int width){const double scale=cef::toolbarScale(width);double left=12;for(auto item:cef::toolbarItems){MoveWindow(GetDlgItem(window,item.id),int(left),8,int(item.width*scale),36,TRUE);left+=(item.width+8)*scale;}for(int id:{230,231})MoveWindow(GetDlgItem(window,id),12,id==230?51:74,std::max(100,width-24),21,TRUE);}
@@ -51,15 +51,23 @@ struct CefSurface {
   case WM_CTLCOLOREDIT:SetTextColor((HDC)wp,RGB(240,248,255));SetBkColor((HDC)wp,RGB(18,36,52));return (LRESULT)s->inputBackground;
   case WM_COMMAND:switch(LOWORD(wp)){case 101:s->event(cef::Reload);break;case 102:s->owner.engine.remote.request(5);break;case 220:s->owner.engine.remote.request(11,0,!s->owner.engine.remote.get().companion.autoStore);break;case 222:s->interval();break;case 106:s->owner.engine.requestArm();break;case 104:s->owner.engine.requestStop();break;}return 0;
   case WM_SETFOCUS:s->focused=true;s->event(cef::Focus,0,cef::toolbarHeight,1);return 0;
-  case WM_KILLFOCUS:s->focused=false;s->hostKeyboard=false;s->event(cef::Focus);return 0;
+  case WM_KILLFOCUS:s->focused=false;s->hostKeyboard=false;s->space={};s->event(cef::Focus);return 0;
   case WM_MOUSEMOVE:if(y>=cef::toolbarHeight)s->event(cef::Move,x,y);return 0;
   case WM_LBUTTONDOWN:case WM_RBUTTONDOWN:case WM_MBUTTONDOWN:case WM_LBUTTONDBLCLK:if(y>=cef::toolbarHeight){SetFocus(window);s->event(cef::Focus,0,cef::toolbarHeight,1);SetCapture(window);s->event(cef::Down,x,y,message==WM_RBUTTONDOWN?2:message==WM_MBUTTONDOWN?1:0,message==WM_LBUTTONDBLCLK?2:1);}return 0;
   case WM_LBUTTONUP:case WM_RBUTTONUP:case WM_MBUTTONUP:ReleaseCapture();s->event(cef::Up,x,y,message==WM_RBUTTONUP?2:message==WM_MBUTTONUP?1:0,1);return 0;
   case WM_MOUSEWHEEL:case WM_MOUSEHWHEEL:{POINT p{x,y};ScreenToClient(window,&p);s->event(cef::Wheel,p.x,p.y,message==WM_MOUSEHWHEEL?short(HIWORD(wp)):0,message==WM_MOUSEWHEEL?short(HIWORD(wp)):0);return 0;}
-  case WM_KEYDOWN:case WM_SYSKEYDOWN:if(!s->hostKeyboard)s->event(cef::KeyDown,0,cef::toolbarHeight,int(wp),int(lp));return 0;
-  case WM_KEYUP:case WM_SYSKEYUP:if(!s->hostKeyboard)s->event(cef::KeyUp,0,cef::toolbarHeight,int(wp),int(lp));return 0;
-  case WM_CHAR:if(!s->hostKeyboard)s->event(cef::Char,0,cef::toolbarHeight,int(wp),int(lp));return 0;
-  case WM_GETDLGCODE:return DLGC_WANTALLKEYS|DLGC_WANTARROWS|DLGC_WANTCHARS;
+  case WM_KEYDOWN:case WM_SYSKEYDOWN:case WM_KEYUP:case WM_SYSKEYUP:{
+   if(s->hostKeyboard||s->forwardingSpace)return 0;
+   const bool up=message==WM_KEYUP||message==WM_SYSKEYUP;
+   if(s->space.toHost(s->owner.embedded.ipc,int(wp),up)){
+    // Native fallback only. Hosts using IPlugView receive kResultFalse and
+    // already own dispatch, so never forward a duplicate in that mode.
+    s->forwardingSpace=true;const auto result=SendMessageW(GetParent(window),message,wp,lp);s->forwardingSpace=false;return result;
+   }
+   s->event(up?cef::KeyUp:cef::KeyDown,0,cef::toolbarHeight,int(wp),int(lp));return 0;
+  }
+  case WM_CHAR:if(!s->hostKeyboard&&(wp!=32||s->space.toBrowser))s->event(cef::Char,0,cef::toolbarHeight,int(wp),int(lp));return 0;
+  case WM_GETDLGCODE:if(lp){auto* key=(MSG*)lp;if(key->wParam==VK_SPACE&&(!s->owner.embedded.ipc.data||!s->owner.embedded.ipc.data->textEditing.load()))return 0;}return DLGC_WANTALLKEYS|DLGC_WANTARROWS|DLGC_WANTCHARS;
   case WM_ERASEBKGND:return 1;
   case WM_PAINT:{PAINTSTRUCT ps;HDC dc=BeginPaint(window,&ps);RECT r{};GetClientRect(window,&r);RECT toolbar{0,0,r.right,cef::toolbarHeight};FillRect(dc,&toolbar,s->background);if(s->w&&s->h){BITMAPINFO info{};info.bmiHeader.biSize=sizeof(BITMAPINFOHEADER);info.bmiHeader.biWidth=s->w;info.bmiHeader.biHeight=-LONG(s->h);info.bmiHeader.biPlanes=1;info.bmiHeader.biBitCount=32;StretchDIBits(dc,0,cef::toolbarHeight,r.right,r.bottom-cef::toolbarHeight,0,0,s->w,s->h,s->pixels.data(),&info,DIB_RGB_COLORS,SRCCOPY);}else{RECT browser{0,cef::toolbarHeight,r.right,r.bottom};FillRect(dc,&browser,s->background);}EndPaint(window,&ps);return 0;}
   case WM_DESTROY:KillTimer(window,1);return 0;
@@ -81,14 +89,14 @@ tresult PLUGIN_API BridgeView::onSize(ViewRect* size){if(!size)return kInvalidAr
 tresult PLUGIN_API BridgeView::onFocus(TBool focused){
  if(!native)return kResultFalse;auto* s=(CefSurface*)native;
  s->focused=focused;if(focused){auto current=GetFocus();if(current!=s->window&&!IsChild(s->window,current))SetFocus(s->window);}
- else s->hostKeyboard=false;
+ else {s->hostKeyboard=false;s->space={};}
  return owner.embedded.ipc.push({cef::Focus,0,0,focused?1:0})?kResultTrue:kResultFalse;
 }
 tresult PLUGIN_API BridgeView::onKeyDown(char16 key,int16 code,int16 modifiers){
  if(!native||!((CefSurface*)native)->focused||GetFocus()!=((CefSurface*)native)->window)return kResultFalse;
- auto* s=(CefSurface*)native;s->hostKeyboard=true;return cef::hostKey(owner.embedded.ipc,false,key,code,modifiers)?kResultTrue:kResultFalse;
+ auto* s=(CefSurface*)native;s->hostKeyboard=true;if(s->space.toHost(owner.embedded.ipc,cef::virtualKey(key,code),false))return kResultFalse;return cef::hostKey(owner.embedded.ipc,false,key,code,modifiers)?kResultTrue:kResultFalse;
 }
 tresult PLUGIN_API BridgeView::onKeyUp(char16 key,int16 code,int16 modifiers){
  if(!native||!((CefSurface*)native)->focused||GetFocus()!=((CefSurface*)native)->window)return kResultFalse;
- return cef::hostKey(owner.embedded.ipc,true,key,code,modifiers)?kResultTrue:kResultFalse;
+ if(((CefSurface*)native)->space.toHost(owner.embedded.ipc,cef::virtualKey(key,code),true))return kResultFalse;return cef::hostKey(owner.embedded.ipc,true,key,code,modifiers)?kResultTrue:kResultFalse;
 }

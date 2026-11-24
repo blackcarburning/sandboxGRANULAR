@@ -1,19 +1,20 @@
 /* One versioned, portable filter / stereo hall / tempo delay for every loop lane. */
 (function(root){
 'use strict';
-const KEYS=['A','B','C','D','V','W','P','O','L','X','M','M+','K1','K2','K3','K4','K5','Q','N','sample'];
+const KEYS=['A','B','C','D','V','W','P','O','L','X','M','M+','K1','K2','K3','K4','K5','Q','N','sample','Robot','GlassHaus'];
 const SLOPES=[12,24,36,48,96];
 const clamp=(v,min,max,fallback)=>Number.isFinite(Number(v))?Math.max(min,Math.min(max,Number(v))):fallback;
 const defaults=()=>({pan:0,filterEnabled:false,filterType:'lowpass',filterSlope:48,cutoff:18000,resonance:.707,lfoWave:'sine',lfoBeats:4,lfoDepth:0,lfoInvert:false,room:0,reverbDecay:4.5,reverbSize:.85,reverbPredelay:28,reverbDamping:6500,reverbLowcut:180,reverbWidth:1,delay:0,delayBeats:1,feedback:.25,delayCutoff:9000,pingPong:false});
 function channel(value={}){
  const d=defaults(),s={...d};
+ if(value.reverbInsert===true)s.reverbInsert=true;
  for(const[k,min,max]of[['pan',-1,1],['cutoff',20,20000],['resonance',.1,4],['lfoBeats',1/16,64],['lfoDepth',0,1],['room',0,1],['reverbDecay',.5,12],['reverbSize',0,1],['reverbPredelay',0,200],['reverbDamping',1000,18000],['reverbLowcut',20,1500],['reverbWidth',0,1],['delay',0,1],['delayBeats',1/12,6],['feedback',0,.7],['delayCutoff',200,18000]])s[k]=clamp(value[k],min,max,d[k]);
  s.reverbEnabled=value.reverbEnabled!==false;s.delayEnabled=value.delayEnabled!==false;s.filterEnabled=value.filterEnabled===true;s.filterType=value.filterType==='highpass'?'highpass':'lowpass';s.filterSlope=SLOPES.includes(Number(value.filterSlope))?Number(value.filterSlope):d.filterSlope;
  s.lfoWave=['sine','triangle','sawtooth','ramp','square'].includes(value.lfoWave)?value.lfoWave:'sine';s.lfoInvert=value.lfoInvert===true;s.pingPong=value.pingPong===true;return s;
 }
 const prefix={A:'',B:'2',C:'3',D:'D',V:'V',W:'W',P:'P',O:'O',L:'L',X:'X',M:'M','M+':'MPlus'};
 function legacy(state,key,preserveDefaults=Object.keys(state).length>0){
- if(key==='sample')return channel({filterEnabled:false,reverbEnabled:false,delayEnabled:false});
+ if(key==='sample'||key==='Robot'||key==='GlassHaus')return channel({filterEnabled:false,reverbEnabled:false,delayEnabled:false});
  if(key==='N')return channel({filterEnabled:false});
  const m=state.modes||state,sl=state.sliders||{},sel=state.selects||{},s={...defaults(),filterEnabled:preserveDefaults};
  if(key==='Q'){
@@ -61,6 +62,10 @@ function pruneEffects(value,activeKeys,envelopes={}){
  }
  return s;
 }
+function disableForGeneration(value){
+ const s=normalize(value);for(const c of Object.values(s.channels))Object.assign(c,{filterEnabled:false,reverbEnabled:false,delayEnabled:false});return s;
+}
+function renderVersion(value){return value?.version===1?(Object.values(value.channels||{}).some(c=>c.reverbInsert===true&&c.reverbEnabled!==false&&c.room>0)?2:1):0;}
 function convertState(original={}){
  const result=JSON.parse(JSON.stringify(original));result.modes={...result.modes};result.modes.loopFx=normalize(result.modes.loopFx??result.loopFx,result);return result;
 }
@@ -122,7 +127,7 @@ function filterStageQ(resonance,stage,count){
 function createGraph(ctx,destination,initial,bpm=120,origin=0,startTime=ctx.currentTime){
  const nodes=[],own=n=>(nodes.push(n),n),gain=v=>{const n=own(ctx.createGain());n.gain.value=v;return n},biquad=type=>{const n=own(ctx.createBiquadFilter());n.type=type;n.Q.value=.707;return n};
  const input=gain(1),filtered=gain(1),output=gain(1),gate=gain(1);input.channelCount=2;input.channelCountMode='explicit';const panner=own(ctx.createStereoPanner());output.connect(panner).connect(gate).connect(destination);
- filtered.connect(output); // Parallel sends preserve the original dry amplitude.
+ const spaceInput=gain(1),roomDry=gain(1);filtered.connect(spaceInput).connect(roomDry).connect(output); // Insert dry branch; legacy archives retain unity.
  let lfoOrigin=Number.isFinite(origin)?origin:0,lfoStart=Number.isFinite(startTime)?startTime:ctx.currentTime,lastTempo=bpm;
  let settings=channel(initial),disposed=false,filterBranch=null,oldBranch=null,filterTimer=null,reverbTimer=null,reverbKey='',reverbPending='',activeBank=0;
  const smooth=(p,v,immediate=false)=>{if(immediate){p.cancelScheduledValues(ctx.currentTime);p.value=v}else{p.cancelScheduledValues(ctx.currentTime);p.setTargetAtTime(v,ctx.currentTime,.02)}};
@@ -168,7 +173,7 @@ function createGraph(ctx,destination,initial,bpm=120,origin=0,startTime=ctx.curr
   }
  }
  function updateFilter(s,tempo,immediate){
-  const effectiveSlope=root.mygrainPower?.isLive(ctx)?Math.min(24,s.filterSlope):s.filterSlope;
+  const effectiveSlope=root.mygrainPower?.isLive(ctx)?Math.min(12,s.filterSlope):s.filterSlope;
   const key=[s.filterEnabled,s.filterType,effectiveSlope,s.legacyHighpass||20].join(':');
   if(filterBranch?.key!==key){
    clearTimeout(filterTimer);releaseBranch(oldBranch);oldBranch=filterBranch;
@@ -193,7 +198,7 @@ function createGraph(ctx,destination,initial,bpm=120,origin=0,startTime=ctx.curr
  predelay.connect(lowcut).connect(damping);
  const banks=[0,1].map(()=>{const n=own(ctx.createConvolver()),g=gain(0);damping.connect(n).connect(g).connect(split);return {node:n,gain:g}});
  [[0,0],[1,1],[0,1],[1,0]].forEach(([a,b],i)=>{split.connect(width[i],a);width[i].connect(merge,0,b)});merge.connect(roomWet);damping.disconnect();
- let ds=[],delayWet=null,delaySplit=null,delayMerge=null,hallOn=false,delayOn=false;
+ let ds=[],delayWet=null,delaySplit=null,delayMerge=null,hallOn=false,delayOn=false,insertMode=null;
  function ensureDelay(){
   if(ds.length)return;
   delaySplit=own(ctx.createChannelSplitter(2));delayMerge=own(ctx.createChannelMerger(2));delayWet=gain(0);delayMerge.connect(delayWet);
@@ -208,16 +213,20 @@ function createGraph(ctx,destination,initial,bpm=120,origin=0,startTime=ctx.curr
  function update(value,tempo=120,immediate=false){
   lastTempo=tempo;settings={...channel(value),...(value.legacyHighpass?{legacyHighpass:value.legacyHighpass}:{})};updateFilter(settings,tempo,immediate);smooth(panner.pan,settings.pan,immediate);
   const wantHall=settings.reverbEnabled&&settings.room>0,wantDelay=settings.delayEnabled&&settings.delay>0;
+  const insert=settings.reverbInsert===true;
+  if(insertMode!==insert){if(delayWet){try{delayWet.disconnect()}catch{};if(delayOn)delayWet.connect(insert?spaceInput:output)}insertMode=insert;}
+  const mix=wantHall?settings.room:0;
+  smooth(roomDry.gain,insert?(mix===1?0:Math.cos(mix*Math.PI/2)):1,immediate);
   if(wantHall!==hallOn){
    hallOn=wantHall;
-   if(hallOn){filtered.connect(predelay);roomWet.connect(output);damping.connect(banks[0].node);damping.connect(banks[1].node);}
-   else{try{filtered.disconnect(predelay)}catch{};roomWet.disconnect();damping.disconnect();clearTimeout(reverbTimer);reverbPending='';reverbKey='';for(const b of banks){b.node.buffer=null;b.gain.gain.value=0;}}
+   if(hallOn){spaceInput.connect(predelay);roomWet.connect(output);damping.connect(banks[0].node);damping.connect(banks[1].node);}
+   else{try{spaceInput.disconnect(predelay)}catch{};roomWet.disconnect();damping.disconnect();clearTimeout(reverbTimer);reverbPending='';reverbKey='';for(const b of banks){b.node.buffer=null;b.gain.gain.value=0;}}
   }
   // Neither feed nor return nor feedback remains reachable when bypassed.
   if(wantDelay)ensureDelay();
-  if(wantDelay!==delayOn){delayOn=wantDelay;if(delayOn){filtered.connect(delaySplit);delayWet.connect(output);ds.forEach((d,i)=>{d.filter.connect(d.self);d.filter.connect(d.cross);});}else{try{filtered.disconnect(delaySplit)}catch{};delayWet?.disconnect();for(const d of ds){try{d.filter.disconnect(d.self);d.filter.disconnect(d.cross)}catch{}}}}
+  if(wantDelay!==delayOn){delayOn=wantDelay;if(delayOn){filtered.connect(delaySplit);delayWet.connect(insert?spaceInput:output);ds.forEach((d,i)=>{d.filter.connect(d.self);d.filter.connect(d.cross);});}else{try{filtered.disconnect(delaySplit)}catch{};delayWet?.disconnect();for(const d of ds){try{d.filter.disconnect(d.self);d.filter.disconnect(d.cross)}catch{}}}}
   buildHall(immediate);if(delayWet)smooth(delayWet.gain,wantDelay?settings.delay*.65:0,immediate);
-  for(const[p,v]of[[roomWet.gain,settings.room*.8],[predelay.delayTime,settings.reverbPredelay/1000],[lowcut.frequency,settings.reverbLowcut],[damping.frequency,Math.min(ctx.sampleRate*.45,settings.reverbDamping)],...width.map((g,i)=>[g.gain,.5*(1+(i<2?1:-1)*settings.reverbWidth)])])smooth(p,v,immediate);
+  for(const[p,v]of[[roomWet.gain,insert?Math.sin(mix*Math.PI/2):settings.room*.8],[predelay.delayTime,settings.reverbPredelay/1000],[lowcut.frequency,settings.reverbLowcut],[damping.frequency,Math.min(ctx.sampleRate*.45,settings.reverbDamping)],...width.map((g,i)=>[g.gain,.5*(1+(i<2?1:-1)*settings.reverbWidth)])])smooth(p,v,immediate);
   for(const d of ds){smooth(d.delay.delayTime,Math.min(11,60/tempo*settings.delayBeats),immediate);smooth(d.filter.frequency,Math.min(ctx.sampleRate*.45,settings.delayCutoff),immediate);smooth(d.self.gain,settings.pingPong?0:settings.feedback,immediate);smooth(d.cross.gain,settings.pingPong?settings.feedback:0,immediate)}
  }
  function syncClock(origin,tempo=lastTempo,at=ctx.currentTime){
@@ -226,6 +235,6 @@ function createGraph(ctx,destination,initial,bpm=120,origin=0,startTime=ctx.curr
  update(initial,bpm,true);
  return {context:ctx,input,output,gate,panner,nodes,banks,update,syncClock,triggerEnvelope,get filters(){return filterBranch.filters},get lfo(){return filterBranch.osc},get lfoOutput(){return filterBranch.depth},setAudible(on){smooth(gate.gain,on?1:0)},dispose(){if(disposed)return;disposed=true;clearTimeout(filterTimer);clearTimeout(reverbTimer);releaseBranch(filterBranch);releaseBranch(oldBranch);for(const n of nodes){try{n.disconnect()}catch{};if('buffer'in n)n.buffer=null}},diagnostics(){return{clock:filterBranch.clock?{...filterBranch.clock}:null,hallOn,delayOn,filterOn:settings.filterEnabled,lfoOn:!!filterBranch.osc}},get settings(){return settings}};
 }
-const api={releaseImpulseCache(ctx){impulses.delete(ctx)},KEYS,SLOPES,defaults,channel,normalize,filterMeaningful,pruneFilters,pruneEffects,convertState,convertSnapshot,subtle,estimatedBytes,impulse,lfoCoefficients,filterStageQ,createGraph};
+const api={releaseImpulseCache(ctx){impulses.delete(ctx)},KEYS,SLOPES,defaults,channel,normalize,filterMeaningful,pruneFilters,pruneEffects,disableForGeneration,renderVersion,convertState,convertSnapshot,subtle,estimatedBytes,impulse,lfoCoefficients,filterStageQ,createGraph};
 if(typeof module==='object'&&module.exports)module.exports=api;else root.MygrainLoopFx=Object.freeze(api);
 })(typeof window==='object'?window:globalThis);

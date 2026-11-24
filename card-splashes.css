@@ -33,3 +33,19 @@ body .instrument-splash[data-instrument="TV"]{--splash-a:#8bdfdc;--splash-b:#4d6
 /* AI uses the same printed sleeve and line-art system as the instruments. */
 body .instrument-splash[data-instrument="AI"]{--splash-a:#95d9cf;--splash-b:#665bab;--splash-paper:#e8fff1;background:repeating-linear-gradient(135deg,var(--splash-a) 0 23px,var(--splash-b) 23px 31px)}
 body #aiPatchCard > .instrument-splash{width:calc(100% + 40px);max-width:calc(100% + 40px);margin:-20px -20px 16px}
+
+/* Restructure identity: jade body, scarlet cutting edge (also archived patches). */
+body .instrument-splash[data-instrument="dropbox"]{--splash-a:#168262;--splash-b:#0c513f;--splash-paper:#ecfff4;background:linear-gradient(135deg,#168262,#0c513f);border-color:#d22b38}
+body .instrument-splash[data-instrument="dropbox"] .instrument-splash-art{color:#ecfff4}
+body .instrument-splash[data-instrument="dropbox"] .instrument-splash-badge{color:#fff;background:#b82230;border-color:#d22b38}
+body [aria-label="Restructure sample layer controls"]{border-color:#168262!important}
+body button[data-nav-section="sample"]{background:linear-gradient(135deg,#126b50,#218c69)!important;color:#effff7!important;border:1px solid #69ac91!important;box-shadow:none!important}
+
+/* Keep the archived instrument's grinder visible on phones as well as desktop. */
+body .instrument-splash[data-instrument="dropbox"]{display:grid;grid-template-columns:44px minmax(0,1fr);gap:10px;min-height:120px;padding:18px 14px;align-items:center}
+body .instrument-splash[data-instrument="dropbox"] .instrument-splash-badge{display:none}
+body .instrument-splash[data-instrument="dropbox"] .instrument-splash-copy{grid-column:2;grid-row:1;background:none;border:0;box-shadow:none;transform:none;padding:0}
+body .instrument-splash[data-instrument="dropbox"] .instrument-splash-art{grid-column:1;grid-row:1;position:static;width:44px;opacity:1;z-index:auto;transform:none;color:#effff7}
+body .instrument-splash[data-instrument="dropbox"] .performance-feature-title{color:#effff7!important;font-size:clamp(20px,4vw,32px)!important;overflow-wrap:normal;word-break:normal}
+body .instrument-splash[data-instrument="dropbox"] .instrument-splash-kicker,body .instrument-splash[data-instrument="dropbox"] .instrument-splash-tagline{color:#effff7!important}
+body [aria-label="Restructure sample layer controls"]{background:linear-gradient(135deg,#103c30,#155441)!important;color:#effff7!important}

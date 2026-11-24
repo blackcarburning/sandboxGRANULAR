@@ -1,0 +1,37 @@
+/* All new styles are scoped to Heavy Lifter; existing cards are unchanged. */
+#heavyLifterCard{--acoustic:#d3d8de;--acoustic-shadow:#6d747c;background:linear-gradient(135deg,#34383e,#20242a 65%,#181d23);border-color:#858b92}
+#heavyLifterCard .acoustic-head{background:linear-gradient(115deg,#7d858c33,#12171d66)}
+#heavyLifterCard .heavy-crane-art svg{width:100%;max-height:150px;fill:none;stroke:#cbd1d8;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+#heavyLifterCard .heavy-modes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:18px 0}
+#heavyLifterCard .heavy-modes button{display:flex;align-items:center;gap:9px;min-width:0;min-height:64px!important;padding:10px;text-align:left;white-space:normal;word-break:normal;overflow-wrap:normal;background:#242a31;border-color:#727b85}
+#heavyLifterCard .heavy-modes button[aria-selected=true]{color:#141a20;background:#d2d7dc;border-color:#f3f5f8}
+#heavyLifterCard .heavy-modes small{display:block;font-size:9px;letter-spacing:.12em;margin-bottom:3px;opacity:.75}
+#heavyLifterCard .heavy-modes .acoustic-icon{color:inherit;width:24px;height:24px;flex-basis:24px}
+#heavyLifterCard h4{display:flex;align-items:center;gap:12px;font:750 23px/1.25 system-ui,sans-serif;margin:24px 0 12px;color:#e0e5eb}
+#heavyLifterCard #heavyModeControls{margin-top:20px}
+#heavyLifterCard .heavy-sample-actions{display:flex;flex-wrap:wrap;gap:10px;margin:16px 0}
+#heavyLifterCard #heavySamplesPanel{border:1px solid #7c858f;border-radius:10px;padding:14px;margin:16px 0;background:#111820b3;font-size:12px;line-height:1.6}
+#heavyLifterCard #heavySamplesPanel[hidden]{display:none}
+#heavyLifterCard #heavySamplesList article{border-top:1px solid #7d858d55;padding:12px 0}
+#heavyLifterCard #heavySamplesList p{margin:5px 0;overflow-wrap:anywhere}
+#heavyLifterCard #heavySamplesList a{color:#d8e8f3;text-decoration:underline}
+@media(max-width:600px){#heavyLifterCard .heavy-modes{grid-template-columns:repeat(2,minmax(0,1fr))}#heavyLifterCard .heavy-modes button{font-size:12px;gap:6px;padding:8px}#heavyLifterCard .heavy-crane-art svg{max-height:115px}}
+@media(max-width:360px){#heavyLifterCard .heavy-modes button{font-size:11px}#heavyLifterCard .heavy-modes .acoustic-icon{width:19px;height:19px;flex-basis:19px}}
+
+#heavyLifterCard .heavy-sample-actions button{min-height:44px!important}
+
+#heavyLifterCard .heavy-research{margin:16px 0 8px;font-size:12px;line-height:1.6;overflow-wrap:anywhere;color:#c8d0d8}
+#heavyLifterCard .heavy-research a{color:#d8e8f3;text-decoration:underline;text-underline-offset:3px}
+
+/* Shared control modulation: scoped to the requested card only. */
+#heavyLifterCard #heavyLfoPanel{margin:16px 0 22px;padding:14px;border:1px solid #89939c;border-radius:10px;background:#11182080;min-width:0}
+#heavyLifterCard #heavyLfoPanel h5{display:flex;flex-wrap:wrap;gap:8px;align-items:baseline;justify-content:space-between;margin:0 0 16px;font:700 15px/1.5 system-ui,sans-serif;color:#e0e5eb}
+#heavyLifterCard #heavyLfoCount{font-size:11px;font-weight:500;color:#c2ccd5}
+#heavyLifterCard .heavy-mod-field{display:grid;grid-template-columns:minmax(0,1fr) 48px;align-items:end;gap:8px;min-width:0}
+#heavyLifterCard .heavy-mod{width:48px!important;min-width:0!important;min-height:44px!important;padding:5px!important;font-size:11px!important;letter-spacing:0!important}
+#heavyLifterCard .heavy-mod[aria-pressed=true]{background:#d2d7dc!important;color:#141a20!important;border-color:#f3f5f8!important}
+#heavyLifterCard #heavyLfoClear{min-height:44px!important;margin:0 0 12px}
+#heavyLifterCard .heavy-mod-field .acoustic-field>span{min-height:2.8em;align-content:space-between}
+
+/* Same centred MOD label treatment on every Heavy Lifter tab. */
+#heavyLifterCard .heavy-mod{display:flex!important;align-items:center!important;justify-content:center!important;text-align:center!important;}

@@ -109,13 +109,82 @@ async function run(state,signedOutOnly=false){
  await p.waitForFunction(()=>window.mygrainDawBridge&&document.documentElement.dataset.mygrainStartup==='ready',null,{timeout:90000}).catch(async error=>{fs.writeFileSync(path.join(out,'startup-diagnostic.json'),JSON.stringify(await p.evaluate(()=>({url:location.href,build:document.querySelector('.build-badge')?.textContent,status:document.documentElement.dataset,body:document.body.innerText.slice(0,15000)})),null,2));throw error;});
  if(await p.locator('#start-btn').isVisible())await p.locator('#start-btn').click();
  await p.waitForFunction(api=>window[api].connected&&window[api].diagnostics().project.ready&&isAudioGraphReady()&&!engineStarting&&!stateSaveSuspended&&!mygrainCardHistory.busy,api,{timeout:90000});
+
+ // Exercise the embedder's real MIDI permission path; never inject/grant a CDP permission.
+ const midi=await p.evaluate(async()=>{
+  if(typeof navigator.requestMIDIAccess!=='function')return {supported:false};
+  const access=await Promise.race([navigator.requestMIDIAccess({sysex:false}),new Promise((_,reject)=>setTimeout(()=>reject(Error('CEF MIDI permission request did not resolve')),10000))]);
+  const ports=collection=>Array.from(collection.values(),p=>({name:p.name,type:p.type,state:p.state}));
+  const permission=await navigator.permissions.query({name:'midi',sysex:false});
+  return {supported:true,resolved:true,sysexEnabled:access.sysexEnabled,permission:permission.state,inputs:ports(access.inputs),outputs:ports(access.outputs)};
+ });
+ assert.equal(midi.supported,true);assert.equal(midi.resolved,true);assert.equal(midi.sysexEnabled,false);assert.equal(midi.permission,'granted');
+ fs.writeFileSync(path.join(out,'midi-permissions'+(state?'-restored':'')+'.json'),JSON.stringify(midi,null,2));
+ console.log('CEF_MIDI_ACCESS='+JSON.stringify(midi));
+ if(!state){
+  // Playwright's CDP attachment can install its own deny/allowAndName policy.
+  // Restore the embedder default to exercise CefDownloadHandler, not Playwright.
+  const downloadCDP=await c.newCDPSession(p);await downloadCDP.send('Browser.setDownloadBehavior',{behavior:'default',eventsEnabled:true});
+  const downloads=path.join(require('node:os').homedir(),'Downloads'),name='mygrain-cef-download-'+Date.now()+'.wav';
+  fs.mkdirSync(downloads,{recursive:true});fs.writeFileSync(path.join(downloads,name),'existing file must survive');
+  await p.evaluate(({name,data})=>{for(let i=0;i<2;i++){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([Uint8Array.from(data)],{type:'audio/wav'}));a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),30000)}},{name,data:[...previewWav]});
+  const copies=[1,2].map(n=>path.join(downloads,name.replace(/\.wav$/,` (${n}).wav`)));
+  try{await until(()=>copies.every(file=>fs.existsSync(file)&&fs.statSync(file).size===previewWav.length),'native Downloads WAVs without dialogs');}catch(error){fs.writeFileSync(path.join(out,'download-failure.json'),JSON.stringify({files:fs.readdirSync(downloads),notice:await p.evaluate(()=>document.getElementById('mygrainNativeDownloadStatus')?.textContent)},null,2));throw error;}
+  await downloadCDP.detach();
+  for(const file of copies)assert.deepEqual(fs.readFileSync(file),previewWav);
+  assert.equal(fs.readFileSync(path.join(downloads,name),'utf8'),'existing file must survive');
+  fs.writeFileSync(path.join(out,'native-download-results.json'),JSON.stringify({directory:downloads,files:copies,exactWavBytes:true,duplicateNamesSafe:true,noSaveDialog:true},null,2));
+ }
  assert.equal(await p.evaluate(()=>mygrainAccounts.user.username),'cef-fixture');if(state)assert.equal(auth.posts,0,'fresh instance must not submit credentials');
  return p;
 }
 async function close(){command('quit');if(browser){await browser.close().catch(()=>{});browser=null;}await until(()=>exit!==null,'native clean unload',15000);assert.equal(exit,0,log);fs.writeFileSync(path.join(out,'cef-native-host.log'),log);}
 function rms(){const bytes=fs.readFileSync(raw);let power=0,n=0;for(let at=Math.max(0,bytes.length-48000*8);at+4<=bytes.length;at+=4){const v=bytes.readFloatLE(at);assert(Number.isFinite(v));power+=v*v;n++;}return Math.sqrt(power/Math.max(1,n));}
+async function verifySpaceRouting(p){
+ const focus=async value=>acknowledged('cef-host-focus '+value,'CEF_FOCUS=');
+ const state=async()=>{await acknowledged('cef-space-state','CEF_SPACE_STATE=');return log.split('CEF_SPACE_STATE=').pop().split('\n')[0].trim().split(':').map(Number);};
+ const native=()=>acknowledged('cef-native-key 32 32','CEF_NATIVE_KEY=');
+ const host=async(character=32,code=0)=>{await acknowledged(`cef-host-key ${character} ${code} 0`,'CEF_KEY=');return log.split('CEF_KEY=').pop().split('\n')[0].trim();};
+ await p.evaluate(()=>{
+  const box=document.createElement('div');box.id='cefSpaceFixture';box.style.cssText='position:fixed;top:110px;left:10px;z-index:2147483647;background:#123;padding:8px;';
+  box.innerHTML='<button id="cefSpaceButton">Transport test</button><input id="cefSpaceText"><input id="cefSpacePassword" type="password"><textarea id="cefSpaceTextarea"></textarea><div id="cefSpaceEditable" contenteditable="true" tabindex="0"></div>';
+  document.body.append(box);window.cefSpaceEvents={down:0,up:0,clicks:0};
+  window.cefSpaceListener=event=>{if(event.code==='Space'||event.key===' ')window.cefSpaceEvents[event.type==='keydown'?'down':'up']++;};
+  window.addEventListener('keydown',window.cefSpaceListener,true);window.addEventListener('keyup',window.cefSpaceListener,true);
+  box.querySelector('button').onclick=()=>window.cefSpaceEvents.clicks++;
+ });
+ const observations=[];
+ for(const target of ['body','button','text','password','textarea','editable']){
+  await focus(0);await focus(1);
+  await p.evaluate(target=>{document.activeElement?.blur();if(target!=='body')document.getElementById('cefSpace'+({button:'Button',text:'Text',password:'Password',textarea:'Textarea',editable:'Editable'}[target])).focus();},target);
+  const editable=!['body','button'].includes(target);
+  await until(async()=>(await state())[0]===Number(editable),'Chromium editable focus '+target,10000);
+  const before=await state(),events=await p.evaluate(()=>({...window.cefSpaceEvents}));
+  await native();const afterNative=await state();
+  const result=await host();assert.equal(result,'32:'+(editable?'0:0':'1:1'),'VST3 host return '+target);
+  // Virtual-key-only Space must take the same route as the Unicode form.
+  if(!editable)assert.equal(await host(0,7),'0:1:1');
+  // Hosts may also dispatch the original OS message after the callback.
+  await native();const afterDuplicate=await state();
+  const actual=await p.evaluate(()=>({...window.cefSpaceEvents}));
+  if(editable){
+   const value=await p.evaluate(target=>{const element=document.getElementById('cefSpace'+({text:'Text',password:'Password',textarea:'Textarea',editable:'Editable'}[target]));return element.value??element.textContent;},target);
+   assert.equal(value.replace(/\u00a0/g,' '),'  ','two spaces, no duplicate '+target);
+   assert.equal(actual.down-events.down,2);assert.equal(actual.up-events.up,2);
+   assert.deepEqual(afterNative.slice(1),before.slice(1),'text Space must not reach native host');
+  }else{
+   assert.deepEqual(actual,events,'no app Space event/default button action '+target);
+   assert.deepEqual(afterNative.slice(1),[before[1]+1,before[2]+1],'native original reaches host once');
+  }
+  assert.deepEqual(afterDuplicate,afterNative,'native duplicate must not reach host or change focus');
+  observations.push({target,editable,vst3Result:result,nativeHostDown:afterNative[1]-before[1],nativeHostUp:afterNative[2]-before[2],duplicateSuppressed:true});
+ }
+ await p.evaluate(()=>{document.getElementById('cefSpaceFixture').remove();window.removeEventListener('keydown',window.cefSpaceListener,true);window.removeEventListener('keyup',window.cefSpaceListener,true);});
+ await focus(0);await focus(1);
+ fs.writeFileSync(path.join(out,'native-space-results.json'),JSON.stringify({focusedHostPassthrough:true,nativeFallback:true,textSpacesPreserved:true,noAppTransportOrButtonAction:true,noDuplicate:true,observations},null,2));
+}
 (async()=>{try{
- const p=await run();if(fx){await require('./fx_tests.cjs')({p,run,close,command,acknowledged,toolbar,rms,delay,until,out,raw,control,loginPath});return;}await until(()=>fs.existsSync(loginPath),'remembered session persisted');assert(!fs.readFileSync(loginPath).includes(Buffer.from('Aa7!@-z')),'never store the account password');command('stop');const diag=()=>p.evaluate(()=>mygrainDawBridge.diagnostics());
+ const p=await run();await verifySpaceRouting(p);if(fx){await require('./fx_tests.cjs')({p,run,close,command,acknowledged,toolbar,rms,delay,until,out,raw,control,loginPath});return;}await until(()=>fs.existsSync(loginPath),'remembered session persisted');assert(!fs.readFileSync(loginPath).includes(Buffer.from('Aa7!@-z')),'never store the account password');command('stop');const diag=()=>p.evaluate(()=>mygrainDawBridge.diagnostics());
  const audit=async label=>{const value=await p.evaluate(async()=>{const a=audioContext.createAnalyser();a.fftSize=2048;finalAmplifierNode.connect(a);await new Promise(r=>setTimeout(r,150));const v=new Float32Array(2048);a.getFloatTimeDomainData(v);finalAmplifierNode.disconnect(a);return {audio:{state:audioContext.state,time:audioContext.currentTime,rate:audioContext.sampleRate,rms:Math.sqrt(v.reduce((sum,x)=>sum+x*x,0)/v.length)},visibility:document.visibilityState,bridge:mygrainDawBridge.diagnostics(),status:document.querySelector('#dawBridgeStatus')?.textContent};});value.nativeRms=rms();fs.writeFileSync(path.join(out,label+'.json'),JSON.stringify(value,null,2));};
 
  assert.equal((await diag()).project.auto.enabled,true);assert.equal((await diag()).project.auto.interval,60);

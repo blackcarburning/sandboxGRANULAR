@@ -46,8 +46,10 @@ class AutomationTests(unittest.TestCase):
             initial['enabled'] = True
             eq['channels'][key]['automation'] = {'version': 1, 'read': True, 'steps': 16,
                 'points': [{'phase': 0, **initial}, {'phase': 1, **initial}]}
-            result = base.SONGS.validate_part_zip(base.replace_eq(base.backend.part_zip(), eq))
-            self.assertEqual(result['eqVersion'], 1 if key in ('X', 'L') else 3, key)
+            import test_ember
+            source = test_ember.body(dict(test_ember.recipe, enabled=True)) if key == 'E' else base.backend.part_zip()
+            result = base.SONGS.validate_part_zip(base.replace_eq(source, eq))
+            self.assertEqual(result['eqVersion'], 4 if key == 'E' else 1 if key in ('X', 'L') else 3, key)
             eq['channels'][key]['automation']['read'] = False
             result = base.SONGS.validate_part_zip(base.replace_eq(base.backend.part_zip(), eq))
             self.assertNotIn('eqVersion', result, key)

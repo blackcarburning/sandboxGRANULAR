@@ -1,0 +1,22 @@
+'use strict';
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),path=require('node:path');
+const root=path.resolve(__dirname,'..'),scope={};vm.createContext(scope);vm.runInContext(fs.readFileSync(process.env.MYGRAIN_ROBOT_DSP||root+'/robot-dsp.js','utf8'),scope);const M=scope.MygrainRobot;
+function bank(rate){const pcm=new Float32Array(Math.round(rate*.12));for(let i=0;i<pcm.length;i++){const t=i/rate;pcm[i]=t>=.04&&t<.06?.7:t>=.005&&t<.1?.05:0;}return{sampleRate:rate,getChannelData:()=>pcm,pcm};}
+function recipe(method='peakPower',extra={}){return M.normalize({enabled:true,level:1,loopBars:1,snap:{method,strength:100,maxShiftMs:200},phrases:[{id:'one',voice:'kokoro_af_heart',enabled:true,lanes:[{word:'word',offset:0,duration:.12,markers:{peakPower:.05,attack:.04,manual:.075},pattern:[1,...Array(15).fill(0)]}]}],...extra});}
+function render(state,{rate=48000,sourceRate=24000,seconds=3,origin=.3,time=origin,end=Infinity,update}={}){const b=bank(sourceRate),scope={sampleRate:rate,currentTime:0,AudioWorkletProcessor:class{constructor(){this.port={}}},registerProcessor:(n,C)=>scope.C=C};vm.createContext(scope);vm.runInContext(fs.readFileSync(process.env.MYGRAIN_ROBOT_WORKLET||root+'/robot-worklet.js','utf8'),scope);const player=new scope.C({processorOptions:{state,pcm:b.pcm,sourceRate,bpm:120,cycleSteps:16,time,origin,end}}),audio=new Float32Array(Math.round(rate*seconds));for(let i=0;i<audio.length;i+=128){scope.currentTime=i/rate;if(update&&i>=rate&&i<rate+128)player.port.onmessage({data:update});const out=[new Float32Array(128),new Float32Array(128)];player.process([],[out]);audio.set(out[0].subarray(0,Math.min(128,audio.length-i)),i);}return{audio,rate};}
+const onsets=({audio,rate},threshold=.02)=>{const result=[];for(let i=0;i<audio.length;i++)if(audio[i]>threshold&&(!i||audio[i-1]<=threshold))result.push(i/rate);return result;};
+const cases=[];
+for(const rate of [44100,48000]){
+ const b=bank(24000),a=M.analyseWord(b,{offset:0,duration:.12});assert(Math.abs(a.peakPower-.05)<.001);assert(a.attack>=.04&&a.attack<.041);assert.equal(a.waveform.length,120);
+ for(const method of ['peakPower','attack','manual']){const s=recipe(method),advance=s.phrases[0].lanes[0].markers[method],r=render(s,{rate}),starts=onsets(r);assert(Math.abs(starts[0]-(.3-advance+.005))<2/rate,JSON.stringify({method,starts}));assert(Math.abs(starts[1]-(2.3-advance+.005))<2/rate);const energy=r.audio.reduce((n,x)=>n+x*x,0);assert(energy>0);cases.push({rate,method,firstAttack:starts[0],marker:.3});}
+ const strength=recipe('manual',{snap:{method:'manual',strength:50,maxShiftMs:20}});assert.equal(M.preRollSeconds(strength),.02);assert(Math.abs(onsets(render(strength,{rate}))[0]-.285)<2/rate);
+ const raw=recipe('manual');delete raw.snap;const inactive=recipe('manual',{snap:{method:'manual',strength:0,maxShiftMs:200}});assert.deepEqual(render(inactive,{rate}).audio,render(raw,{rate}).audio);
+ const classic=recipe('manual');classic.phrases[0].voice='male1';assert.deepEqual(render(classic,{rate}).audio,render({...classic,snap:undefined},{rate}).audio);
+ // Ratchets align individually and preserve tails. The final pickup is not
+ // emitted when a one-shot Song render has reached its declared boundary.
+ const ratchet=recipe('manual');ratchet.phrases[0].lanes[0].pattern[0]=4;const r=onsets(render(ratchet,{rate,end:2.3}),.5);assert.equal(r.length,4);assert(Math.abs(r[0]-.265)<2/rate);assert(Math.abs(r[3]-.35875)<2/rate);
+ const locked=recipe('manual',{loopBars:1,timingBars:2});locked.phrases[0].lanes[0].pattern[4]=1;locked.phrases[0].lanes[0].pattern[12]=1;const lockedHits=onsets(render(locked,{rate}));assert.equal(lockedHits.length,3);assert(!lockedHits.some(t=>t>1.8&&t<2.2));
+ const chain=recipe('manual');chain.phrases.push({...chain.phrases[0],id:'two',lanes:[{...chain.phrases[0].lanes[0],markers:{manual:.025}}]});const hits=onsets(render(chain,{rate}));assert(Math.abs(hits[1]-2.28)<2/rate);
+}
+const input=recipe(),normal=M.normalize(input);normal.phrases[0].lanes[0].markers.manual=.02;assert.equal(input.phrases[0].lanes[0].markers.manual,.075);assert.equal(M.renderVersion(recipe()),36);assert.equal(M.renderVersion({...recipe(),snap:undefined}),34);assert.equal(M.renderVersion({...recipe(),snap:undefined,timingBars:1}),35);
+console.log(JSON.stringify({cases,analysis:true,normalization:true,strengthAndCap:true,classicAndOffPcmExact:true,ratchets:true,lockedTruncation:true,phrasePickups:true,renderEnd:true},null,2));

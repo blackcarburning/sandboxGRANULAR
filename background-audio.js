@@ -2,7 +2,7 @@
     'use strict';
     // Silent clock only: the real mix stays connected to its original destination.
     // Worklet messages wake audio schedulers without relying on background UI timers.
-    const clockSource = `class MygrainBackgroundClock extends AudioWorkletProcessor {
+    function registerBackgroundClock() { class MygrainBackgroundClock extends AudioWorkletProcessor {
         constructor() { super(); this.frames = 0; this.enabled = false; this.pending = false;
             this.port.onmessage = e => { if (e.data === 'ack') this.pending = false; else { this.enabled = e.data === true; if (!this.enabled) { this.pending = false; this.frames = 0; } } }; }
         process() {
@@ -13,7 +13,10 @@
             return true;
         }
     }
-    registerProcessor('mygrain-background-clock-v1', MygrainBackgroundClock);`;
+    registerProcessor('mygrain-background-clock-v1', MygrainBackgroundClock); }
+    // The same file is also a static worklet for strict script-src self hosts.
+    if (typeof registerProcessor === 'function') { registerBackgroundClock(); return; }
+    const clockSource = '(' + registerBackgroundClock.toString() + ')();';
 
     function create(host, adapter) {
         const doc = host.document;
@@ -118,11 +121,12 @@
             detach(); context = nextContext; clockError = null;
             const token = generation;
             configure();
-            if (!nextContext?.audioWorklet || !host.AudioWorkletNode || !host.Blob || !host.URL?.createObjectURL) { sync(); return; }
+            const staticClock = typeof adapter.clockModule === 'string' && adapter.clockModule;
+            if (!nextContext?.audioWorklet || !host.AudioWorkletNode || (!staticClock && (!host.Blob || !host.URL?.createObjectURL))) { sync(); return; }
             let url;
             try {
-                url = host.URL.createObjectURL(new host.Blob([clockSource], { type: 'text/javascript' }));
-                await nextContext.audioWorklet.addModule(url);
+                if (!staticClock) url = host.URL.createObjectURL(new host.Blob([clockSource], { type: 'text/javascript' }));
+                await nextContext.audioWorklet.addModule(staticClock || url);
                 if (disposed || token !== generation || nextContext.state === 'closed') return;
                 node = new host.AudioWorkletNode(nextContext, 'mygrain-background-clock-v1', { numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [1] });
                 node.port.onmessage = pulse;

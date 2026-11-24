@@ -16,7 +16,7 @@ Destination and Playground modulation/drawn-curve menus remain separate concepts
   controls stay owned by the existing cards. Presets do not change Input.
 - JSON/ZIP/browser/native project saves continue using canonical card settings.
   Native Pot panels do not own a second set of source settings or need new binaries.
-- Bubble Chamber remains manual-only; its saved/manual Input and power still work.
+- Bubble Chamber is included in randomisation; its saved/manual Input and power still work.
 
 ## Routing
 

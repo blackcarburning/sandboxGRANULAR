@@ -107,6 +107,10 @@ wasp-filter-song-browser.cjs.
 
 ## Explicit generation effect switches (2026-11-10 follow-up)
 
+Historical generation rules below are superseded by the Mega/Sparse-only policy
+in “Insert hall and dry randomisation”; local and ordinary patch randomisation
+retain standard-card FX.
+
 Randomisation finishes by explicitly disabling Filter, Reverb and Delay on
 every muted, unloaded, zero-level or solo-excluded shared lane, including
 each K track and N's shared space. On eligible lanes, a zero reverb/delay mix
@@ -211,3 +215,43 @@ Verification:
 
 Backup/evidence: workspace `output/mygrain-eq-routing-20261112/`. Physical device
 and DAW hardware listening are not implied by browser PCM checks.
+
+## Insert hall and dry randomisation (2026-11-22)
+
+Editing any standard reverb control or selecting a hall preset sets the portable
+channel flag `reverbInsert:true`. Reverb Mix uses an equal-power insert blend:
+0% unity dry, 50% -3.01 dB dry / wet, 100% zero dry and unity wet return.
+The card's delay is before this insert, so its unprocessed repeats cannot leak
+around a full-wet hall. Filter, source routing, pan and downstream inserts remain
+unchanged. Reverb Off / zero Mix bypasses at unity. Gain changes are smoothed.
+
+Missing `reverbInsert` retains the exact historical parallel graph, including
+its .8 wet scale. Existing patches and archived Songs are not rewritten. Moving
+one of their reverb controls intentionally opts that channel into insert mode;
+manual recall and Undo preserve the saved mode. This is not the separate global
+Space & Echo reverb and does not change instrument-specific internal chambers.
+
+Only a powered, nonzero insert hall requires `loopFxVersion:2`; legacy parallel,
+Off and zero-mix settings retain version 1. Client compatibility, backend source
+metadata, upload admission and the normal isolated server deck use this boundary.
+Both realtime and offline audio use `MygrainLoopFx.createGraph`.
+
+Only Mega/Sparse reset all standard-card filter/reverb/delay flags Off,
+including active channels and five independent K tracks. Recipes, amounts and
+curves remain intact. `disableForGeneration` is separate from normalization;
+manual power changes, patch/Song recall and Undo/Redo never force effects Off.
+Local card sound/pattern/patch randomisation and ordinary patch randomisation retain standard-card FX power and recipes. Noise's separate source filter is switched Off only at Mega/Sparse completion.
+
+Checks: `tests/card-reverb-insert-browser.cjs` (Chromium/WebKit impulse PCM,
+legacy byte parity, full-wet delay rejection, phone controls, save and history,
+three real isolated server renders, warm reuse and unchanged source hashes),
+`tests/loop-card-fx.test.cjs`, `tests/test_song_fx_conversion.py`.
+
+### Cross-card reset isolation (2026-11-23)
+
+Mega/Sparse alone apply global card FX/processor shutdown and unrelated source
+muting. Local sample/pattern/patch randomisers and ordinary patch randomisation
+retain Pot, Master Baker, Turntable, all other effect recipes/powers, EQ, global
+filter/delay/hall and Drone/Robot/GlassHaus/Ember power. Regression:
+`tests/random-card-isolation-browser.cjs` uses real native clicks and WAV download/
+decode with isolated deterministic network samples, plus pending/failure states.

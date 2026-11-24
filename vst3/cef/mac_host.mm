@@ -26,6 +26,13 @@ using namespace Steinberg;using namespace Steinberg::Vst;
 #include "toolbar.h"
 #include <filesystem>
 #include <set>
+static uint64_t hostSpaceDown=0,hostSpaceUp=0;
+@interface MGCEFHostContentView : NSView
+@end
+@implementation MGCEFHostContentView
+- (void)keyDown:(NSEvent*)event{if(event.keyCode==49){++hostSpaceDown;return;}[super keyDown:event];}
+- (void)keyUp:(NSEvent*)event{if(event.keyCode==49){++hostSpaceUp;return;}[super keyUp:event];}
+@end
 static NSButton* button(NSView* view,NSInteger tag){for(NSView* child in view.subviews){if([child isKindOfClass:[NSButton class]]&&child.tag==tag)return (NSButton*)child;if(auto* result=button(child,tag))return result;}return nil;}
 int main(int argc,char**argv){@autoreleasepool{
  if(argc<3)return 2;[NSApplication sharedApplication];
@@ -49,6 +56,7 @@ int main(int argc,char**argv){@autoreleasepool{
  if(fx)component->activateBus(kAudio,kInput,0,true);component->activateBus(kAudio,kOutput,0,true);component->setActive(true);processor->setProcessing(true);
  std::set<std::filesystem::path> priorDisplays;for(const auto& item:std::filesystem::directory_iterator(std::filesystem::temp_directory_path()))priorDisplays.insert(item.path());
  NSWindow* window=[[NSWindow alloc] initWithContentRect:NSMakeRect(0,0,1240,860) styleMask:NSWindowStyleMaskTitled backing:NSBackingStoreBuffered defer:NO];
+ window.contentView=[[[MGCEFHostContentView alloc] initWithFrame:window.contentView.frame] autorelease];
  IPlugView* view=controller->createView(ViewType::kEditor);if(!view||view->attached(window.contentView,kPlatformTypeNSView)!=kResultOk)return 10;
  if(!button(window.contentView,102)||!button(window.contentView,106))return 11;
  [window makeKeyAndOrderFront:nil];[NSApp activateIgnoringOtherApps:YES];
@@ -103,7 +111,8 @@ int main(int argc,char**argv){@autoreleasepool{
    if(command=="cef-size-small"||command=="cef-size-normal"){ViewRect size(0,0,command=="cef-size-small"?800:1240,860);view->onSize(&size);NSView* surface=window.contentView.subviews.firstObject;NSView* last=[surface viewWithTag:222];if(NSMaxX(last.frame)>surface.bounds.size.width||NSMinX(last.frame)<0)return 25;std::cout<<"CEF_SIZE="<<int(surface.bounds.size.width)<<std::endl;}
    if(command.rfind("cef-host-focus ",0)==0){const bool focused=command.back()=='1';if(view->onFocus(focused)!=kResultTrue)return 24;std::cout<<"CEF_FOCUS="<<focused<<std::endl;}
    if(command.rfind("cef-host-key ",0)==0){std::istringstream keys(command.substr(13));int ch=0,code=0,mod=0;if(keys>>ch>>code>>mod){auto a=view->onKeyDown(char16(ch),code,mod),b=view->onKeyUp(char16(ch),code,mod);std::cout<<"CEF_KEY="<<ch<<":"<<a<<":"<<b<<std::endl;}}
-   if(command.rfind("cef-native-key ",0)==0){std::istringstream keys(command.substr(15));int ch=0,vk=0;if(keys>>ch>>vk){NSView* surface=window.contentView.subviews.firstObject;unichar c=ch;NSString* text=[NSString stringWithCharacters:&c length:ch?1:0];for(NSEventType type:{NSEventTypeKeyDown,NSEventTypeKeyUp}){NSEvent* event=[NSEvent keyEventWithType:type location:NSZeroPoint modifierFlags:0 timestamp:NSProcessInfo.processInfo.systemUptime windowNumber:window.windowNumber context:nil characters:text charactersIgnoringModifiers:text isARepeat:NO keyCode:mygrain::cef::nativeKey(vk)];if(type==NSEventTypeKeyDown)[surface keyDown:event];else [surface keyUp:event];}}}
+   if(command.rfind("cef-native-key ",0)==0){std::istringstream keys(command.substr(15));int ch=0,vk=0;if(keys>>ch>>vk){NSView* surface=window.contentView.subviews.firstObject;unichar c=ch;NSString* text=[NSString stringWithCharacters:&c length:ch?1:0];for(NSEventType type:{NSEventTypeKeyDown,NSEventTypeKeyUp}){NSEvent* event=[NSEvent keyEventWithType:type location:NSZeroPoint modifierFlags:0 timestamp:NSProcessInfo.processInfo.systemUptime windowNumber:window.windowNumber context:nil characters:text charactersIgnoringModifiers:text isARepeat:NO keyCode:mygrain::cef::nativeKey(vk)];if(type==NSEventTypeKeyDown)[surface keyDown:event];else [surface keyUp:event];}std::cout<<"CEF_NATIVE_KEY="<<ch<<std::endl;}}
+   if(command=="cef-space-state"&&commandDisplay.data)std::cout<<"CEF_SPACE_STATE="<<commandDisplay.data->textEditing.load()<<":"<<hostSpaceDown<<":"<<hostSpaceUp<<std::endl;
 
    if(command.rfind("cef-click ",0)==0){std::istringstream point(command.substr(10));int x=0,y=0;if(point>>x>>y){NSView* surface=window.contentView.subviews.firstObject;NSPoint location=[surface convertPoint:NSMakePoint(x,y+mygrain::cef::toolbarHeight) toView:nil];for(NSEventType type:{NSEventTypeLeftMouseDown,NSEventTypeLeftMouseUp}){NSEvent* event=[NSEvent mouseEventWithType:type location:location modifierFlags:0 timestamp:NSProcessInfo.processInfo.systemUptime windowNumber:window.windowNumber context:nil eventNumber:0 clickCount:1 pressure:1];if(type==NSEventTypeLeftMouseDown)[surface mouseDown:event];else [surface mouseUp:event];}}}
    if(command=="bypass")bypass=true;if(command=="wet")bypass=false;if(command=="silence")silentInput=true;if(command=="input")silentInput=false;

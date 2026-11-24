@@ -198,3 +198,179 @@ content signatures: changing the next-load choice must not invalidate unchanged
 Song PCM. Source ZIPs/metadata and selector settings are not rewritten; original
 audio in portable snapshots renders without requesting either library. Existing
 render capabilities/DSP are unchanged.
+
+
+## Four independent sample lanes — v2026.11.15.D4.1
+
+D is now four sample lanes. The old D source and all its existing controls are
+lane 1, unchanged by legacy recall. Lanes 2–4 start empty/Off. Each has a separate
+standard rainbow browser with native audition and reversible in-track Preview,
+Import, Random Loop, next-load library, fit and pitch-preserving speed selector.
+A confirmed browser Add is the only replacement; Preview never changes canonical
+PCM, metadata, saved settings, history or plugin captures. Switching Preview off,
+closing or history travel restores the original. Other lanes keep their sources
+and shared transport phase during an individual lane edit.
+
+The separate D mini mixer has one On/Off, level and pan per lane. Existing D
+master level, On/Off and Layers/Solo remain WHOLE-CARD controls. Mixer level
+multiplies the existing master; neutral lane 1 is exactly unity with no panner.
+Non-centred pans use an explicit stereo input so mono input has no centre-law
+jump. The four lane EQs precede ONE combined D filter/LFO/hall/delay chain and
+source-owned inserts. D2/D3/D4 are EQ identities, not new global Solo/effect
+source keys: all remain semantic source D. Never put the primary D EQ after the
+four-lane sum or allocate separate local effects for the added lanes.
+
+EQ keys D/D2/D3/D4 reuse the shared four-band popup and complete R/W/Delete
+one-pass automation. There are now 31 registered EQ channels. Curves use the
+existing shared pattern/audio clock and manual-bypass precedence; no extra lane
+scheduling timers are introduced. Browser/manual source speed does not change
+the arrangement length or global BPM. The primary lane retains its old pitch,
+maximiser, cuts, gaps and source-preserving derived fit.
+
+Optional VU meters tap each lane AFTER its EQ and fader/pan, before shared D FX.
+They are transient view state (Off after reload), not generic saved controls.
+No analyser or animation task remains when disabled, off-screen, stopped,
+hidden or in a Song deck. Pan/level range gestures use one history transaction;
+per-lane speed and loading actions are undoable without replacing other lanes.
+
+### Persistence, render and compatibility contract
+
+- `modes.loopD.mix` is optional lane-1 `{enabled,level,pan}`; omit the exact
+  unity/centre/On default. Existing `loopD.enabled/level` remain group controls.
+- Optional `modes.loopD.lanes` contains exactly three lane-2/3/4 settings:
+  `enabled, level, pan, speed, fill, repository, metadata`. Omit untouched lanes
+  entirely. Missing lanes restore Off; loading an old patch must never enable
+  the new sources. New per-lane EQ/automation remains in `modes.channelEq`.
+- Original PCM is append-only in history bindings as bastardD2/3/4, DB keys
+  bastardLoopD2/3/4Buffer, portable paths bastardloops/loop-d2/3/4.wav (editable
+  patch) and audio/bastardD2/3/4.wav (Song source). Do not reorder history slots.
+  Full D copy includes all four originals, settings and EQs. Account and async
+  load guards retain the standard preview/commit lifecycle.
+- Audible extra lanes or a non-neutral primary mixer require loopDVersion 3 in
+  client reuse/admission and server GET/POST. Ordinary old D stays version 1,
+  maximised old D stays 2. Missing/default additions preserve exact pre-task
+  content identities. Do not rewrite old source ZIPs, audio or Song revisions.
+- Isolated render preparation pre-fits every enabled D lane before capture.
+  Low Power remains live-only; server/offline/borrowed-context renders always
+  use full quality. Audio archive bounds increase only by three source entries
+  (44 audio assets / 45 ZIP entries). Dfeeder's source whitelist is unchanged.
+
+Regression commands (isolated loopback store only):
+
+```
+node --test tests/channel-eq.test.cjs tests/eq-automation.test.cjs tests/global-solo.test.cjs
+python3 -m unittest discover -s tests -p 'test_d_four_lanes.py'
+BASE=http://127.0.0.1:19345/mygrain/ OUT=<evidence> node tests/d-four-lanes-browser.cjs
+BASE=http://127.0.0.1:19345/mygrain/ OUT=<evidence> node tests/d-four-lanes-song.cjs
+```
+
+The Python identity comparison needs MYGRAIN_D4_BASELINE pointing to the exact
+pre-task backend backup. Browser fixtures expect disposable admin credentials,
+two distinct 240-BPM WAVs in the isolated shared SAMPLES_LOOPSTORE and current
+Playwright Chromium/WebKit. Tests cover final-output PCM, four independent
+lanes, panning, EQ isolation, shared filtering, exact preview restoration at
+source PCM, separate random loading/Undo/Redo, real speed/native pan controls,
+four one-pass EQ takes, ZIP and IDB reload, legacy defaults, viewport containment,
+and optional meters allocating zero analysers when off-screen/disabled/stopped.
+Three actual server jobs verify legacy/current/automated-EQ PCM, exact frame
+counts, channel panning, warm reuse, phone playback and immutable source hashes /
+revisions. Run source-solo-isolation-browser (now including D2–4 semantic masks),
+source-solo-live, source-solo-song and test_source_solo_isolation as well.
+These are browser-engine checks, not a physical iPhone listening test.
+
+Pre-task backup/evidence: `output/mygrain-d-four-20261115T141915Z/`.
+
+
+## Mini-mixer lane Solo — D4.2 (2026-11-15)
+
+The four mini-mixer Solo buttons are **local to D**, explicitly not global
+source Solo. Selected lanes combine; clearing the last selection restores all
+otherwise enabled D lanes. Other cards and the existing card/global Solo mask
+are unchanged. D master/lane enable and levels still apply: audition never
+powers a muted lane or overrides a globally excluded D card.
+
+This is a transient input-monitor mask, applied before per-lane EQ and D's shared
+filter/reverb/delay/insert feed. Existing shared effect tails decay naturally;
+there is no global DSP reset on an audition click. Changes use the existing D
+voice gain/stop/resume lifecycle and common transport origin; explicit Stop must
+not be undone. Buttons have no saved-control IDs and never make a history edit,
+change source PCM/provenance, source mutation serial or canonical settings.
+Settings recall, history restore and account lock clear the monitor mask.
+
+Offline contexts, borrowed-context render decks and server Song rendering always
+ignore it. Live-graph WAV/Loop Store capture temporarily bypasses the monitor mask
+and restores it in finally (also on cancellation/error), without serializing it; preparation still fits all enabled lanes. No schema/content identity
+or render-version change is required. Portable source ZIPs and saved source Solo
+stay compatible. The ordinary D Solo above the mixer remains global.
+
+`tests/d-local-solo-browser.cjs` checks native Chromium/WebKit PCM for individual
+and additive local selections, a real concurrently playing A card, global Solo
+separation, on/off, repeated toggles, stopped/restarted transport, shared space
+and powered inserts, phase, unchanged settings/history, render context bypass,
+ZIP/recall/reload and phone portrait/landscape/desktop layouts.
+`tests/d-local-solo-song.cjs` takes source snapshots while local audition is active
+and verifies full four-lane audio via actual server jobs, plus old single-lane
+identity, independent pan/EQ, exact frames, source hashes/revisions and warm reuse.
+
+`tests/d-local-solo-render.cjs` measures all four tones through actual current-pattern
+WAV capture and the native borrowed-context renderer with local Solo active.
+
+### D4.3 — uniform sample controls
+
+All four lanes now use the same layout and control order: Random/Choose/Import,
+library, fit, speed, maximiser, pitch, reverse/shift, Loop Cut/Randomise Gaps/Start,
+then automated four-band EQ and status. Start remains the existing shared
+Bastardloops transport, not an independent lane clock.
+
+Lanes 2–4 gain their own duration-preserving pitch (±24 semitones), 0–100%
+maximiser, reverse, 16th-note shift and full cut/gap editors. Existing speed,
+fit, mixer, EQ, source browsers and reversible Preview remain independent.
+No per-lane filter/LFO/reverb/delay is introduced. Every operation derives from
+original PCM; random gaps retain the two-/one-bar generation policy. Manual
+cuts retain the standard full editor resolution. Replacing a source resets
+that lane’s cuts, while browser Add installs its explicit candidate cut.
+
+Additional transform fields are optional, neutral values omitted from lane
+settings. Recall of old four-lane settings is unchanged. Audible new extra-lane
+processing requires loopDVersion 4; old D versions 1–3 retain their audio and
+content identities. Server and borrowed-context renders use the same full-quality
+processing. Mini-mixer Solo remains a transient local audition only (D4.2).
+
+Regression coverage: d-lane-controls-browser.cjs, d-lane-controls-song.cjs,
+test_d_lane_controls.py plus existing local/global Solo and cut suites.
+
+Stopped lane cut auditions participate in D's aggregate active-voice checks for
+idle output gating, background-context ownership, Stop and tempo handoff. Do not
+use only the original lane-1 source as proof of D activity. Native final-bus PCM
+and zero-voice cleanup are covered in d-lane-controls-cut-preview.cjs; unchanged
+neutral extra-lane PCM is compared exactly against the pre-D4.3 fitter.
+
+### Card randomisation (2026-11-18)
+
+D card Random and shared batch randomisers replace lane 1 and clear lanes 2–4
+(original PCM, saved IDB slots and lane settings), only after a successful load.
+The whole change remains one history edit. A failed load preserves all lanes.
+Manual loading, individual lane Random and saved patch/Song recall remain additive;
+this is generation policy, not a render-time override or capability change.
+
+## Unchanged-tempo preparation cache — 2026-11-24
+
+The global BPM/pattern-control observer must not unconditionally clear D’s
+prepared PCM. `fitted()` already keys the cache by original source identity,
+AudioContext, exact target frames, repetitions/speed/fill, pitch, reverse and
+maximiser. Real parameter/source changes refit from the original PCM as before.
+Unchanged notifications retain that exact prepared buffer, including the second
+BPM application between native Live prewarm and scheduled start. Previously that
+path ran the same time-stretch twice (roughly 250–350 ms each in the saved-source
+replay). Explicit source/history/restore invalidation remains intact.
+
+`tests/loop-d-cache-browser.cjs` uses isolated stores and real Chromium/WebKit to
+check zero warm stretches, identity reuse, tempo/pattern/source invalidation,
+bit-identical regenerated PCM and unchanged originals. An isolated real server
+Song render and warm-cache playback also passed; no render-compatibility bump is
+needed because source metadata and output PCM are unchanged.
+
+This removes confirmed redundant startup work, not all live starvation: full
+Linux native-core replays still underrun and have variable AudioContext/wall
+progress. Preserve that failure separately from the passing cache checks; a
+physical Windows CEF/DAW result cannot be inferred from this optimization.

@@ -69,8 +69,11 @@ function components(decoded){
   if(key==='keyboard')return !anySolo||sources.includes(m.keyboardSoundSource==='sample'?'keyboardsample':m.keyboardSoundSource);
   if(key==='generatedLayer')return grainAllowed('main');
   if(key==='dryLoop')return !anySolo||sources.includes('loop');
-  if(key==='dropboxSample')return loopAllowed('dropbox');
+  if(key==='dropboxSample'||key==='restructure')return loopAllowed('dropbox');
   if(key==='noise')return loopAllowed('noise');
+  if(key==='ember')return loopAllowed('bastarde');
+  if(key==='glasshaus')return loopAllowed('glasshaus');
+  if(key==='enemy')return loopAllowed('enemy');
   return !anySolo||sources.includes(key);
  };
  const add=(key,label,enabled)=>{if(enabled&&audible(key))items.push({key,label});};
@@ -81,7 +84,8 @@ function components(decoded){
  add('grainB','Grain B',m.granularLayersEnabled&&!m.grainBMuted);
  add('generatedLayer','Generated Sample',m.generatedSampleLayerEnabled&&b.has('generated'));
  add('dryLoop','Generated Loop',m.generatedDryLoopEnabled&&b.has('generated'));
- add('dropboxSample','Atmosphere',m.dropboxSampleLayerEnabled&&b.has('dropboxSample'));
+ add('dropboxSample','Restructure archive',!m.restructure&&m.dropboxSampleLayerEnabled&&b.has('dropboxSample'));
+ add('restructure','Restructure',root.MygrainRestructure?.audible(m.restructure));
  add('loopD','Loop D',m.loopD?.enabled);
  for(const [letter,mode] of Object.entries({A:'bastardLoopEnabled',B:'bastardLoop2Enabled',C:'bastardLoop3Enabled',V:'bastardLoopVEnabled',W:'bastardLoopWEnabled',P:'bastardLoopPEnabled',O:'bastardLoopOEnabled',L:'bastardLoopLEnabled',X:'bastardLoopXEnabled',M:'bastardLoopMEnabled','M+':'bastardLoopMPlusEnabled'}))add('loop'+letter,'Loop '+letter,m[mode]);
  add('loopQ','Q Chords',decoded.snapshot.state.q?.enabled);
@@ -89,11 +93,18 @@ function components(decoded){
  for(const kind of ['kick','snare','hat','perc','clap','cymbals','etc']){const pattern=m['drumMachine'+kind[0].toUpperCase()+kind.slice(1)+'Pattern']||m.drumMachineExtraTracks?.[kind]?.pattern;add('drum'+kind,'Drums '+kind,m.drumMachineEnabled&&(pattern?.some(Boolean)||(kind==='snare'&&m.drumMachineRoll?.pattern?.some(Boolean))));}
  add('drumroll','Drums Snare Roll',m.drumMachineEnabled&&m.drumMachineRoll?.pattern?.some(Boolean));
  add('noise','Noise N',m.noiseN?.enabled);
+ add('ember','Ember',root.MygrainEmber?.audible(m.ember));
+ add('glasshaus','GlassHaus',root.MygrainGlassHaus?.audible(m.glasshaus));
+ add('enemy','Drone',root.MygrainEnemyDrone?.audible(m.enemyDrone));
  for(const item of items)if(item.key==='drumsnare')item.rollActive=drumAllowed('roll');
  return items;
 }
 function isolate(deck,component){
  const q={silent:true,skipSave:true,skipRestart:true};
+ deck.mygrainGlassHaus?.set({enabled:false});deck.mygrainGlassHaus?.stop();
+ deck.mygrainEmber?.set({enabled:false});deck.mygrainEmber?.stop();
+ if(deck.mygrainRestructure?.ownsSource){deck.mygrainRestructure.set({enabled:false});deck.mygrainRestructure.stop();}
+ deck.mygrainEnemyDrone?.set({enabled:false});deck.mygrainEnemyDrone?.stop();
  deck.clearAllPerformanceSoloStates(q);deck.resetStemIsolationState();deck.setBastardLoopKEnabled(false,q);
  deck.mygrainNoise?.restore({...deck.mygrainNoise.settings(),enabled:false});
  if(!['osc','grainMain','grainA','grainB','generatedLayer','keyboard'].includes(component.key)){deck.setHoldEnabled(false,q);deck.setArpeggiatorEnabled(false,q);deck.eval('heldNotes.clear()');}
@@ -151,7 +162,16 @@ async function renderComponent(decoded,timing,component,signal,write,tailSeconds
  const buffer=await MygrainSongClock.render(mygrainSongBetaAdapter.context(),decoded,timing,signal,{
   durationSeconds:duration,tailSeconds,
   prepareDeck:deck=>{
-   if(component.key==='noise'){
+   if(['ember','enemy','restructure','glasshaus'].includes(component.key)){
+    // Autonomous instruments: capture their own pre-insert stereo graph. Other
+    // sources may drive their envelopes, but cannot enter this isolated output.
+    const engine=component.key==='glasshaus'?deck.mygrainGlassHaus:component.key==='restructure'?deck.mygrainRestructure:component.key==='ember'?deck.mygrainEmber:deck.mygrainEnemyDrone;
+    const output=deck.mygrainSongBetaAdapter.context().createGain();
+    const adapter=deck.mygrainSongBetaAdapter,start=adapter.startAt.bind(adapter);
+    adapter.startAt=at=>{start(at);const source=engine?.graph?.output;if(!source)throw Error(component.label+' render graph did not start.');source.connect(output);};
+    deck.__dawAutonomousOutput=output;adapter.output=()=>output;
+    deck.getTransportOutputLatencySeconds=()=>0;
+   }else if(component.key==='noise'){
     // Keep envelope-driver lanes running, but capture N alone before its insert
     // bus. Muting the driver would otherwise erase follow/triggered noise.
     const graph=deck.mygrainNoise?.graph;if(!graph)throw Error('Noise render graph is not ready.');
@@ -161,6 +181,7 @@ async function renderComponent(decoded,timing,component,signal,write,tailSeconds
   },
   beforeStart:(deck,origin)=>{
    midi=recordMidi(deck,component,origin,duration);
+   if(deck.__dawAutonomousOutput){const p=deck.__dawAutonomousOutput.gain;p.setValueAtTime(1,origin+duration-.003);p.linearRampToValueAtTime(0,origin+duration);}
    if(deck.__dawNoiseOutput){const p=deck.__dawNoiseOutput.gain;p.setValueAtTime(1,origin+duration-.003);p.linearRampToValueAtTime(0,origin+duration);}
    for(const [name,index]of [['playOscillatorNote',1],['startGrainStream',1],['playKeyboardSound',1],['playDrumMachineHit',1],['playDrumMachineHatHit',0],['scheduleBastardLoopLSingleVoice',1],['playBastardLoopLSynthVoice',1],['scheduleBastardLoopXSingleVoice',1],['playBastardLoopXSynthVoice',1]]){const original=deck[name];if(typeof original==='function')deck[name]=function(...args){if(typeof args[index]==='number'&&args[index]>=origin+duration-.00001)return false;if(name==='playDrumMachineHit'&&!component.reference)args[3]={...args[3],distortionAmount:0};const value=original.apply(this,args);
     if(name==='playOscillatorNote'){const voices=deck.eval('activeOscVoices');for(const voice of voices.values())if(voice.startTime===args[1]&&['keyboard','arp'].includes(voice.role))deck.releaseTransportOscillatorVoice(voice,origin+duration);}

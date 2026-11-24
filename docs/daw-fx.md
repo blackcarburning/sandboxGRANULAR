@@ -133,3 +133,72 @@ jump transition. `navigation-palette.js` maps it to the separate blue
 `daw-input` palette, not the DAW export target. The jump/panel are not created
 on phones or render decks; the jump is hidden below the 961px desktop dock.
 This is presentation only; connection, DSP, Arm and saved schemas are unchanged.
+
+
+## Hosted FX startup/continuity repair — 2026-11-15
+
+Each FX page load/connection sends one Arm after its audio graph and saved-project
+recall are ready. Native Arm state remains the authority for both the native
+button and the in-app “FX armed” indicator. Explicit Stop in the current
+connection is retained across clock ticks; it is not an always-on auto-arm loop.
+A new page load/connection arms again, including a previously stopped snapshot.
+No native binary/latency/state format changes or installer update are required.
+
+Do not equate Undo/Redo journal busy with invalid audio. Journal capture and
+background storage can run while the existing FX graph streams; withdrawing
+ready or restarting silent modulation for ordinary edits resets/rebuffers the
+return. Real restore/engine changes still gate readiness. Keep this distinction
+scoped to the external FX endpoint, never Song/offline synth rendering.
+
+Cooking Pot power mirrors use the same canonical setters as the effect cards
+and retain normal history when available. If optional Song/history startup
+failed, they use the same direct edit fallback as the cards, not an unchecked
+runDraftEdit call. This fallback has no Undo journal until history is available.
+
+
+## Shared bins, opt-in telemetry and Cubase rendering — 2026-11-15
+
+Hosted build `v2026.11.15.PLUGIN-LIBRARY.1` adds account-private universal Parts
+Bin snapshots, including creation/upload from FX sessions. See docs/parts-bin.md.
+No native installer update is required; Store + reload app after storing edits.
+
+Top → **Telemetry: Off** is off on every load. Selecting it collects numeric
+pipeline metrics once/second and uploads an initial sample followed by batches
+of five. It includes acknowledged plugin Arm/active/offline state, native epoch,
+queue occupancy/drift/underrun/late/missing/input-drop counters, browser audio vs
+wall-clock advance, UI timer delays/long tasks, scheduling misses, rate/latency,
+heap size, error counts and completed project-transfer timing. These are timing
+indicators, not hardware CPU readings or proof that a click occurred. No source
+PCM, recording, patch, filenames, free-text logs, passwords or capability is sent.
+Deselecting aborts pending uploads, drops the unsent bounded tail (up to five
+seconds normally), removes observers/listeners and stops collection immediately.
+A new selection is a new capture ID. Account lock/change and page exit stop it;
+no opt-in or capture ID is saved in browser, patch, Song or DAW state. Failed
+uploads are shown and three failures stop capture. No offline/background replay.
+Server admission uses numeric/boolean/enumerated fields only, a 32 KiB request
+cap, 10-sample maximum, per-account rate limit, idempotent batch identities and
+at most 4000 batches; data older than seven days is pruned on next submission.
+Storage is private per-account `plugin-library/telemetry.sqlite3`, not HTTP-readable.
+
+Top → **DAW rendering** now explains the actual native boundary:
+- CEF instrument / Bridge **Live** needs a real-time host clock; accelerated
+  offline rendering has no browser packets and intentionally produces silence.
+- **Rendered** holds a completed loop in native memory/state and reads it at the
+  DAW's musical position, including offline callbacks. The new preparation action
+  uses the existing renderer/upload, waits for a new acknowledged revision, Arms,
+  and waits for completed project Store. Save the DAW project normally. The loop
+  repeats; refresh after sound changes. This is a patch snapshot, not arrangement
+  rendering or a recording of external track input.
+- **CEF FX** remains real-time-only. Offline callbacks output one-second aligned
+  dry, not the Chromium effect return. Do not remove its offline guard or block
+  the real-time callback to disguise this architectural boundary. There is no
+  accelerated offline FX engine in this build. In Cubase use File → Export →
+  Audio Mixdown → Real-Time Export and reimport the WAV, or record the processed
+  output to another audio track in real time. Include the intended effect tail.
+
+Steinberg's Real-Time Export control:
+https://www.steinberg.help/r/cubase-pro/15.0/en/cubase_nuendo/topics/export_audio_mixdown/export_audio_mixdown_options_r.html
+No native audio/DSP, PDC, preview, state envelope, factory CID or installer bytes
+are changed by this hosted UI/storage feature. Server Song synthesis/rendering
+and source compatibility remain unchanged; the new dialog is excluded from
+ordinary capture/control journals.
