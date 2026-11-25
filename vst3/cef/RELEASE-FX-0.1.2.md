@@ -54,8 +54,15 @@ omitted the private circuit libraries' patches/revision fields; corrected
 fixtures passed. Windows-packaged SETUP.html differs from the live source only
 by CRLF line endings, as verified without altering the original CI ZIP.
 
-Post-publication HTTPS and browser download results are recorded alongside the
-archive manifest in the task evidence directory.
+Post-publication checks passed: both new anonymous HTTPS downloads returned
+HTTP 200 with attachment filenames, exact byte counts and SHA-256 matching CI.
+All four instrument/FX setup-page buttons were clicked in Chromium and their
+complete downloaded files matched the deployed ZIPs byte-for-byte. Chromium
+and WebKit passed all three public setup pages and both running, synthetic-
+account editor cards, with no page errors. WebKit file downloads and physical
+CEF/DAW hardware interactions are not claimed. Exact live assets and all
+38 retained archive hashes passed. Results accompany the release manifest in
+the task evidence directory.
 
 ## Installation
 
