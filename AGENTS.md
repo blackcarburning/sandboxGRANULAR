@@ -1049,3 +1049,15 @@ silently omit its patch. The separate store has no item/folder count or aggregat
 quota; do not inherit Parts Bin/Loop Store limits. Preserve preview, rename, move,
 confirmed revision-checked Delete, account-switch clearing and CEF-safe HTML
 dialogs. Metadata edits must not rewrite either asset. See docs/scratchpad.md.
+
+
+## CEF FX MIDI and Downloads (2026-11-25)
+
+FX 0.1.2 rebuilds the shared helper with instrument 0.1.6's exact trusted-origin
+Web MIDI permission mask and direct OS Downloads handling. Full DAW-closed FX
+bundle replacement/rescan is required; hosted reload cannot apply native fixes.
+Do not change FX DSP, one-second PDC, real-time-only wet/offline dry, CID or
+MGX1 v2 state. Keep setup pages AND daw-bridge.js/daw-fx.js labels/destinations
+current together, with scoped loader cache keys; previous links drifted to old
+0.1.4/0.1.5 instrument and 0.1.0 FX builds. Hardware-free MIDI grants do not prove
+physical ports/DAW driver sharing. Release evidence: vst3/cef/RELEASE-FX-0.1.2.md.
