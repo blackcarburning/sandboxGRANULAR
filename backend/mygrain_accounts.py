@@ -40,6 +40,7 @@ PUBLIC_FILES = {
     'ember-dsp.js', 'ember.js', 'ember.css', 'ember-clock-worklet.js',
     'dfeeder.js', 'dfeeder.css',
     'dsp-quality.js', 'effect-lfo.js', 'effect-lfo-host.js', 'effect-lfo-ui.js', 'effect-lfo-transfer.js', 'effect-lfo-worklet.js', 'effect-lfo.css',
+    'mygrain-cef-fx-windows-0.1.2.zip', 'mygrain-cef-fx-macos-0.1.2.zip',
     'mygrain-cef-fx-windows-0.1.1.zip', 'mygrain-cef-fx-macos-0.1.1.zip',
     'mygrain-cef-windows-0.1.4.zip', 'mygrain-cef-macos-0.1.4.zip',
     'cef-fx-setup.html', 'mygrain-cef-fx-windows-0.1.0.zip', 'mygrain-cef-fx-macos-0.1.0.zip',

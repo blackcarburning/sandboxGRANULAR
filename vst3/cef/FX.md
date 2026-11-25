@@ -1,4 +1,4 @@
-# MyGrain CEF FX 0.1.1
+# MyGrain CEF FX 0.1.2
 
 Separate stereo VST3 effect: **MyGrain CEF FX**, CID
 `2642D59B6C824E319ADE03F7B8562C10`, category `Fx|Filter`.
@@ -162,3 +162,19 @@ No native audio/DSP, PDC, preview, state envelope, factory CID or installer byte
 are changed by this hosted UI/storage feature. Server Song synthesis/rendering
 and source compatibility remain unchanged; the new dialog is excluded from
 ordinary capture/control journals.
+
+
+## 0.1.2 Web MIDI permission and native Downloads
+
+Rebuilds the shared helper with instrument 0.1.6's exact trusted-origin MIDI
+permission group and instrument 0.1.5's direct Downloads handler. Ordinary
+requestMIDIAccess({sysex:false}) no longer waits for an unavailable Alloy prompt.
+No blanket permission, microphone/camera grant or new VST3 host MIDI bus.
+Downloads use the OS Downloads folder and numbered duplicate filenames.
+The native suite exercises both on fresh/restored helpers without CDP MIDI
+grants, plus existing FX PCM/clock/state/keyboard/preview checks. Hardware-free
+CI cannot verify physical MIDI ports or DAW driver sharing.
+FX DSP, one-second PDC, real-time-only wet/offline dry, factory CID/category and
+MGX1 v2 project format remain unchanged. Instrument 0.1.6 archives are unchanged.
+Replace the complete FX bundle with the DAW closed and rescan; app reload is
+insufficient. See RELEASE-FX-0.1.2.md for the final source, CI and archive evidence.
