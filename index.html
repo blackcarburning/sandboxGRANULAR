@@ -14254,6 +14254,9 @@ if (normalized === 'W') {
                 platform: navigator.platform
             };
             if (typeof window !== 'undefined' && window.mygrainRadiolab) logData.currentState = { ...debug, radiolab: window.mygrainRadiolab.diagnostics };
+            if (window.mygrainMidiKeyboardInput?.diagnostics) {
+                logData.currentState = { ...logData.currentState, midi: window.mygrainMidiKeyboardInput.diagnostics() };
+            }
             logData.phoneDiagnostics = debug?.phoneDiagnostics || phoneAudioDiagnostics?.snapshot() || null;
             if (typeof window !== 'undefined' && window.mygrainRuntimeDiagnostics) {
                 logData.runtimeDiagnostics = window.mygrainRuntimeDiagnostics.snapshot();
@@ -46455,6 +46458,47 @@ if (layer === 'W' && bastardLoopWBuffer) {
         let midiInputPort = null;
         let midiPreferredInputId = '';
         const lxMainMidiHeld = new Set();
+        // Passive metadata only: no device opens, extra permission requests,
+        // MIDI payloads, raw device IDs, timers or network writes in this capture.
+        const midiInputDiagnostics = { requestState: 'not-requested', requestError: '',
+            stateChanges: 0, lastStateChange: null, messagesReceived: 0, lastMessageAtMs: null };
+
+        function captureMidiInputDiagnostics() {
+            const describe = (collection) => Array.from(collection?.values() || [], (port) => ({
+                name: String(port.name || '').slice(0, 256),
+                manufacturer: String(port.manufacturer || '').slice(0, 256),
+                state: String(port.state || 'unknown').slice(0, 24),
+                connection: String(port.connection || 'unknown').slice(0, 24),
+                selected: port === midiInputPort
+            }));
+            const inputs = describe(midiAccess?.inputs), outputs = describe(midiAccess?.outputs);
+            return { schemaVersion: 1, apiAvailable: typeof navigator.requestMIDIAccess === 'function',
+                ...midiInputDiagnostics, accessResolved: Boolean(midiAccess),
+                inputCount: inputs.length, connectedInputCount: inputs.filter(p => p.state === 'connected').length,
+                outputCount: outputs.length, inputs: inputs.slice(0, 256), outputs: outputs.slice(0, 256),
+                truncated: inputs.length > 256 || outputs.length > 256,
+                limitation: 'Browser-reported ports only. A missing or disconnected port does not distinguish an unplugged device from a driver-open failure. Message count is session-total delivery through selected inputs; no notes or MIDI payloads are recorded.' };
+        }
+
+        async function requestMidiKeyboardAccess() {
+            midiInputDiagnostics.requestState = 'pending';
+            midiInputDiagnostics.requestError = '';
+            try {
+                const access = await navigator.requestMIDIAccess({ sysex: false });
+                midiInputDiagnostics.requestState = 'resolved';
+                return access;
+            } catch (error) {
+                midiInputDiagnostics.requestState = 'rejected';
+                midiInputDiagnostics.requestError = String(error?.name || 'Error').slice(0, 80);
+                throw error;
+            }
+        }
+
+        function handleMidiInputStateChange() {
+            midiInputDiagnostics.stateChanges = Math.min(Number.MAX_SAFE_INTEGER, midiInputDiagnostics.stateChanges + 1);
+            midiInputDiagnostics.lastStateChange = new Date().toISOString();
+            updateMidiInputOptions();
+        }
 
         function setMidiInputStatus(message) {
             if (midiInputStatus) midiInputStatus.textContent = message;
@@ -46630,6 +46674,8 @@ if (layer === 'W' && bastardLoopWBuffer) {
         syncLxMidiUi();
 
         function handleMidiMessage(event) {
+            midiInputDiagnostics.messagesReceived = Math.min(Number.MAX_SAFE_INTEGER, midiInputDiagnostics.messagesReceived + 1);
+            midiInputDiagnostics.lastMessageAtMs = Date.now();
             const [status = 0, noteNumber = 0, velocity = 0] = event.data || [];
             const command = status & 0xF0;
             // Release main-keyboard notes even if an editor opened after note-on.
@@ -46663,12 +46709,13 @@ if (layer === 'W' && bastardLoopWBuffer) {
             midiPreferredInputId = midiInputSelect.value || '';
             if (typeof navigator.requestMIDIAccess !== 'function') {
                 midiInputSelect.disabled = true;
+                midiInputDiagnostics.requestState = 'unsupported';
                 setMidiInputStatus('Web MIDI unavailable');
                 return;
             }
             try {
-                midiAccess = await navigator.requestMIDIAccess({ sysex: false });
-                midiAccess.onstatechange = updateMidiInputOptions;
+                midiAccess = await requestMidiKeyboardAccess();
+                midiAccess.onstatechange = handleMidiInputStateChange;
                 updateMidiInputOptions();
             } catch (error) {
                 midiInputSelect.disabled = true;
@@ -46682,8 +46729,8 @@ if (layer === 'W' && bastardLoopWBuffer) {
             midiPreferredInputId = portId;
             if (!midiAccess) {
                 try {
-                    midiAccess = await navigator.requestMIDIAccess({ sysex: false });
-                    midiAccess.onstatechange = updateMidiInputOptions;
+                    midiAccess = await requestMidiKeyboardAccess();
+                    midiAccess.onstatechange = handleMidiInputStateChange;
                 } catch (error) {
                     midiInputSelect.value = '';
                     midiInputSelect.disabled = true;
@@ -46702,7 +46749,7 @@ if (layer === 'W' && bastardLoopWBuffer) {
             saveState();
         });
 
-        window.mygrainMidiKeyboardInput = Object.freeze({ refresh: initializeMidiKeyboardInput });
+        window.mygrainMidiKeyboardInput = Object.freeze({ refresh: initializeMidiKeyboardInput, diagnostics: captureMidiInputDiagnostics });
         initializeMidiKeyboardInput();
 
         // --- Slider Listeners ---
