@@ -71,18 +71,71 @@ const evidence = process.env.MYGRAIN_MIDI_EVIDENCE;
    assert.equal(reports.length,1);
    assert.deepEqual(reports[0].currentState.midi,hotplug);
    assert.equal(reports[0].application,'MYGRAIN');
+   await page.locator('#audioClockWidget .clock-close').click();
    if(evidence){fs.mkdirSync(evidence,{recursive:true});fs.writeFileSync(path.join(evidence,name+'-submitted-report.json'),JSON.stringify(reports[0]));}
+   // A refresh must accept a fresh access object, retain selection and detach old listeners.
+   await page.evaluate(() => {
+    window.midiPreviousAccess=midiTestAccess;
+    const ports=new Map([...midiTestAccess.inputs].map(([id,p])=>[id,{...p,onmidimessage:null}]));
+    ports.set('private-id-d',{id:'private-id-d',name:'Late USB keys',manufacturer:'USB fixture',state:'connected',connection:'closed',onmidimessage:null});
+    window.midiTestAccess={inputs:ports,outputs:new Map(),onstatechange:null};
+    Object.defineProperty(navigator,'requestMIDIAccess',{configurable:true,value:()=>{midiTestRequests++;return new Promise(resolve=>{window.finishMidiRefresh=()=>resolve(midiTestAccess);});}});
+   });
+   await page.evaluate(() => openBastardLoopLOverlay());
+   const beforeRefresh=await page.evaluate(()=>midiTestRequests);
+   await page.locator('#bastardLoopLMidiConnect').click();
+   assert(await page.locator('#bastardLoopLMidiConnect').isDisabled());
+   assert(await page.locator('#performanceMidiRescanBtn').isDisabled());
+   await page.evaluate(()=>{mygrainMidiKeyboardInput.refresh();mygrainMidiKeyboardInput.refresh();});
+   assert.equal(await page.evaluate(()=>midiTestRequests),beforeRefresh+1,'one in-flight request across all controls');
+   await page.evaluate(()=>finishMidiRefresh());
+   await page.waitForFunction(()=>!document.querySelector('#performanceMidiRescanBtn').disabled);
+   assert.equal(await page.locator('#bastardLoopLMidiInput').inputValue(),'private-id-a');
+   assert((await page.locator('#bastardLoopLMidiInput').textContent()).includes('Late USB keys'));
+   assert.equal(await page.evaluate(()=>midiPreviousAccess.onstatechange),null);
+   assert.equal(await page.evaluate(()=>midiPreviousAccess.inputs.get('private-id-a').onmidimessage),null);
+   assert((await page.locator('#performanceMidiScanStatus').textContent()).includes('4 MIDI inputs'));
+   await page.evaluate(()=>{midiTestAccess.inputs.get('private-id-a').onmidimessage({data:[0xB0,21,0]});});
+   assert.equal((await page.evaluate(()=>mygrainMidiKeyboardInput.diagnostics())).messagesReceived,3);
+   // Disconnect/reconnect retains preference without automatically changing input.
+   await page.evaluate(()=>{const p=midiTestAccess.inputs.get('private-id-a');p.state='disconnected';midiTestAccess.onstatechange({port:p});Object.defineProperty(navigator,'requestMIDIAccess',{configurable:true,value:async()=>{midiTestRequests++;return midiTestAccess;}});});
+   await page.locator('#bastardLoopLMidiConnect').click();
+   await page.waitForFunction(()=>!document.querySelector('#performanceMidiRescanBtn').disabled);
+   await page.evaluate(()=>{const p=midiTestAccess.inputs.get('private-id-a');p.state='connected';midiTestAccess.onstatechange({port:p});});
+   assert.equal(await page.locator('#bastardLoopLMidiInput').inputValue(),'private-id-a');
+   await page.evaluate(() => closeBastardLoopLOverlay());
+   for (const width of [390,430,1440]) {
+    await page.setViewportSize({width,height:844});
+    await page.locator(width<=960 ? '[data-phone-shortcut="sectionJumpKeyboardBtn"]' : '#sectionJumpKeyboardBtn').click();
+    await page.locator('#performanceMidiRescanBtn').scrollIntoViewIfNeeded();
+    await page.locator('#performanceMidiRescanBtn').waitFor({state:'visible'});
+    assert(await page.locator('#performanceMidiRescanBtn').isVisible());
+    const box=await page.locator('#performanceMidiRescanBtn').boundingBox();
+    assert(box.width>=90&&box.height>=44&&box.x>=-1&&box.x+box.width<=width+1,'main rescan reachable on phone/desktop');
+    await page.locator('#performanceMidiRescanBtn').click();
+    await page.waitForFunction(()=>!document.querySelector('#performanceMidiRescanBtn').disabled);
+    if(evidence)await page.locator('#keyboardMidiCard').screenshot({path:path.join(evidence,name+'-midi-card-'+width+'.png')});
+   }
+   await page.locator('#performanceMidiInputSelect').selectOption('');
+   await page.locator('#performanceMidiRescanBtn').click();
+   await page.waitForFunction(()=>!document.querySelector('#performanceMidiRescanBtn').disabled);
+   assert.equal(await page.locator('#performanceMidiInputSelect').inputValue(),'','explicit No input survives rescan');
+   await page.locator('#performanceMidiInputSelect').selectOption('private-id-a');
    await page.evaluate(async () => {Object.defineProperty(navigator,'requestMIDIAccess',{configurable:true,value:async()=>{throw new DOMException('private-error-detail','NotAllowedError');}});await mygrainMidiKeyboardInput.refresh();});
    const rejected = await page.evaluate(() => mygrainMidiKeyboardInput.diagnostics());
    assert.equal(rejected.requestState,'rejected');
    assert.equal(rejected.requestError,'NotAllowedError');
+   assert.equal(await page.locator('#performanceMidiInputSelect').inputValue(),'private-id-a');
+   assert(!(await page.locator('#performanceMidiInputSelect').isDisabled()),'failed refresh retains usable list');
+   assert((await page.locator('#performanceMidiScanStatus').textContent()).includes('previous MIDI list'));
+   assert.equal(rejected.inputs.find(p=>p.selected).name,'USB keys A');
    assert(!JSON.stringify(rejected).includes('private-error-detail'));
    await page.evaluate(async () => {Object.defineProperty(navigator,'requestMIDIAccess',{configurable:true,value:undefined});await mygrainMidiKeyboardInput.refresh();});
    const unsupported = await page.evaluate(() => mygrainMidiKeyboardInput.diagnostics());
    assert.equal(unsupported.apiAvailable,false);
    assert.equal(unsupported.requestState,'unsupported');
    assert.deepEqual(errors,[]);
-   console.log('PASS',name,'passive complete inventory, unchanged selector, selected-input counts without payloads/IDs, hotplug, actual Submit Current Log payload, rejected/unsupported access');
+   console.log('PASS',name,'passive inventory/report; rescan controls, fresh inventory, request deduplication, stable selection/reconnect, no-input preference, retained failed refresh, phone/desktop reachability, rejected/unsupported access');
    await context.close();
   } finally {await browser.close();}
  }

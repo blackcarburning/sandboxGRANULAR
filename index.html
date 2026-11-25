@@ -9867,6 +9867,9 @@ Playground</span></button>
                     <select id="performanceMidiInputSelect" class="performance-select" aria-label="Keyboard MIDI input">
                         <option value="">No MIDI input</option>
                     </select>
+                    <button id="performanceMidiRescanBtn" class="performance-btn primary" type="button" style="min-height:44px;margin-top:8px;max-width:100%">Rescan MIDI</button>
+                    <p id="performanceMidiScanStatus" class="performance-feature-note" role="status" aria-live="polite"></p>
+                    <p class="performance-feature-note">Rescan refreshes the available MIDI list. If a device is still missing, close other MIDI apps and reconnect it; some drivers need a DAW restart.</p>
                     <p class="performance-feature-note">Choose a desktop USB MIDI controller or MIDI-capable audio interface. Notes on the selected device play the keyboard externally.</p>
                 </div>
                 <div class="performance-sound-card" id="keyboardSampleCard">
@@ -46454,6 +46457,9 @@ if (layer === 'W' && bastardLoopWBuffer) {
 
         const midiInputSelect = document.getElementById('performanceMidiInputSelect');
         const midiInputStatus = document.getElementById('performanceMidiInputStatus');
+        const midiRescanButton = document.getElementById('performanceMidiRescanBtn');
+        const midiScanStatus = document.getElementById('performanceMidiScanStatus');
+        let midiRefreshPromise = null;
         let midiAccess = null;
         let midiInputPort = null;
         let midiPreferredInputId = '';
@@ -46504,6 +46510,23 @@ if (layer === 'W' && bastardLoopWBuffer) {
             if (midiInputStatus) midiInputStatus.textContent = message;
         }
 
+        function syncMidiRefreshUi() {
+            const supported = typeof navigator.requestMIDIAccess === 'function';
+            const pending = midiInputDiagnostics.requestState === 'pending';
+            if (midiRescanButton) {
+                midiRescanButton.disabled = !supported || pending;
+                midiRescanButton.textContent = pending ? 'Checking MIDI…' : 'Rescan MIDI';
+                midiRescanButton.setAttribute('aria-busy', String(pending));
+            }
+            if (!midiScanStatus) return;
+            const count = Array.from(midiAccess?.inputs.values() || []).filter(port => port.state !== 'disconnected').length;
+            midiScanStatus.textContent = !supported ? 'Web MIDI unavailable in this browser.'
+                : pending ? 'Requesting the current MIDI input list…'
+                : midiInputDiagnostics.requestState === 'rejected'
+                    ? (midiAccess ? 'Refresh failed; the previous MIDI list is retained. You can retry.' : 'MIDI access failed. Allow MIDI access, then retry.')
+                    : `${count} MIDI input${count === 1 ? '' : 's'} reported${midiPreferredInputId && !midiInputPort ? ' · selected input unavailable' : ''}.`;
+        }
+
         function setMidiInputPort(port) {
             if (midiInputPort !== port) {
                 for (const note of lxMainMidiHeld) keyboardNoteControllers.get(note)?.release();
@@ -46529,6 +46552,7 @@ if (layer === 'W' && bastardLoopWBuffer) {
             midiInputSelect.innerHTML = '<option value="">No MIDI input</option>';
             if (!midiAccess) {
                 midiInputSelect.disabled = true;
+                syncMidiRefreshUi();
                 return;
             }
             const inputs = Array.from(midiAccess.inputs.values())
@@ -46547,6 +46571,7 @@ if (layer === 'W' && bastardLoopWBuffer) {
             midiInputSelect.disabled = false;
             if (inputs.length === 0) {
                 setMidiInputPort(null);
+                syncMidiRefreshUi();
                 return;
             }
             const preferredId = previouslySelected && Array.from(midiInputSelect.options).some((option) => option.value === previouslySelected)
@@ -46558,6 +46583,7 @@ if (layer === 'W' && bastardLoopWBuffer) {
             } else {
                 setMidiInputPort(null);
             }
+            syncMidiRefreshUi();
         }
 
         // MIDI follows the visible editor; mappings are device preferences, not patch data.
@@ -46596,7 +46622,10 @@ if (layer === 'W' && bastardLoopWBuffer) {
                 const assign = document.getElementById(`bastardLoop${layer}MidiRestAssign`);
                 if (assign) { assign.textContent = lxMidi.learn === layer ? 'Cancel rest assignment' : 'Assign rest note'; assign.setAttribute('aria-pressed', String(lxMidi.learn === layer)); assign.disabled = typeof navigator.requestMIDIAccess !== 'function'; }
                 const connect = document.getElementById(`bastardLoop${layer}MidiConnect`);
-                if (connect) connect.disabled = typeof navigator.requestMIDIAccess !== 'function';
+                if (connect) {
+                    connect.disabled = typeof navigator.requestMIDIAccess !== 'function' || midiInputDiagnostics.requestState === 'pending';
+                    connect.textContent = midiInputDiagnostics.requestState === 'pending' ? 'Checking MIDI…' : (midiAccess ? 'Rescan MIDI' : 'Connect MIDI');
+                }
             }
         }
         function saveLxMidiRest() {
@@ -46704,26 +46733,47 @@ if (layer === 'W' && bastardLoopWBuffer) {
             controller.release();
         }
 
-        async function initializeMidiKeyboardInput() {
-            if (!midiInputSelect) return;
-            midiPreferredInputId = midiInputSelect.value || '';
+        function initializeMidiKeyboardInput() {
+            if (midiRefreshPromise) return midiRefreshPromise;
+            if (!midiInputSelect) return Promise.resolve();
+            // An unavailable preferred device must survive a refresh/hotplug.
+            // An explicit "No MIDI input" selection clears it in the change handler.
+            midiPreferredInputId = midiInputSelect.value || midiPreferredInputId;
             if (typeof navigator.requestMIDIAccess !== 'function') {
                 midiInputSelect.disabled = true;
                 midiInputDiagnostics.requestState = 'unsupported';
                 setMidiInputStatus('Web MIDI unavailable');
-                return;
+                syncMidiRefreshUi();
+                syncLxMidiUi();
+                return Promise.resolve();
             }
-            try {
-                midiAccess = await requestMidiKeyboardAccess();
-                midiAccess.onstatechange = handleMidiInputStateChange;
-                updateMidiInputOptions();
-            } catch (error) {
-                midiInputSelect.disabled = true;
-                setMidiInputStatus('MIDI access blocked');
-                console.warn('MIDI access unavailable:', error);
-            }
+            // Web MIDI has no guaranteed OS/driver rescan command. Reacquire its
+            // current inventory; do not reload audio or claim to release busy ports.
+            midiRefreshPromise = (async () => {
+                try {
+                    const access = await requestMidiKeyboardAccess();
+                    if (midiAccess && midiAccess !== access) midiAccess.onstatechange = null;
+                    midiAccess = access;
+                    midiAccess.onstatechange = handleMidiInputStateChange;
+                    updateMidiInputOptions();
+                } catch (error) {
+                    if (!midiAccess) {
+                        midiInputSelect.disabled = true;
+                        setMidiInputStatus('MIDI access blocked');
+                    }
+                    console.warn('MIDI access unavailable:', error);
+                }
+            })().finally(() => {
+                midiRefreshPromise = null;
+                syncMidiRefreshUi();
+                syncLxMidiUi();
+            });
+            syncMidiRefreshUi();
+            syncLxMidiUi();
+            return midiRefreshPromise;
         }
 
+        midiRescanButton?.addEventListener('click', () => initializeMidiKeyboardInput());
         midiInputSelect?.addEventListener('change', async () => {
             const portId = midiInputSelect.value;
             midiPreferredInputId = portId;
