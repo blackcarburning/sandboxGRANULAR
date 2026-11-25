@@ -2,6 +2,7 @@
     'use strict';
 
     const palette = Object.freeze({
+        scratchpad: '#f6e9bd',
         song: '#b8efbe',
         'solo-tracker': '#d51d32',
         dfeeder: '#f5b399',
@@ -168,6 +169,8 @@
         '#performancePanLabResetBtn': 'pan'
     });
     const buttons = Object.freeze({
+        sectionJumpScratchpadBtn: 'scratchpad',
+        sectionJumpScratchBrowserBtn: 'scratchpad',
         sectionJumpSoloTrackerBtn: 'solo-tracker',
         sectionJumpMegaRandomBtn: 'mega', sectionJumpMegaRandomPanelBtn: 'mega',
         sectionJumpSparseRandomBtn: 'sparse', sectionJumpSparseRandomPanelBtn: 'sparse',
@@ -392,6 +395,7 @@
         const add = node => { if (node && !selected.has(node)) { selected.add(node); ordered.push(node); } };
         {
             for (const selector of [
+                '#sectionJumpScratchpadBtn', '#sectionJumpScratchBrowserBtn',
                 '#sectionJumpInitialisePanelBtn', '[data-jump-target=".performance-toolbar"]', '#iphoneLowPowerControl',
                 '#sectionJumpAiBtn', '#sectionJumpCookingPotBtn', '#sectionJumpPartsBinBtn', '#sectionJumpMasterBakerBtn', '#sectionJumpSongBtn', '#sectionJumpSoloTrackerBtn',
                 '#sectionJumpLayerSwitchBtn', '#sectionJumpBastardMixerBtn',
@@ -400,7 +404,7 @@
                 '#sectionJumpLoopStoreAddBtn', '[data-jump-click="#performanceLoopStoreBrowserBtn"]',
                 ...(desktop ? ['#sectionJumpKeyboardBtn', '#sectionJumpActionsBtn', '[data-jump-target="[aria-label=\'Drum machine controls\']"]', '[data-jump-target="#genreatorCard"]'] : ['[data-jump-target="[aria-label=\'Drum machine controls\']"]', '[data-jump-target="#genreatorCard"]', '#sectionJumpKeyboardBtn', '#sectionJumpActionsBtn'])
             ]) add(button(selector));
-            const wide = ordered.filter(node => node.id !== 'iphoneLowPowerControl').slice(0, 8);
+            const wide = ordered.filter(node => !['iphoneLowPowerControl', 'sectionJumpScratchpadBtn', 'sectionJumpScratchBrowserBtn'].includes(node.id)).slice(0, 8);
             for (const child of grid.children) child.classList.toggle('desktop-jump-wide', wide.includes(child));
         }
         const effects = new Set([

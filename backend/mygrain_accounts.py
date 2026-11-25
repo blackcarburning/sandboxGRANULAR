@@ -71,7 +71,7 @@ PUBLIC_FILES = {
     'background-audio.js', 'audio-debug-storage.js', 'audio-diagnostics.js', 'drum-enhancements.css', 'drum-tone.js', 'drum-roll.js', 'drum-pan.js',
     'drum-pattern-library.js', 'iphone-low-power.js',
     'mygrain-utils.js', 'random-performance-samples.js', 'mygrain-accounts.js', 'mygrain-accounts.css', 'mygrain-load-notes.js',
-    'navigation-palette.js', 'navigation-palette.css',
+    'navigation-palette.js', 'navigation-palette.css', 'scratchpad.js', 'scratchpad.css',
     'genreator.js', 'genreator.css', 'genre-presets.json', 'ai-patch-direction.js', 'ai-song-parts.js', 'ai-patch-direction.css', 'ai-patch-controls.json',
     'k-multitrack.js', 'k-multitrack-host.js', 'k-multitrack.css', 'k-track-meters.js', 'k-track-dsp.js',
     'loop-card-fx.js', 'loop-card-fx-host.js', 'loop-card-fx.css', 'pan-centre-gesture.js', 'eq-automation.js', 'eq-automation-worklet.js',

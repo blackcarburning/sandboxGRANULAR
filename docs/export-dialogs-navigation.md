@@ -107,3 +107,10 @@ Older helper versions still need the already-released full 0.1.5 installation.
 No audio, patch/Song format, source PCM, render identity or installer changes.
 Regression: `tests/midi-save-dialog-browser.cjs` uses synthetic MIDI endpoints
 and real UI controls, asserting byte-exact SMF downloads in Chromium/WebKit.
+
+## Scratchpad (2026-11-25)
+
+Scratchpad and Scratch Browser form the first left/right action pair in Jump at
+all widths. They are excluded from the existing eight priority-width buttons so
+the existing desktop grid layout remains intact. Hidden action targets use the
+normal Jump dispatch; no new card or native prompt/confirm. See scratchpad.md.

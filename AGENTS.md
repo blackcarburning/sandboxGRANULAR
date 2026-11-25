@@ -1039,3 +1039,13 @@ accent; vertical gestures scroll. Preserve recipes/source PCM and shared history
 Copy Sec, drum snapshots, all saved formats and native/server/offline playback.
 No-pan legacy content identity stays exact; audible saved pan requires selective
 drumPanVersion 1 on Song render GET/POST. See docs/drum-machine-layout.md.
+
+## Scratchpad ideas (Mark, 2026-11-25)
+
+Keep Scratchpad and Scratch Browser first in Jump; no card and no browser-only
+folder state in saved patches. Always pair the ordinary WAV render with a frozen
+editable source ZIP/original sounds in one account-private atomic save. Never
+silently omit its patch. The separate store has no item/folder count or aggregate
+quota; do not inherit Parts Bin/Loop Store limits. Preserve preview, rename, move,
+confirmed revision-checked Delete, account-switch clearing and CEF-safe HTML
+dialogs. Metadata edits must not rewrite either asset. See docs/scratchpad.md.

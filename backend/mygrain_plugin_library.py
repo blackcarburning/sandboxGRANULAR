@@ -5,6 +5,8 @@ libraries or ordinary Song/source format. SQLite owns each bin's bytes atomicall
 auto-vacuum reclaims deleted snapshots without orphaned asset files.
 """
 import datetime
+import importlib.util
+import pathlib
 import io
 import hashlib
 import json
@@ -17,6 +19,10 @@ import time
 import wave
 import zipfile
 from urllib.parse import parse_qs, urlparse
+
+_scratchpad_spec = importlib.util.spec_from_file_location('mygrain_scratchpad', pathlib.Path(__file__).with_name('mygrain_scratchpad.py'))
+SCRATCHPAD = importlib.util.module_from_spec(_scratchpad_spec)
+_scratchpad_spec.loader.exec_module(SCRATCHPAD)
 
 # No independent per-bin byte cap: a bin shares the existing account quota.
 MAX_BINS = 16
@@ -235,6 +241,8 @@ def pack_bin(parts):
 
 
 def handle(handler, method, inner, accounts, user, checked_path, validate_part):
+    if inner == '/api/plugin-library/scratchpad' or inner.startswith('/api/plugin-library/scratchpad/'):
+        return SCRATCHPAD.handle(handler, method, inner, accounts, user, checked_path, validate_part)
     try:
         if inner == '/api/audio-telemetry':
             return handler.send_json(telemetry(handler, accounts, user, checked_path), status=201, extra_headers=PRIVATE)
