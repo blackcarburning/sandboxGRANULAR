@@ -1,6 +1,7 @@
 #include <future>
 #include "server.h"
 #include <array>
+#include <charconv>
 #include <cctype>
 #include <stdexcept>
 #include <chrono>
@@ -105,6 +106,9 @@ std::string clockMessage(Engine& e) {
       <<",\"stickyArm\":true,\"browserReady\":"<<(e.browserReady.load()?"true":"false")<<",\"continuousLive\":true,\"selectRendered\":true,\"timelineJumps\":"<<e.timelineJumps.load()<<",\"cycleWraps\":"<<e.cycleWraps.load()<<",\"cycleActive\":"<<(e.hostCycleActive.load()?"true":"false")
       <<",\"cycleStart\":"<<e.hostCycleStart.load()<<",\"cycleEnd\":"<<e.hostCycleEnd.load()<<"}";
     auto text=o.str();
+#if defined(MYGRAIN_CEF) && !defined(MYGRAIN_FX)
+    text.insert(text.size()-1,",\"cardMidiOut\":1,\"cicadaMidiOut\":1");
+#endif
     if(e.fx){text.pop_back();std::ostringstream extra;extra<<",\"fx\":true,\"latencySamples\":"<<e.fx->latency(e.sampleRate.load())<<",\"latencyMs\":1000,\"mix\":"<<e.fx->mix.load()<<",\"bypass\":"<<(e.fx->bypass.load()?"true":"false")<<",\"inputPeakLeft\":"<<e.fx->inputLeft.load()<<",\"inputPeakRight\":"<<e.fx->inputRight.load()<<",\"lateReturns\":"<<e.fx->late.load()<<",\"missingBlocks\":"<<e.fx->missing.load()<<",\"inputDrops\":"<<e.fx->inputDrops.load()<<"}";text+=extra.str();}
     return text;
 }
@@ -235,6 +239,32 @@ void Server::loop() {
             for(size_t i=0;i<payload.size();++i)payload[i]^=char(mask[i%4]);
             if(opcode==9){live=sendFrame(client,10,std::string(payload.begin(),payload.end()));continue;}if(opcode==10)continue;
             if(opcode==1){const std::string cmd(payload.begin(),payload.end());
+#if defined(MYGRAIN_CEF) && !defined(MYGRAIN_FX)
+                if(cmd.size()==13&&cmd.rfind("midi-cancel:",0)==0&&cmd.back()>='0'&&cmd.back()<='3'){
+                    engine.midiOut.cancel(unsigned(cmd.back()-'0'));continue;
+                }
+                const bool expression=cmd.rfind("expr:",0)==0;
+                if(expression||cmd.rfind("midi:",0)==0){
+                    std::array<uint64_t,6> fields{};
+                    const char* cursor=cmd.data()+5;const char* last=cmd.data()+cmd.size();
+                    bool valid=cmd.size()<100;
+                    for(size_t index=0;valid&&index<fields.size();++index){
+                        const auto parsed=std::from_chars(cursor,last,fields[index]);
+                        valid=parsed.ec==std::errc{}&&(index+1==fields.size()?parsed.ptr==last:parsed.ptr!=last&&*parsed.ptr==':');
+                        if(valid)cursor=parsed.ptr+(index+1<fields.size());
+                    }
+                    const auto [epoch,lane,pitch,velocity,frame,end]=fields;
+                    if(!valid||epoch>UINT32_MAX||lane>3)break;
+                    if(expression?(lane!=3||!((pitch>=1&&pitch<=119)||pitch==129)||velocity>(pitch==129?16383u:127u)||end!=frame):
+                                  (pitch>127||velocity<1||velocity>127||end<=frame))break;
+                    const auto nowFrame=engine.clock.load();const auto rate=uint64_t(engine.sampleRate.load());
+                    const auto target=engine.target.load();
+                    if(epoch==engine.generation.load()&&target&&frame>=target&&engine.playing.load()&&
+                       frame<=nowFrame+rate*4&&end-frame<=rate*64)
+                        engine.midiOut.push(uint32_t(epoch),unsigned(lane),unsigned(pitch),expression?0u:unsigned(velocity),frame,end,expression?uint16_t(velocity+1):0);
+                    continue;
+                }
+#endif
                 if(cmd.rfind("companion-state:",0)==0){
                     if(cmd.size()>2300)break;std::string data=cmd.substr(16);std::array<uint64_t,14> fields{};bool valid=true;
                     for(auto& value:fields){auto end=data.find(':');if(end==std::string::npos||!end||end>16){valid=false;break;}auto n=data.substr(0,end);if(!std::all_of(n.begin(),n.end(),[](unsigned char c){return std::isdigit(c);})){valid=false;break;}value=std::stoull(n);data.erase(0,end+1);}

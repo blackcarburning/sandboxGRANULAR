@@ -8,6 +8,7 @@
 #include "project.h"
 #include "remote.h"
 #include "fx.h"
+#include "midi-out.h"
 #include <memory>
 
 namespace mygrain {
@@ -59,6 +60,7 @@ public:
     std::unique_ptr<FxTransport> fx;
     explicit Engine(bool effect=false){if(effect)fx=std::make_unique<FxTransport>();}
     AudioRing ring;
+    MidiOut midiOut;
     PreparedBank prepared;
     ProjectStore project;
     RemoteControl remote;

@@ -8,6 +8,7 @@
 #include "pluginterfaces/vst/ivstprocesscontext.h"
 #include "pluginterfaces/vst/vstspeaker.h"
 #include "pluginterfaces/vst/ivstparameterchanges.h"
+#include "pluginterfaces/vst/ivstevents.h"
 #include <memory>
 #include <cstring>
 #include <sstream>
@@ -133,6 +134,9 @@ public:
         if(isFx){addAudioInput(STR16("DAW stereo input"),SpeakerArr::kStereo);parameters.addParameter(STR16("Bypass"),nullptr,1,0,ParameterInfo::kCanAutomate|ParameterInfo::kIsBypass,100);}
         addAudioOutput(STR16("MYGRAIN stereo"),SpeakerArr::kStereo);
         if(!isFx)addEventInput(STR16("MIDI"));
+#if defined(MYGRAIN_CEF) && !defined(MYGRAIN_FX)
+        addEventOutput(STR16("MYGRAIN MIDI Out"),16);
+#endif
         return kResultOk;
     }
     tresult PLUGIN_API terminate() override {
@@ -225,6 +229,9 @@ public:
         if(isFx&&data.inputParameterChanges){for(int32 i=0;i<data.inputParameterChanges->getParameterCount();++i){auto* queue=data.inputParameterChanges->getParameterData(i);if(queue&&queue->getParameterId()==100){int32 offset;ParamValue value;if(queue->getPoint(queue->getPointCount()-1,offset,value)==kResultTrue)engine.fx->bypass.store(value>=.5);}}}
         AudioBusBuffers* input=isFx&&data.numInputs>0&&data.inputs?&data.inputs[0]:nullptr;
         AudioBusBuffers* output=data.numOutputs>0&&data.outputs?&data.outputs[0]:nullptr;
+#if defined(MYGRAIN_CEF) && !defined(MYGRAIN_FX)
+        const auto midiClock=engine.clock.load(std::memory_order_relaxed);
+#endif
         if(data.symbolicSampleSize==kSample64){
             double* l=output&&output->numChannels>0?output->channelBuffers64[0]:nullptr;
             double* r=output&&output->numChannels>1?output->channelBuffers64[1]:nullptr;
@@ -240,6 +247,18 @@ public:
             if(auto* audio=embedded.audio.load(std::memory_order_acquire))previewReader.mix(*audio,l,r,data.numSamples,host.rate,host.offline||(isFx&&engine.fx->bypass.load()));
 #endif
         }
+#if defined(MYGRAIN_CEF) && !defined(MYGRAIN_FX)
+        const bool midiEnabled=host.playing&&!host.offline&&engine.target.load()&&engine.connected.load()&&engine.armed.load()&&!engine.preparedMode.load();
+        engine.midiOut.process(midiClock,std::max(0,data.numSamples),engine.generation.load(),midiEnabled,data.outputEvents!=nullptr,
+            [&](uint32_t offset,uint8_t lane,uint8_t pitch,uint8_t velocity,uint32_t id){
+                Event event{};event.busIndex=0;event.sampleOffset=int32(offset);
+                event.ppqPosition=host.ppq+offset*host.tempo/(60.*host.rate);
+                if(id&MidiOut::expressionFlag){event.type=Event::kLegacyMIDICCOutEvent;event.midiCCOut={pitch,int8(lane),int8(id&127u),int8((id>>7)&127u)};}
+                else if(velocity){event.type=Event::kNoteOnEvent;event.noteOn={int16(lane),int16(pitch),0.f,velocity/127.f,0,int32(id)};}
+                else{event.type=Event::kNoteOffEvent;event.noteOff={int16(lane),int16(pitch),0.f,int32(id),0.f};}
+                return data.outputEvents->addEvent(event)==kResultOk;
+            });
+#endif
         float leftPeak=0,rightPeak=0;
         if(output&&output->numChannels>0){
             for(int32 i=0;i<data.numSamples;++i){
@@ -275,7 +294,7 @@ BEGIN_FACTORY_DEF("MYGRAIN","https://openclaw.blackcarburning.com/mygrain/","mai
 #if defined(MYGRAIN_CEF) && defined(MYGRAIN_FX)
 DEF_CLASS2(INLINE_UID(0x2642d59b,0x6c824e31,0x9ade03f7,0xb8562c10),PClassInfo::kManyInstances,kVstAudioEffectClass,"MyGrain CEF FX",0,"Fx|Filter","0.1.2",kVstVersionString,mygrain::Bridge::create)
 #elif defined(MYGRAIN_CEF)
-DEF_CLASS2(INLINE_UID(0xa44b25e1,0x3de64853,0xa16cc639,0x21c9d4b2),PClassInfo::kManyInstances,kVstAudioEffectClass,"MyGrain CEF",0,"Instrument|Synth","0.1.5",kVstVersionString,mygrain::Bridge::create)
+DEF_CLASS2(INLINE_UID(0xa44b25e1,0x3de64853,0xa16cc639,0x21c9d4b2),PClassInfo::kManyInstances,kVstAudioEffectClass,"MyGrain CEF",0,"Instrument|Synth","0.1.7",kVstVersionString,mygrain::Bridge::create)
 #elif defined(MYGRAIN_FX)
 DEF_CLASS2(INLINE_UID(0x80192c74,0x1fca4fa0,0xa638de42,0xf66c7d18),PClassInfo::kManyInstances,kVstAudioEffectClass,"MYGRAIN FX",0,"Fx|Filter","0.4.0",kVstVersionString,mygrain::Bridge::create)
 #else

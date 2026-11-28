@@ -16,6 +16,7 @@
 #include <atomic>
 #include <chrono>
 #include <cmath>
+#include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <thread>
@@ -49,6 +50,11 @@ int main(int argc,char**argv){@autoreleasepool{
  IAudioProcessor* processor=nullptr;IEditController* controller=nullptr;
  if(component->queryInterface(IAudioProcessor::iid,(void**)&processor)!=kResultOk||component->queryInterface(IEditController::iid,(void**)&controller)!=kResultOk)return 8;
  const bool fx=component->getBusCount(kAudio,kInput)==1;
+ if(std::getenv("MYGRAIN_REQUIRE_MIDI_OUT")){
+  BusInfo output{};
+  if(fx||component->getBusCount(kEvent,kInput)!=1||component->getBusCount(kEvent,kOutput)!=1||component->getBusInfo(kEvent,kOutput,0,output)!=kResultOk||output.channelCount!=16||component->activateBus(kEvent,kOutput,0,true)!=kResultOk){std::cerr<<"CEF MIDI output bus missing or failed to activate\n";return 21;}
+  std::cout<<"PASS macOS VST3 host: 16-channel MIDI event output activates\n";
+ }
  if(argc>4){std::ifstream file(argv[4],std::ios::binary);std::vector<char> bytes((std::istreambuf_iterator<char>(file)),{});MemoryStream saved(bytes.data(),bytes.size());if(component->setState(&saved)!=kResultOk)return 20;}
  ProjectDirtyHandler projectDirty;controller->setComponentHandler(&projectDirty);
  ProcessSetup setup{};setup.processMode=kRealtime;setup.symbolicSampleSize=kSample32;setup.maxSamplesPerBlock=128;setup.sampleRate=48000;
