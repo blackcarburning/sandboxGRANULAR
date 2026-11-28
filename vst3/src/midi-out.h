@@ -28,6 +28,7 @@ class MidiOut {
     std::array<std::array<Item,128>,lanes> sounding{};
     std::array<Item,130> expressions{};
     std::array<std::atomic<unsigned>,4> lfoValues{};
+    unsigned lfoCursor=0;
     size_t count=0;
     uint32_t serial=0;
 
@@ -37,13 +38,6 @@ public:
     static constexpr uint32_t expressionFlag=0x80000000u;
     void setLfo(unsigned slot,unsigned value){if(slot<lfoValues.size()&&value<=128)lfoValues[slot].store(value);}
     void clearLfos(){for(auto& value:lfoValues)value.store(0);}
-    template<class Emit> void processLfos(bool enabled,bool hasOutput,Emit emit){
-        if(!enabled||!hasOutput)return;
-        for(unsigned slot=0;slot<lfoValues.size();++slot){
-            auto value=lfoValues[slot].load();
-            if(value&&emit(0,3,102+slot,0,expressionFlag|(value-1)))lfoValues[slot].compare_exchange_strong(value,0);
-        }
-    }
     void cancel(unsigned lane){revisions[lane].fetch_add(1,std::memory_order_acq_rel);}
     bool push(uint32_t epoch,unsigned lane,unsigned pitch,unsigned velocity,uint64_t frame,uint64_t end,uint16_t expression=0){
         const auto index=write.load(std::memory_order_relaxed);
@@ -94,6 +88,34 @@ public:
             note=item;pop();
             auto off=item;off.frame=item.end;off.velocity=0;add(off);
         }
+    }
+    template<class Emit> void processBlock(uint64_t now,uint32_t frames,uint32_t epoch,bool notesEnabled,bool lfosEnabled,bool hasOutput,Emit emit){
+        // Do not stack independent controllers at the same timestamp. Merge
+        // their latest values into the scheduled event order, reserving one
+        // sample per CC (also distinct from scheduled expression/reset CCs).
+        // Very small blocks and rejected events retain pending values; rotate
+        // the starting slot so a busy first LFO cannot starve its siblings.
+        const auto first=lfoCursor;
+        unsigned scanned=0;
+        uint32_t nextOffset=0;
+        auto flush=[&](uint32_t until){
+            if(!lfosEnabled||!hasOutput)return;
+            while(scanned<lfoValues.size()&&nextOffset<until){
+                const auto slot=(first+scanned++)%lfoValues.size();
+                auto value=lfoValues[slot].load();
+                if(!value)continue;
+                if(emit(nextOffset,slot,102+slot,0,expressionFlag|(value-1)))
+                    lfoValues[slot].compare_exchange_strong(value,0);
+                ++nextOffset;lfoCursor=unsigned((slot+1)%lfoValues.size());
+            }
+        };
+        process(now,frames,epoch,notesEnabled,hasOutput,[&](uint32_t offset,unsigned lane,unsigned pitch,unsigned velocity,uint32_t id){
+            flush(offset);
+            const bool accepted=emit(offset,lane,pitch,velocity,id);
+            if(id&expressionFlag)nextOffset=std::max(nextOffset,offset+1);
+            return accepted;
+        });
+        flush(frames);
     }
 };
 }

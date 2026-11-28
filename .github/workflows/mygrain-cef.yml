@@ -2,7 +2,7 @@ name: MyGrain CEF preview
 on:
   workflow_dispatch:
   push:
-    branches: [mygrain-cef-midi-20261123, mygrain-cef-cicada-lfo-018]
+    branches: [mygrain-cef-midi-20261123, mygrain-cef-cicada-lfo-018, mygrain-cef-cicada-cc-0110]
     paths: ['vst3/**', '.github/workflows/mygrain-cef.yml']
 permissions:
   contents: read
@@ -33,7 +33,7 @@ jobs:
           $cef = (Get-ChildItem "$env:RUNNER_TEMP/cef-sdk" -Directory | Select-Object -First 1).FullName
           cmake -S vst3 -B "$env:RUNNER_TEMP/plugin" -A x64 "-DVST3_SDK_ROOT=$env:RUNNER_TEMP/vst3sdk" -DMYGRAIN_BUILD_CEF=ON -DMYGRAIN_BUILD_VALIDATOR=ON -DSMTG_USE_STATIC_CRT=ON -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          cmake --build "$env:RUNNER_TEMP/plugin" --config Release --target MyGrainCEF cef-preview-test cef-windows-host validator moduleinfotool -j 3
+          cmake --build "$env:RUNNER_TEMP/plugin" --config Release --target MyGrainCEF card-midi-test bridge-core-test bridge-transport-test bridge-companion-test cef-preview-test cef-windows-host validator moduleinfotool -j 3
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           cmake -S vst3/cef -B "$env:RUNNER_TEMP/helper" -A x64 "-DCEF_ROOT=$cef" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
           cmake --build "$env:RUNNER_TEMP/helper" --config Release -j 3
@@ -42,6 +42,10 @@ jobs:
       - name: Validate and exercise real CEF and project auto-save
         shell: pwsh
         run: |
+          foreach ($test in @('card-midi-test','bridge-core-test','bridge-transport-test','bridge-companion-test')) {
+            & "$env:RUNNER_TEMP/plugin/Release/$test.exe"
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          }
           & "$env:RUNNER_TEMP/plugin/Release/cef-preview-test.exe"
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           $bundle = "$env:RUNNER_TEMP/release/MyGrain CEF.vst3"
@@ -55,31 +59,33 @@ jobs:
           $env:MYGRAIN_CEF_APP_PATH = "$env:RUNNER_TEMP/test-app"
           node vst3/cef/worklet_test.cjs
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $env:MYGRAIN_CEF_CC_TEST = "1"
           node vst3/cef/tests.cjs "$hostExe" "$bundle/Contents/x86_64-win/MyGrain CEF.vst3" "$env:RUNNER_TEMP/release/evidence"
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           @"
-          MyGrain CEF 0.1.6 preview - Windows x64
+          MyGrain CEF 0.1.10 preview - Windows x64
           Source commit: $env:GITHUB_SHA
           Current hosted-app public fixture: v2026.11.12.LAYOUT.1 + CEF preview routing; isolated account routes, no production writes.
           SDK validator: 47 passed, 0 failed against the shipped native plugin.
-          Native Windows runner: CEF 156, focused Space passthrough to the host (VST3 and native fallback), Space preserved in editable text, native login typing via VST3 callbacks and window input, focus release, editing keys, remembered session across fresh helpers and logout, native filename/confirmation/cancel dialogs and real WAV/Loop Store export payloads, stopped/disarmed WAV/widget/inline previews at native DAW output, native PCM output, native toolbar auto-save toggle/interval/manual store/status/minimum width and unchanged skip, automatic patch storage with editor closed, UI dirty notification, store-before-reload, fresh-instance editable source/patch/preferences recall, clean unload.
+          Native Windows runner: 2800 CC regression blocks; packaged VST3 IEventList CC capture through real CEF and authenticated socket, four changing streams stopped/playing with notes and expression, independent disable, distinct timestamps; CEF 156, focused Space passthrough to the host (VST3 and native fallback), Space preserved in editable text, native login typing via VST3 callbacks and window input, focus release, editing keys, remembered session across fresh helpers and logout, native filename/confirmation/cancel dialogs and real WAV/Loop Store export payloads, stopped/disarmed WAV/widget/inline previews at native DAW output, native PCM output, native toolbar auto-save toggle/interval/manual store/status/minimum width and unchanged skip, automatic patch storage with editor closed, UI dirty notification, store-before-reload, fresh-instance editable source/patch/preferences recall, clean unload.
           Physical DAWs, driver/device recording alignment, performance under multiple plugin instances and international IME are not tested.
           Auto-store retains a completed plugin snapshot; the user must still save the DAW project normally.
           "@ | Set-Content "$env:RUNNER_TEMP/release/VERIFICATION.txt"
-          python vst3/cef/package.py --platform windows --bundle "$bundle" --sdk "$env:RUNNER_TEMP/vst3sdk" --verification "$env:RUNNER_TEMP/release/VERIFICATION.txt" --output "$env:RUNNER_TEMP/release/mygrain-cef-windows-0.1.6.zip"
+          python vst3/cef/package.py --platform windows --bundle "$bundle" --sdk "$env:RUNNER_TEMP/vst3sdk" --verification "$env:RUNNER_TEMP/release/VERIFICATION.txt" --output "$env:RUNNER_TEMP/release/mygrain-cef-windows-0.1.10.zip"
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: mygrain-cef-windows-preview
           path: |
-            ${{ runner.temp }}/release/mygrain-cef-windows-0.1.6.zip
+            ${{ runner.temp }}/release/mygrain-cef-windows-0.1.10.zip
             ${{ runner.temp }}/release/validator.txt
             ${{ runner.temp }}/release/VERIFICATION.txt
             ${{ runner.temp }}/release/evidence/
           compression-level: 0
           retention-days: 14
   macos-build:
+    if: github.ref_name != 'mygrain-cef-cicada-cc-0110'
     runs-on: macos-15
     timeout-minutes: 35
     steps:

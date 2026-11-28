@@ -13,6 +13,9 @@ const previewWav=wavFixture();
 async function until(fn,label,timeout=30000){const end=Date.now()+timeout;while(Date.now()<end){if(await fn())return;await delay(100);}throw Error('Timeout '+label);}
 const mime=p=>({'.html':'text/html','.js':'text/javascript','.cjs':'text/javascript','.json':'application/json','.css':'text/css','.wasm':'application/wasm','.png':'image/png','.webp':'image/webp','.wav':'audio/wav','.woff2':'font/woff2'}[path.extname(p)]||'application/octet-stream');
 async function fixture(context,auth={signedIn:true,posts:0}){
+ if(process.env.MYGRAIN_CEF_CC_TEST==='1')await context.addInitScript(()=>{
+  const Original=Worker;window.Worker=class extends Original{constructor(url,...args){super(url,...args);if(String(url).includes('daw-bridge-worker.js'))window.cefCcWireWorker=this;}};
+ });
  // Chromium AudioWorklet module fetches can bypass CDP request interception.
  // Pin the release module bytes in a same-origin blob instead of
  // accidentally executing the older production worklet during isolated tests.
@@ -55,6 +58,10 @@ for(const [type,Processor] of [['input',MygrainFxInput],['return',MygrainFxRetur
   if(n.startsWith('api/')){
    const body=n==='api/auth/session'?{ok:true,authenticated:auth.signedIn,user:auth.signedIn?{username:'cef-fixture'}:null}:{items:[],files:[],folders:[],songs:[],parts:[],presets:[],favourites:[],favorites:[],sources:[],libraries:[],jobs:[]};
    await route.fulfill({headers,contentType:'application/json',body:JSON.stringify(body)});return;
+  }
+  if(n==='daw-bridge-worker.js'&&process.env.MYGRAIN_CEF_CC_TEST==='1'){
+   const extra=`\nself.addEventListener('message',({data})=>{if(data.type==='testNativeCcWire'&&Array.isArray(data.commands)&&socket?.readyState===WebSocket.OPEN)for(const command of data.commands)if(/^(cicada-lfo|midi|expr|midi-cancel):[0-9:]+$/.test(command))socket.send(command);});`;
+   await route.fulfill({headers,contentType:'text/javascript',body:fs.readFileSync(path.join(app,n),'utf8')+extra});return;
   }
   const file=path.resolve(app,n);if(!file.startsWith(app+path.sep)||!fs.existsSync(file)||!fs.statSync(file).isFile()){await route.fulfill({status:404,headers,body:'Isolated fixture: missing asset'});return;}
   await route.fulfill({headers,contentType:mime(file),body:fx&&n==='daw-fx-worker.js'?fs.readFileSync(file,'utf8')+`\nself.addEventListener('message',({data})=>{if(data.type==='ports')for(const port of [data.input,data.returned])port.addEventListener('message',({data:d})=>{if(d.type==='testDiagnostic')postMessage(d);});});\n`:fs.readFileSync(file)});
@@ -184,7 +191,7 @@ async function verifySpaceRouting(p){
  fs.writeFileSync(path.join(out,'native-space-results.json'),JSON.stringify({focusedHostPassthrough:true,nativeFallback:true,textSpacesPreserved:true,noAppTransportOrButtonAction:true,noDuplicate:true,observations},null,2));
 }
 (async()=>{try{
- const p=await run();await verifySpaceRouting(p);if(fx){await require('./fx_tests.cjs')({p,run,close,command,acknowledged,toolbar,rms,delay,until,out,raw,control,loginPath});return;}await until(()=>fs.existsSync(loginPath),'remembered session persisted');assert(!fs.readFileSync(loginPath).includes(Buffer.from('Aa7!@-z')),'never store the account password');command('stop');const diag=()=>p.evaluate(()=>mygrainDawBridge.diagnostics());
+ const p=await run();if(process.env.MYGRAIN_CEF_CC_TEST==='1')await require('./cc_output_test.cjs')({p,command,until,delay,raw,out});await verifySpaceRouting(p);if(fx){await require('./fx_tests.cjs')({p,run,close,command,acknowledged,toolbar,rms,delay,until,out,raw,control,loginPath});return;}await until(()=>fs.existsSync(loginPath),'remembered session persisted');assert(!fs.readFileSync(loginPath).includes(Buffer.from('Aa7!@-z')),'never store the account password');command('stop');const diag=()=>p.evaluate(()=>mygrainDawBridge.diagnostics());
  const audit=async label=>{const value=await p.evaluate(async()=>{const a=audioContext.createAnalyser();a.fftSize=2048;finalAmplifierNode.connect(a);await new Promise(r=>setTimeout(r,150));const v=new Float32Array(2048);a.getFloatTimeDomainData(v);finalAmplifierNode.disconnect(a);return {audio:{state:audioContext.state,time:audioContext.currentTime,rate:audioContext.sampleRate,rms:Math.sqrt(v.reduce((sum,x)=>sum+x*x,0)/v.length)},visibility:document.visibilityState,bridge:mygrainDawBridge.diagnostics(),status:document.querySelector('#dawBridgeStatus')?.textContent};});value.nativeRms=rms();fs.writeFileSync(path.join(out,label+'.json'),JSON.stringify(value,null,2));};
 
  assert.equal((await diag()).project.auto.enabled,true);assert.equal((await diag()).project.auto.interval,60);

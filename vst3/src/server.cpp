@@ -107,7 +107,7 @@ std::string clockMessage(Engine& e) {
       <<",\"cycleStart\":"<<e.hostCycleStart.load()<<",\"cycleEnd\":"<<e.hostCycleEnd.load()<<"}";
     auto text=o.str();
 #if defined(MYGRAIN_CEF) && !defined(MYGRAIN_FX)
-    text.insert(text.size()-1,",\"cardMidiOut\":1,\"cicadaMidiOut\":1,\"cicadaLfoCc\":1");
+    text.insert(text.size()-1,",\"cardMidiOut\":1,\"cicadaMidiOut\":1,\"cicadaLfoCc\":1,\"cicadaLfoSplit\":1,\"cicadaLfoSerial\":1");
 #endif
     if(e.fx){text.pop_back();std::ostringstream extra;extra<<",\"fx\":true,\"latencySamples\":"<<e.fx->latency(e.sampleRate.load())<<",\"latencyMs\":1000,\"mix\":"<<e.fx->mix.load()<<",\"bypass\":"<<(e.fx->bypass.load()?"true":"false")<<",\"inputPeakLeft\":"<<e.fx->inputLeft.load()<<",\"inputPeakRight\":"<<e.fx->inputRight.load()<<",\"lateReturns\":"<<e.fx->late.load()<<",\"missingBlocks\":"<<e.fx->missing.load()<<",\"inputDrops\":"<<e.fx->inputDrops.load()<<"}";text+=extra.str();}
     return text;

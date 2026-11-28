@@ -11,6 +11,7 @@
 #include "pluginterfaces/vst/ivstprocesscontext.h"
 #include "pluginterfaces/gui/iplugview.h"
 #include "public.sdk/source/vst/hosting/hostclasses.h"
+#include "public.sdk/source/vst/hosting/eventlist.h"
 #include "public.sdk/source/common/memorystream.h"
 #include <windows.h>
 #include <atomic>
@@ -54,6 +55,11 @@ int main(int argc,char**argv){
  auto* factory=get();PClassInfo info{};if(factory->getClassInfo(0,&info)!=kResultOk)return 5;
  IComponent* component=nullptr;if(factory->createInstance(info.cid,IComponent::iid,(void**)&component)!=kResultOk)return 6;
  HostApplication host;if(component->initialize(&host)!=kResultOk)return 7;
+#if defined(MYGRAIN_CEF_HOST) && !defined(MYGRAIN_CEF_FX_HOST)
+ BusInfo midiBus{};
+ if(component->getBusCount(kEvent,kOutput)!=1||component->getBusInfo(kEvent,kOutput,0,midiBus)!=kResultOk||midiBus.channelCount!=16||component->activateBus(kEvent,kOutput,0,true)!=kResultOk)return 26;
+ std::cout<<"MIDI_OUTPUT_BUS=16"<<std::endl;
+#endif
  IAudioProcessor* processor=nullptr;IEditController* controller=nullptr;
  if(component->queryInterface(IAudioProcessor::iid,(void**)&processor)!=kResultOk||component->queryInterface(IEditController::iid,(void**)&controller)!=kResultOk)return 8;
  if(argc>4){std::ifstream file(argv[4],std::ios::binary);std::vector<char> bytes((std::istreambuf_iterator<char>(file)),{});MemoryStream saved(bytes.data(),bytes.size());if(component->setState(&saved)!=kResultOk)return 20;}
@@ -100,6 +106,10 @@ int main(int argc,char**argv){
   float il[128]{},ir[128]{};float* ins[]{il,ir};AudioBusBuffers input{};input.numChannels=2;input.channelBuffers32=ins;data.numInputs=1;data.inputs=&input;
   ParameterChanges changes(1);
 #endif
+#if defined(MYGRAIN_CEF_HOST) && !defined(MYGRAIN_CEF_FX_HOST)
+  EventList midiEvents(4096);data.outputEvents=&midiEvents;
+  std::ofstream midiTrace(std::string(argv[2])+".midi.csv");midiTrace<<"block,offset,type,channel,key,value\n";
+#endif
   auto next=std::chrono::steady_clock::now();int64_t project=0;std::vector<char> priorArmedState;
   while(running){
    if(saveProject.exchange(false)){
@@ -140,7 +150,23 @@ int main(int argc,char**argv){
    for(int i=0;i<128;++i){const double t=(blocks.load()*128+i)/48000.;il[i]=float(.1*std::sin(2*3.141592653589793*173*t));ir[i]=float(.08*std::sin(2*3.141592653589793*317*t));}
    input.silenceFlags=silentInput?3:0;changes.clearQueue();int32 param=0,point=0;auto* q=changes.addParameterData(100,param);q->addPoint(0,bypass?1:0,point);data.inputParameterChanges=&changes;
 #endif
+#if defined(MYGRAIN_CEF_HOST) && !defined(MYGRAIN_CEF_FX_HOST)
+   midiEvents.clear();
+#endif
    if(processor->process(data)!=kResultOk){std::cerr<<"Process failed"<<std::endl;running=false;break;}
+#if defined(MYGRAIN_CEF_HOST) && !defined(MYGRAIN_CEF_FX_HOST)
+   int32 lastMidiOffset=-1;
+   for(int32 i=0;i<midiEvents.getEventCount();++i){
+    Event event{};if(midiEvents.getEvent(i,event)!=kResultOk||event.sampleOffset<lastMidiOffset||event.sampleOffset>=data.numSamples){std::cerr<<"Unordered MIDI output"<<std::endl;running=false;break;}lastMidiOffset=event.sampleOffset;
+    midiTrace<<blocks.load()<<","<<event.sampleOffset<<","<<event.type<<",";
+    if(event.type==Event::kLegacyMIDICCOutEvent)midiTrace<<int(event.midiCCOut.channel)<<","<<int(event.midiCCOut.controlNumber)<<","<<int(event.midiCCOut.value)+(int(event.midiCCOut.value2)<<7);
+    else if(event.type==Event::kNoteOnEvent)midiTrace<<event.noteOn.channel<<","<<event.noteOn.pitch<<","<<event.noteOn.velocity;
+    else if(event.type==Event::kNoteOffEvent)midiTrace<<event.noteOff.channel<<","<<event.noteOff.pitch<<",0";
+    else midiTrace<<"-1,-1,0";
+    midiTrace<<"\n";
+   }
+   midiTrace.flush();
+#endif
    positions<<blocks*128<<","<<project<<","<<context.projectTimeMusic<<","<<playNow<<","<<offlineNow<<","<<cycleNow<<",128\n";
    for(int i=0;i<128;++i){file.write((char*)&l[i],4);file.write((char*)&r[i],4);}
    if(playNow){project+=128;if(cycleNow&&project>=96000)project%=96000;}blocks++;next+=std::chrono::nanoseconds(2666667);std::this_thread::sleep_until(next);
