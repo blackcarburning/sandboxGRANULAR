@@ -197,8 +197,9 @@ function events(state,from,to){
             const stepIndex=wrap(local,lane.length),patternIndex=calm?index:stepIndex;
             const mods=noteModulation(state,modulation(state,baseBeat,lane)),day=sunlight(state,baseBeat,mods);
             const activity=.18+.82*(laneIndex?1-day:day);
-            // Crazy repeats its explicit chance/rest pattern; day/night changes dynamics, not note admission.
-            if(random(calm?state.seed:0,patternIndex,laneIndex)>=clamp(step.chance/100+(mods.chance||0),0,1)*(calm?activity:1))continue;
+            // Both modes repeat explicit chance/rest settings. Day/night is a
+            // dynamics contour, never an invisible probability gate at 100%.
+            if(random(calm?state.seed:0,stepIndex,laneIndex)>=step.chance/100)continue;
             const pitchOffset=state.keyOverride?.enabled?0:state.transpose+step.octave*12+Math.round((mods.pitch||0)*24);
             const inversion=integer(lane.inversion+(mods.inversion||0)*4,-6,6);
             const octaves=integer(lane.octaves+(mods.octaves||0)*3,1,4);
