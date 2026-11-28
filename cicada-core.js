@@ -297,6 +297,7 @@ function dawTimelineEvents(state,timeline,from,to){
     return output;
 }
 function dawCycle(info,previous){
+    if(info.hostPosition===null)return previous;
     // Native clock is the completed block frontier; PPQ belongs to block START.
     // Only the coherent pair describes a musical sample position.
     info=info.hostPosition??info;
@@ -346,6 +347,7 @@ function midiScheduler(initial,origin,send,cancel){
     return {
         update(value,excluded=[]){state=value;suppressed=new Set(excluded);reset();},
         tick(info){
+            if(info.hostPosition===null)return;
             const nextCycle=dawCycle(info,cycle),nextTimeline=dawTimeline(info,timeline,origin);
             if(!nextTimeline)return;
             if(nextCycle!==cycle||nextTimeline!==timeline&&timeline)reset();

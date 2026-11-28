@@ -112,7 +112,7 @@ std::string clockMessage(Engine& e) {
           <<",\"tempo\":"<<position.tempo<<",\"ppq\":"<<position.ppq<<",\"musical\":"<<(position.musical?"true":"false")
           <<",\"cycleActive\":"<<(position.cycleActive?"true":"false")<<",\"cycleStart\":"<<position.cycleStart<<",\"cycleEnd\":"<<position.cycleEnd<<"}";
         text.insert(text.size()-1,p.str());
-    }
+    }else text.insert(text.size()-1,",\"hostPosition\":null");
 #if defined(MYGRAIN_CEF) && !defined(MYGRAIN_FX)
     text.insert(text.size()-1,",\"cardMidiOut\":1,\"cicadaMidiOut\":1,\"cicadaLfoCc\":1,\"cicadaLfoSplit\":1,\"cicadaLfoSerial\":1");
 #endif
