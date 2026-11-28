@@ -93,6 +93,7 @@ std::string field(const std::string& headers, std::string name) {
     }return {};
 }
 std::string clockMessage(Engine& e) {
+    HostPosition position;const bool havePosition=e.hostPosition.read(position);
     std::ostringstream o;o<<std::setprecision(15)<<"{\"type\":\"clock\",\"protocol\":2,\"clock\":"<<e.clock.load()<<",\"rate\":"<<e.sampleRate.load()
       <<",\"epoch\":"<<e.generation.load()<<",\"target\":"<<e.target.load()<<",\"playing\":"<<(e.playing.load()?"true":"false")
       <<",\"active\":"<<(e.active.load()?"true":"false")<<",\"armed\":"<<(e.armed.load()?"true":"false")<<",\"running\":"<<(e.running.load()?"true":"false")
@@ -106,6 +107,12 @@ std::string clockMessage(Engine& e) {
       <<",\"stickyArm\":true,\"browserReady\":"<<(e.browserReady.load()?"true":"false")<<",\"continuousLive\":true,\"selectRendered\":true,\"timelineJumps\":"<<e.timelineJumps.load()<<",\"cycleWraps\":"<<e.cycleWraps.load()<<",\"cycleActive\":"<<(e.hostCycleActive.load()?"true":"false")
       <<",\"cycleStart\":"<<e.hostCycleStart.load()<<",\"cycleEnd\":"<<e.hostCycleEnd.load()<<"}";
     auto text=o.str();
+    if(havePosition){
+        std::ostringstream p;p<<std::setprecision(17)<<",\"hostPosition\":{\"clock\":"<<position.frame<<",\"rate\":"<<position.rate
+          <<",\"tempo\":"<<position.tempo<<",\"ppq\":"<<position.ppq<<",\"musical\":"<<(position.musical?"true":"false")
+          <<",\"cycleActive\":"<<(position.cycleActive?"true":"false")<<",\"cycleStart\":"<<position.cycleStart<<",\"cycleEnd\":"<<position.cycleEnd<<"}";
+        text.insert(text.size()-1,p.str());
+    }
 #if defined(MYGRAIN_CEF) && !defined(MYGRAIN_FX)
     text.insert(text.size()-1,",\"cardMidiOut\":1,\"cicadaMidiOut\":1,\"cicadaLfoCc\":1,\"cicadaLfoSplit\":1,\"cicadaLfoSerial\":1");
 #endif

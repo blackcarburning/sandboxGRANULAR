@@ -70,5 +70,13 @@ int main(){
  std::thread producer([&]{for(uint32_t i=1;i<=5000;++i){std::vector<float> data(256*2,float(i));while(!bank.publish(std::move(data),48000,4,120,i))std::this_thread::yield();accepted++;}finished=true;});
  int adopted=0;while(!finished||adopted<accepted){if(bank.adopt())adopted++;if(bank.valid()){float a,b;bank.sample(.134,a,b);assert(a==b&&a==float(bank.revision()));}else std::this_thread::yield();}
  producer.join();assert(adopted==5000);
- std::cout<<"PASS live continuity with/without cycle metadata, continuous seeks, retained rendered selection, prepared first sample, nonzero/in-block cycles, seek/tempo, stop/resume, offline, RT allocation guard, 5000 concurrent slot replacements\n";
+ // Every socket observation must pair PPQ with its own block-start frame,
+ // even while block sizes and all position fields change on the audio thread.
+ HostPositionClock positions;std::atomic<bool> positionDone{false};
+ std::thread positionWriter([&]{for(uint64_t i=1;i<=200000;++i)positions.publish({i*64,48000.,120.,double(i),double(i)+1,double(i)+5,bool(i&1),bool(i&2)});positionDone=true;});
+ unsigned snapshots=0;do {HostPosition p;if(positions.read(p)){const auto i=p.frame/64;assert(p.frame%64==0&&p.ppq==double(i)&&p.cycleStart==double(i)+1&&p.cycleEnd==double(i)+5&&p.musical==bool(i&1)&&p.cycleActive==bool(i&2));++snapshots;}}while(!positionDone);
+ positionWriter.join();assert(snapshots);
+ Engine paired;HostBlock positionBlock;positionBlock.ppq=3.75;
+ block(paired,l,r,128,positionBlock);HostPosition observed;assert(paired.hostPosition.read(observed)&&observed.frame==0&&observed.ppq==3.75&&paired.clock==128);
+ std::cout<<"PASS live continuity with/without cycle metadata, continuous seeks, retained rendered selection, prepared first sample, nonzero/in-block cycles, seek/tempo, stop/resume, offline, RT allocation guard, 5000 concurrent slot replacements, 200000 coherent host-position publications\n";
 }

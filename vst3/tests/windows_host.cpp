@@ -168,6 +168,7 @@ int main(int argc,char**argv){
    midiTrace.flush();
 #endif
    positions<<blocks*128<<","<<project<<","<<context.projectTimeMusic<<","<<playNow<<","<<offlineNow<<","<<cycleNow<<",128\n";
+   if(blocks%375==0)positions.flush();
    for(int i=0;i<128;++i){file.write((char*)&l[i],4);file.write((char*)&r[i],4);}
    if(playNow){project+=128;if(cycleNow&&project>=96000)project%=96000;}blocks++;next+=std::chrono::nanoseconds(2666667);std::this_thread::sleep_until(next);
   }

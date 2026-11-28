@@ -9,6 +9,7 @@
 #include "remote.h"
 #include "fx.h"
 #include "midi-out.h"
+#include "host-position.h"
 #include <memory>
 
 namespace mygrain {
@@ -61,6 +62,7 @@ public:
     explicit Engine(bool effect=false){if(effect)fx=std::make_unique<FxTransport>();}
     AudioRing ring;
     MidiOut midiOut;
+    HostPositionClock hostPosition;
     PreparedBank prepared;
     ProjectStore project;
     RemoteControl remote;
@@ -107,6 +109,7 @@ public:
         playing.store(h.playing); musicalValid.store(h.musicalValid);hostTimingValid.store(h.timingValid);offline.store(h.offline);
         hostCycleActive.store(h.cycleActive&&h.cycleValid);hostCycleStart.store(h.cycleStart);hostCycleEnd.store(h.cycleEnd);
         const auto now=clock.load(std::memory_order_relaxed);
+        hostPosition.publish({now,h.rate,h.tempo,h.ppq,h.cycleStart,h.cycleEnd,h.musicalValid,h.cycleActive&&h.cycleValid});
         const auto cmd=command.exchange(0);
         if(fx){
             const bool available=connected.load()&&browserReady.load()&&!project.recallPending.load()&&armed.load()&&!h.offline&&active.load();
