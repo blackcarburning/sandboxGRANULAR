@@ -26,9 +26,12 @@ Live MIDI output: enable MIDI Out on L (1), X (2), Q (3), or The Cicada (4).
 Use Live mode; arm MYGRAIN, start DAW playback, and route MYGRAIN MIDI Out
 to your receiving track. The Cicada sends notes, modulation and pitch bend.
 
-Cicada LFO MIDI Learn: enable one Transmit CC switch at a time (CC 102–105,
-channel 4). No transport playback is required if your DAW keeps processing
-the VST3 and routes its MIDI output to the receiving track.
+Cicada LFO CC output: LFO 1 = channel 1 / CC 102, LFO 2 = channel 2 / CC 103,
+LFO 3 = channel 3 / CC 104, LFO 4 = channel 4 / CC 105. Notes stay on channel 4.
+Set the receiving Cubase track to Any to preserve these channels. For MIDI Learn,
+enable only the intended Transmit CC switch until that mapping is complete.
+No transport playback is required if the DAW keeps processing the VST3 and routes
+its MIDI output to the receiving track.
 
 Add MyGrain CEF as an INSTRUMENT, open its window and sign in. The app is
 embedded; no external Chrome window or connection-code copying is needed.
