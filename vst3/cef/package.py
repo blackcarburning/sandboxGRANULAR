@@ -3,7 +3,7 @@
 import argparse,hashlib,json,pathlib,zipfile,stat
 p=argparse.ArgumentParser();p.add_argument('--bundle',type=pathlib.Path,required=True);p.add_argument('--platform',choices=['windows','macos'],required=True);p.add_argument('--verification',type=pathlib.Path,required=True);p.add_argument('--sdk',type=pathlib.Path,required=True);p.add_argument('--output',type=pathlib.Path,required=True);p.add_argument('--fx',action='store_true');a=p.parse_args()
 name='MyGrain CEF FX' if a.fx else 'MyGrain CEF'
-version='0.1.2' if a.fx else '0.1.7'
+version='0.1.2' if a.fx else '0.1.8'
 cid='2642D59B6C824E319ADE03F7B8562C10' if a.fx else 'A44B25E13DE64853A16CC63921C9D4B2'
 source=pathlib.Path(__file__).parent;app=source.parents[1];assert a.bundle.name==name+'.vst3'
 info=json.loads((a.bundle/'Contents/Resources/moduleinfo.json').read_text());assert info['Version']==version and info['Classes'][0]['CID']==cid
@@ -20,11 +20,15 @@ else:
  assert files[name+'.vst3/Contents/MacOS/'+name][:4]==b'\xca\xfe\xba\xbe'
  files['Install '+name+'.command']=(source/'Install-MyGrain-CEF.command').read_text().replace('MyGrain CEF',name).encode();modes['Install '+name+'.command']=0o755
  install='macOS 13+. Close the DAW. From the extracted folder run ./"Install MyGrain CEF.command" (or bash "./Install MyGrain CEF.command"). Installs only this plugin in your user VST3 folder. Ad-hoc signed, not Developer-ID signed/notarized.'
-files['README-FIRST.txt']=('''MyGrain CEF 0.1.7 preview - '''+a.platform+'''\n\n'''+install+'''
+files['README-FIRST.txt']=('''MyGrain CEF 0.1.8 preview - '''+a.platform+'''\n\n'''+install+'''
 
 Live MIDI output: enable MIDI Out on L (1), X (2), Q (3), or The Cicada (4).
 Use Live mode; arm MYGRAIN, start DAW playback, and route MYGRAIN MIDI Out
 to your receiving track. The Cicada sends notes, modulation and pitch bend.
+
+Cicada LFO MIDI Learn: enable one Transmit CC switch at a time (CC 102–105,
+channel 4). No transport playback is required if your DAW keeps processing
+the VST3 and routes its MIDI output to the receiving track.
 
 Add MyGrain CEF as an INSTRUMENT, open its window and sign in. The app is
 embedded; no external Chrome window or connection-code copying is needed.

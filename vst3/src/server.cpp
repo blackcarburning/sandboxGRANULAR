@@ -107,7 +107,7 @@ std::string clockMessage(Engine& e) {
       <<",\"cycleStart\":"<<e.hostCycleStart.load()<<",\"cycleEnd\":"<<e.hostCycleEnd.load()<<"}";
     auto text=o.str();
 #if defined(MYGRAIN_CEF) && !defined(MYGRAIN_FX)
-    text.insert(text.size()-1,",\"cardMidiOut\":1,\"cicadaMidiOut\":1");
+    text.insert(text.size()-1,",\"cardMidiOut\":1,\"cicadaMidiOut\":1,\"cicadaLfoCc\":1");
 #endif
     if(e.fx){text.pop_back();std::ostringstream extra;extra<<",\"fx\":true,\"latencySamples\":"<<e.fx->latency(e.sampleRate.load())<<",\"latencyMs\":1000,\"mix\":"<<e.fx->mix.load()<<",\"bypass\":"<<(e.fx->bypass.load()?"true":"false")<<",\"inputPeakLeft\":"<<e.fx->inputLeft.load()<<",\"inputPeakRight\":"<<e.fx->inputRight.load()<<",\"lateReturns\":"<<e.fx->late.load()<<",\"missingBlocks\":"<<e.fx->missing.load()<<",\"inputDrops\":"<<e.fx->inputDrops.load()<<"}";text+=extra.str();}
     return text;
@@ -240,6 +240,13 @@ void Server::loop() {
             if(opcode==9){live=sendFrame(client,10,std::string(payload.begin(),payload.end()));continue;}if(opcode==10)continue;
             if(opcode==1){const std::string cmd(payload.begin(),payload.end());
 #if defined(MYGRAIN_CEF) && !defined(MYGRAIN_FX)
+                if(cmd.rfind("cicada-lfo:",0)==0){
+                    if(cmd.size()<14||cmd.size()>16||cmd[11]<'0'||cmd[11]>'3'||cmd[12]!=':')break;
+                    unsigned value=0;
+                    const auto parsed=std::from_chars(cmd.data()+13,cmd.data()+cmd.size(),value);
+                    if(parsed.ec!=std::errc{}||parsed.ptr!=cmd.data()+cmd.size()||value>128)break;
+                    engine.midiOut.setLfo(unsigned(cmd[11]-'0'),value);continue;
+                }
                 if(cmd.size()==13&&cmd.rfind("midi-cancel:",0)==0&&cmd.back()>='0'&&cmd.back()<='3'){
                     engine.midiOut.cancel(unsigned(cmd.back()-'0'));continue;
                 }
@@ -366,7 +373,11 @@ void Server::loop() {
             else engine.received.fetch_add(frames);
         }
         }catch(const std::exception&){ /* Retain the committed snapshot on allocation/parse failure. */ }
-        engine.browserReady.store(false);engine.connected.store(false);engine.requestPause();engine.remote.disconnect();closeSocket(client);
+        engine.browserReady.store(false);engine.connected.store(false);engine.requestPause();engine.remote.disconnect();
+#if defined(MYGRAIN_CEF) && !defined(MYGRAIN_FX)
+        engine.midiOut.clearLfos();
+#endif
+        closeSocket(client);
     }
     closeSocket(listener);boundPort.store(0);
 

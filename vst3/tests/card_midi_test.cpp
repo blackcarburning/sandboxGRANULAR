@@ -50,5 +50,16 @@ int main(){
     assert((expression==decltype(expression){{4,129,0,12500},{4,1,0,127},{4,70,99,0}}));
     expression.clear();midi.cancel(3);midi.process(272,16,6,true,true,capture);
     assert((expression==decltype(expression){{0,70,0,0},{0,1,0,0},{0,129,0,8192}}));
+    expression.clear();
+    midi.setLfo(0,1);midi.setLfo(1,128);midi.setLfo(2,65);midi.setLfo(3,33);
+    midi.processLfos(false,true,capture);
+    midi.processLfos(true,false,capture);
+    assert(expression.empty());
+    midi.processLfos(true,true,[](unsigned,unsigned,unsigned,unsigned,unsigned){return false;});
+    midi.setLfo(2,0);
+    midi.processLfos(true,true,capture);
+    assert((expression==decltype(expression){{0,102,0,0},{0,103,0,127},{0,105,0,32}}));
+    expression.clear();midi.setLfo(3,64);midi.clearLfos();midi.processLfos(true,true,capture);
+    assert(expression.empty());
     std::cout<<"PASS card MIDI: three channels, chords, exact offsets, retrigger order, cancellation, epoch reset, failed note-off retry and expired-note rejection\n";
 }

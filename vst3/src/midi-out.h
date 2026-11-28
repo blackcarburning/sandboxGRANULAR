@@ -27,6 +27,7 @@ class MidiOut {
     std::array<std::atomic<uint32_t>,lanes> revisions{};
     std::array<std::array<Item,128>,lanes> sounding{};
     std::array<Item,130> expressions{};
+    std::array<std::atomic<unsigned>,4> lfoValues{};
     size_t count=0;
     uint32_t serial=0;
 
@@ -34,6 +35,15 @@ class MidiOut {
     void pop(){std::pop_heap(pending.begin(),pending.begin()+count,Earlier{});--count;}
 public:
     static constexpr uint32_t expressionFlag=0x80000000u;
+    void setLfo(unsigned slot,unsigned value){if(slot<lfoValues.size()&&value<=128)lfoValues[slot].store(value);}
+    void clearLfos(){for(auto& value:lfoValues)value.store(0);}
+    template<class Emit> void processLfos(bool enabled,bool hasOutput,Emit emit){
+        if(!enabled||!hasOutput)return;
+        for(unsigned slot=0;slot<lfoValues.size();++slot){
+            auto value=lfoValues[slot].load();
+            if(value&&emit(0,3,102+slot,0,expressionFlag|(value-1)))lfoValues[slot].compare_exchange_strong(value,0);
+        }
+    }
     void cancel(unsigned lane){revisions[lane].fetch_add(1,std::memory_order_acq_rel);}
     bool push(uint32_t epoch,unsigned lane,unsigned pitch,unsigned velocity,uint64_t frame,uint64_t end,uint16_t expression=0){
         const auto index=write.load(std::memory_order_relaxed);

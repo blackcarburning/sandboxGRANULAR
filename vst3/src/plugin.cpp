@@ -249,15 +249,16 @@ public:
         }
 #if defined(MYGRAIN_CEF) && !defined(MYGRAIN_FX)
         const bool midiEnabled=host.playing&&!host.offline&&engine.target.load()&&engine.connected.load()&&engine.armed.load()&&!engine.preparedMode.load();
-        engine.midiOut.process(midiClock,std::max(0,data.numSamples),engine.generation.load(),midiEnabled,data.outputEvents!=nullptr,
-            [&](uint32_t offset,uint8_t lane,uint8_t pitch,uint8_t velocity,uint32_t id){
+        const auto emitMidi=[&](uint32_t offset,uint8_t lane,uint8_t pitch,uint8_t velocity,uint32_t id){
                 Event event{};event.busIndex=0;event.sampleOffset=int32(offset);
                 event.ppqPosition=host.ppq+offset*host.tempo/(60.*host.rate);
                 if(id&MidiOut::expressionFlag){event.type=Event::kLegacyMIDICCOutEvent;event.midiCCOut={pitch,int8(lane),int8(id&127u),int8((id>>7)&127u)};}
                 else if(velocity){event.type=Event::kNoteOnEvent;event.noteOn={int16(lane),int16(pitch),0.f,velocity/127.f,0,int32(id)};}
                 else{event.type=Event::kNoteOffEvent;event.noteOff={int16(lane),int16(pitch),0.f,int32(id),0.f};}
                 return data.outputEvents->addEvent(event)==kResultOk;
-            });
+            };
+        engine.midiOut.process(midiClock,std::max(0,data.numSamples),engine.generation.load(),midiEnabled,data.outputEvents!=nullptr,emitMidi);
+        engine.midiOut.processLfos(!host.offline&&engine.connected.load(),data.numSamples>0&&data.outputEvents!=nullptr,emitMidi);
 #endif
         float leftPeak=0,rightPeak=0;
         if(output&&output->numChannels>0){
@@ -294,7 +295,7 @@ BEGIN_FACTORY_DEF("MYGRAIN","https://openclaw.blackcarburning.com/mygrain/","mai
 #if defined(MYGRAIN_CEF) && defined(MYGRAIN_FX)
 DEF_CLASS2(INLINE_UID(0x2642d59b,0x6c824e31,0x9ade03f7,0xb8562c10),PClassInfo::kManyInstances,kVstAudioEffectClass,"MyGrain CEF FX",0,"Fx|Filter","0.1.2",kVstVersionString,mygrain::Bridge::create)
 #elif defined(MYGRAIN_CEF)
-DEF_CLASS2(INLINE_UID(0xa44b25e1,0x3de64853,0xa16cc639,0x21c9d4b2),PClassInfo::kManyInstances,kVstAudioEffectClass,"MyGrain CEF",0,"Instrument|Synth","0.1.7",kVstVersionString,mygrain::Bridge::create)
+DEF_CLASS2(INLINE_UID(0xa44b25e1,0x3de64853,0xa16cc639,0x21c9d4b2),PClassInfo::kManyInstances,kVstAudioEffectClass,"MyGrain CEF",0,"Instrument|Synth","0.1.8",kVstVersionString,mygrain::Bridge::create)
 #elif defined(MYGRAIN_FX)
 DEF_CLASS2(INLINE_UID(0x80192c74,0x1fca4fa0,0xa638de42,0xf66c7d18),PClassInfo::kManyInstances,kVstAudioEffectClass,"MYGRAIN FX",0,"Fx|Filter","0.4.0",kVstVersionString,mygrain::Bridge::create)
 #else
